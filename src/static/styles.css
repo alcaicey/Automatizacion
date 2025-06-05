@@ -1,0 +1,82 @@
+/* Estilos personalizados para la aplicación */
+
+/* Estilos generales */
+body {
+    background-color: #f8f9fa;
+}
+
+/* Estilos para la tabla */
+.table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+/* Estilos para variaciones positivas y negativas */
+.variation-positive {
+    color: #198754;
+}
+
+.variation-negative {
+    color: #dc3545;
+}
+
+/* Iconos de flechas para variaciones */
+.arrow-up {
+    color: #198754;
+}
+
+.arrow-down {
+    color: #dc3545;
+}
+
+/* Overlay de carga mejorado */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.loading-content {
+    text-align: center;
+    padding: 20px;
+    border-radius: 10px;
+    background-color: rgba(0, 0, 0, 0.5);
+    max-width: 90%;
+}
+
+/* Animación para actualización de datos */
+@keyframes highlight {
+    0% {
+        background-color: rgba(255, 255, 0, 0.3);
+    }
+    100% {
+        background-color: transparent;
+    }
+}
+
+.highlight-update {
+    animation: highlight 2s ease-out;
+}
+
+/* Mejoras para dispositivos móviles */
+@media (max-width: 767.98px) {
+    .table-responsive {
+        max-height: 70vh;
+    }
+    
+    .card-header h1 {
+        font-size: 1.5rem;
+    }
+    
+    .loading-content {
+        width: 90%;
+    }
+}

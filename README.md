@@ -1,0 +1,167 @@
+# Documentación de la Aplicación de Filtro de Acciones
+
+## Descripción General
+
+Esta aplicación web permite filtrar y visualizar datos de acciones de la Bolsa de Santiago en tiempo real. La aplicación utiliza un script de scraping existente para obtener los datos más recientes, y proporciona una interfaz intuitiva para filtrar y visualizar la información.
+
+## Características Principales
+
+1. **Interfaz de Usuario Responsiva**:
+   - Diseño adaptable para dispositivos móviles y escritorio
+   - Campos para ingresar hasta 5 códigos de acciones
+   - Tabla de resultados con indicadores visuales
+
+2. **Filtrado de Acciones**:
+   - Búsqueda por códigos de acciones (nemos)
+   - Persistencia de búsquedas anteriores
+   - Botones para filtrar y limpiar campos
+
+3. **Actualización de Datos**:
+   - Actualización manual mediante botón (ejecuta directamente bolsa_santiago_bot.py)
+   - Indicador de progreso durante la generación del JSON (hasta 20 segundos)
+   - Actualización automática configurable (1-3 o 1-5 minutos)
+   - Indicador de próxima actualización y timestamp del último archivo JSON
+
+4. **Visualización de Datos**:
+   - Tabla con columnas para Acción, Precio, Variación, Compra, Venta, Monto, Moneda y Volumen
+   - Indicadores visuales (flechas y colores) para variaciones positivas y negativas
+   - Animación de actualización para cambios en los datos
+
+## Estructura del Proyecto
+
+```
+bolsa_app/
+├── venv/                  # Entorno virtual de Python
+├── src/
+│   ├── models/            # Modelos de datos (no utilizados en esta versión)
+│   ├── routes/            # Rutas de la API
+│   │   └── api.py         # Endpoints de la API
+│   ├── scripts/           # Scripts de servicio
+│   │   ├── __init__.py
+│   │   └── bolsa_service.py  # Servicio para gestionar datos de acciones
+│   ├── static/            # Archivos estáticos
+│   │   ├── index.html     # Página principal
+│   │   ├── styles.css     # Estilos CSS
+│   │   └── app.js         # Lógica de frontend
+│   └── main.py            # Punto de entrada de la aplicación
+└── requirements.txt       # Dependencias de Python
+```
+
+## Configuración Personalizada
+
+Esta aplicación está configurada para trabajar con los siguientes directorios personalizados:
+
+- **Scripts de scraping**: `C:\Users\alcai\Desktop\Acciones\Automatizacion\bolsa_santiago_bot.py`
+- **Archivos JSON generados**: `C:\Users\alcai\Desktop\Acciones\Automatizacion\logs_bolsa\acciones-precios-plus_*.json`
+
+La aplicación siempre selecciona el archivo JSON más reciente basándose en la fecha de modificación y muestra el timestamp extraído del nombre del archivo en la interfaz.
+
+## Estructura del JSON
+
+La aplicación está configurada para trabajar con la estructura específica del JSON generado por el script:
+
+```json
+{
+  "listaResult": [
+    {
+      "NEMO": "AAISA",
+      "PRECIO_CIERRE": 220,
+      "VARIACION": 0.18,
+      "PRECIO_COMPRA": 220,
+      "PRECIO_VENTA": 221,
+      "MONTO": 2203979,
+      "MONEDA": "CLP",
+      "UN_TRANSADAS": 10041
+    },
+    ...
+  ]
+}
+```
+
+La aplicación normaliza automáticamente los nombres de los campos para mantener la consistencia en la interfaz de usuario.
+
+## Requisitos
+
+- Python 3.11 o superior
+- Navegador web moderno (Chrome, Firefox, Edge, Safari)
+- Conexión a Internet
+- Scripts bolsa_santiago_bot.py y har_analyzer.py en la ubicación especificada
+
+## Instalación y Ejecución
+
+1. **Preparación del entorno**:
+   ```bash
+   # Descomprimir el archivo
+   cd bolsa_app
+   
+   # Crear y activar entorno virtual
+   python -m venv venv
+   # En Windows:
+   venv\Scripts\activate
+   # En Linux/Mac:
+   source venv/bin/activate
+   
+   # Instalar dependencias
+   pip install -r requirements.txt
+   ```
+
+2. **Ejecución de la aplicación**:
+   ```bash
+   # Desde el directorio raíz del proyecto
+   cd bolsa_app
+   # En Windows:
+   venv\Scripts\activate
+   # En Linux/Mac:
+   source venv/bin/activate
+   
+   python src/main.py
+   ```
+
+3. **Acceso a la aplicación**:
+   - Abrir un navegador web
+   - Acceder a `http://localhost:5000`
+
+## Uso de la Aplicación
+
+1. **Filtrar Acciones**:
+   - Ingresar hasta 5 códigos de acciones en los campos de texto
+   - Hacer clic en "Filtrar" para mostrar los resultados
+   - Los códigos se guardan automáticamente para futuras sesiones
+
+2. **Actualización de Datos**:
+   - Hacer clic en "Actualizar" para ejecutar el script bolsa_santiago_bot.py y obtener datos recientes
+   - Durante la actualización se muestra un indicador de progreso (puede tardar hasta 20 segundos)
+   - Seleccionar un modo de actualización automática en el desplegable:
+     - Desactivado: Sin actualización automática
+     - Random 1-3 minutos: Actualización aleatoria entre 1 y 3 minutos
+     - Random 1-5 minutos: Actualización aleatoria entre 1 y 5 minutos
+
+3. **Visualización de Resultados**:
+   - La tabla muestra los datos de las acciones filtradas
+   - Las variaciones positivas se muestran en verde con flecha hacia arriba
+   - Las variaciones negativas se muestran en rojo con flecha hacia abajo
+   - El timestamp de la última actualización se muestra en la parte superior de la tabla
+
+## Notas Técnicas
+
+- La aplicación utiliza Flask como backend y JavaScript puro para el frontend
+- El scraping se realiza mediante el script bolsa_santiago_bot.py existente
+- Los datos se leen directamente desde los archivos JSON generados en la ubicación especificada
+- La actualización automática se gestiona tanto en el servidor como en el cliente
+- La aplicación detecta automáticamente la estructura del JSON y normaliza los campos
+
+## Solución de Problemas
+
+- **Error de acceso a archivos**: Verificar que las rutas configuradas en bolsa_service.py sean correctas
+- **Datos no actualizados**: Hacer clic en "Actualizar" para ejecutar manualmente el script de scraping
+- **Errores de scraping**: Revisar los logs generados por el script bolsa_santiago_bot.py
+
+## Personalización Adicional
+
+Si necesitas cambiar las rutas de los archivos, puedes modificar las siguientes variables en el archivo `src/scripts/bolsa_service.py`:
+
+```python
+# Configuración de rutas personalizadas para Windows
+SCRIPTS_DIR = r"C:\Users\alcai\Desktop\Acciones\Automatizacion"
+LOGS_DIR = os.path.join(SCRIPTS_DIR, "logs_bolsa")
+```
