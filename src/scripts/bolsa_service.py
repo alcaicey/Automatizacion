@@ -10,14 +10,14 @@ import glob
 import random  # Asegurarse de que random esté importado
 import sys
 
-from src.config import SCRIPTS_DIR, LOGS_DIR, BASE_DIR
+from src.config import SCRIPTS_DIR, LOGS_DIR, BASE_DIR, PROJECT_SRC_DIR
 
 # Rutas de trabajo obtenidas desde el módulo de configuración
 # Configuración de logging para este script de servicio/orquestador
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 # Crear directorio de logs para este script si no existe (diferente al de bolsa_santiago_bot.py)
-service_log_dir = os.path.join(SCRIPTS_DIR, "service_logs")
+service_log_dir = os.path.join(PROJECT_SRC_DIR, 'service_logs')
 os.makedirs(service_log_dir, exist_ok=True)
 service_log_file = os.path.join(service_log_dir, "bolsa_service.log")
 
