@@ -1,0 +1,62 @@
+[INFO] 2025-06-06 15:01:45,760 - Logging configurado. Log: C:\Users\alcai\source\repos\alcaicey\Automatizacion\src\logs_bolsa\bolsa_bot_log_20250606_150145.txt, HAR: C:\Users\alcai\source\repos\alcaicey\Automatizacion\src\logs_bolsa\network_capture.har, Datos: C:\Users\alcai\source\repos\alcaicey\Automatizacion\src\logs_bolsa\acciones-precios-plus_20250606_150145.json
+[INFO] 2025-06-06 15:01:45,761 - --- Iniciando Intento de Automatización #1 ---
+[INFO] 2025-06-06 15:01:48,611 - Grabando tráfico de red en: C:\Users\alcai\source\repos\alcaicey\Automatizacion\src\logs_bolsa\network_capture.har
+[INFO] 2025-06-06 15:01:49,497 - Paso 1: Navegando a la página que requiere login: https://www.bolsadesantiago.com/plus_acciones_precios
+[INFO] 2025-06-06 15:01:50,798 - Paso 1: URL actual después de goto inicial: https://sso.bolsadesantiago.com/realms/Web_Publico/protocol/openid-connect/auth?approval_prompt=force&client_id=oauth2-proxy&redirect_uri=https%3A%2F%2Fwww.bolsadesantiago.com%2Foauth2%2Fcallback&response_type=code&scope=openid+email+profile&state=CEs3BAEQNC7fjgM5097oeQnrM_f_gVi4Fp8C_sx8lk8%3A%2Fplus_acciones_precios
+[INFO] 2025-06-06 15:01:50,798 - Paso 2: Esperando por la página de login de SSO (si fuimos redirigidos)...
+[INFO] 2025-06-06 15:01:50,897 - Paso 2: Página de login de SSO cargada.
+[INFO] 2025-06-06 15:01:50,897 - Paso 3: Ingresando usuario: alcaicey@gmail.com
+[INFO] 2025-06-06 15:01:51,189 - Paso 3: Ingresando contraseña...
+[INFO] 2025-06-06 15:01:51,488 - Paso 3: Credenciales ingresadas.
+[INFO] 2025-06-06 15:01:51,488 - Paso 4: Haciendo clic en el botón de Iniciar Sesión...
+[INFO] 2025-06-06 15:01:52,327 - Paso 5: Esperando redirección post-login a www.bolsadesantiago.com...
+[INFO] 2025-06-06 15:01:54,259 - JS CONSOLE (info): GB Chat UID 
+[INFO] 2025-06-06 15:01:54,261 - JS CONSOLE (info): GB Chat UID NEW 68433b22780473a984541de8
+[INFO] 2025-06-06 15:01:54,261 - JS CONSOLE (info): GB: onStart
+[INFO] 2025-06-06 15:01:54,262 - JS CONSOLE (info): GB:  Channel check
+[INFO] 2025-06-06 15:01:54,280 - JS CONSOLE (warning): Modal "hubspot-modal" has scrollable flag set to true but height is not "auto" (75%)
+[INFO] 2025-06-06 15:01:55,921 - JS CONSOLE (log): 
+[INFO] 2025-06-06 15:01:56,562 - JS CONSOLE (log): Connectig messaging system
+[INFO] 2025-06-06 15:01:56,872 - JS CONSOLE (error): Refused to connect to 'https://stats.g.doubleclick.net/g/collect?v=2&tid=G-Y647MRPM4Z&cid=1909142316.1749236516&gtm=45je5641v9126163136za200&aip=1&dma=0&gcd=13l3l3l3l2l1&npa=0&frm=0&tag_exp=101509157~103116026~103200004~103233427~103351869~103351871~104617976~104617978~104653070~104653072~104661466~104661468~104698127~104698129' because it violates the following Content Security Policy directive: "connect-src 'self' securepubads.g.doubleclick.net fundingchoicesmessages.google.com ssoqa.bolsadesantiago.com sso.bolsadesantiago.com csi.gstatic.com analytics.google.com www.google-analytics.com pagead2.googlesyndication.com ib.adnxs.com ep1.adtrafficquality.google data: gap: wss: api-chatbot.gatblac.com".
+
+[INFO] 2025-06-06 15:01:57,145 - JS CONSOLE (error): Failed to load resource: the server responded with a status of 403 ()
+[INFO] 2025-06-06 15:01:57,149 - JS CONSOLE (error): Failed to load resource: the server responded with a status of 403 ()
+[INFO] 2025-06-06 15:01:57,497 - JS CONSOLE (error): Failed to load resource: the server responded with a status of 403 ()
+[INFO] 2025-06-06 15:01:57,528 - Paso 5: Redirección a www.bolsadesantiago.com exitosa. URL actual: https://www.bolsadesantiago.com/plus_acciones_precios
+[INFO] 2025-06-06 15:02:00,529 - Paso 7: Verificando si estamos en la página 'MIS CONEXIONES'...
+[INFO] 2025-06-06 15:02:00,543 - JS CONSOLE (error): Failed to load resource: the server responded with a status of 403 ()
+[INFO] 2025-06-06 15:02:00,544 - JS CONSOLE (error): Failed to load resource: the server responded with a status of 403 ()
+[INFO] 2025-06-06 15:02:00,545 - JS CONSOLE (log): Messaging system first-pass connection
+[INFO] 2025-06-06 15:02:00,546 - JS CONSOLE (error): Failed to load resource: the server responded with a status of 403 ()
+[INFO] 2025-06-06 15:02:00,547 - JS CONSOLE (error): Failed to load resource: the server responded with a status of 403 ()
+[INFO] 2025-06-06 15:02:00,549 - JS CONSOLE (log): User is authenticated
+[INFO] 2025-06-06 15:02:00,550 - JS CONSOLE (log): Allocated new connection
+[INFO] 2025-06-06 15:02:00,552 - JS CONSOLE (log): Suscribing to cl.bcs.queries.messages.dynamic.DynamicPrecioPremiumMessage
+[INFO] 2025-06-06 15:02:00,554 - JS CONSOLE (log): Suscribed to cl.bcs.queries.messages.dynamic.DynamicPrecioPremiumMessage
+[INFO] 2025-06-06 15:02:00,608 - Paso 7: No se detectó la página 'MIS CONEXIONES' (título no visible), continuando...
+[INFO] 2025-06-06 15:02:00,609 - Paso 8: Navegando a la página de destino para datos: https://www.bolsadesantiago.com/plus_acciones_precios
+[INFO] 2025-06-06 15:02:00,624 - Paso 8: Navegación inicial a https://www.bolsadesantiago.com/plus_acciones_precios (DOM cargado) completada.
+[INFO] 2025-06-06 15:02:00,625 - Paso 9: Forzando recarga de la página actual (https://www.bolsadesantiago.com/plus_acciones_precios) para asegurar carga de datos premium...
+[INFO] 2025-06-06 15:02:00,643 - JS CONSOLE (info): GB: close
+[INFO] 2025-06-06 15:02:00,881 - JS CONSOLE (log): Head Connectig messaging system
+[INFO] 2025-06-06 15:02:01,752 - JS CONSOLE (info): GB Chat UID 68433b22780473a984541de8
+[INFO] 2025-06-06 15:02:01,753 - JS CONSOLE (info): GB: onStart
+[INFO] 2025-06-06 15:02:01,754 - JS CONSOLE (info): GB:  Channel check
+[INFO] 2025-06-06 15:02:01,755 - JS CONSOLE (warning): Modal "hubspot-modal" has scrollable flag set to true but height is not "auto" (75%)
+[INFO] 2025-06-06 15:02:02,923 - JS CONSOLE (log): Connectig messaging system
+[INFO] 2025-06-06 15:02:03,046 - JS CONSOLE (log): 
+[INFO] 2025-06-06 15:02:03,572 - JS CONSOLE (log): paso por acá
+[INFO] 2025-06-06 15:02:03,639 - JS CONSOLE (log): Messaging system first-pass connection
+[INFO] 2025-06-06 15:02:03,805 - JS CONSOLE (log): User is authenticated
+[INFO] 2025-06-06 15:02:03,806 - JS CONSOLE (log): Allocated new connection
+[INFO] 2025-06-06 15:02:03,808 - JS CONSOLE (log): Suscribing to cl.bcs.queries.messages.dynamic.DynamicPrecioPremiumMessage
+[INFO] 2025-06-06 15:02:03,968 - JS CONSOLE (log): Suscribed to cl.bcs.queries.messages.dynamic.DynamicPrecioPremiumMessage
+[INFO] 2025-06-06 15:02:04,537 - JS CONSOLE (log): onMessage: [object Object]
+[INFO] 2025-06-06 15:02:04,539 - JS CONSOLE (log): {className: cl.bcs.queries.messages.dynamic.DynamicPrecioPremiumMessage, message: Array(37)}
+[INFO] 2025-06-06 15:02:05,718 - JS CONSOLE (log): Suscribing to cl.bcs.queries.messages.dynamic.DynamicAlertasMessage_alcaicey@gmail.com
+[INFO] 2025-06-06 15:02:05,802 - Paso 9: Página recargada (https://www.bolsadesantiago.com/plus_acciones_precios) y red en reposo.
+[INFO] 2025-06-06 15:02:05,802 - Paso 9b: Esperando 10 segundos adicionales para asegurar que todos los datos se carguen por XHR/WebSocket...
+[INFO] 2025-06-06 15:02:15,803 - Paso 10: El script ha completado la navegación y espera. Los datos de la API deberían estar en el HAR.
+[INFO] 2025-06-06 15:02:15,803 - Bloque Finally: Preparando análisis HAR y finalización...
+[ERROR] 2025-06-06 15:02:15,803 - El archivo HAR C:\Users\alcai\source\repos\alcaicey\Automatizacion\src\logs_bolsa\network_capture.har no fue creado o no se encontró, no se puede analizar.
+[INFO] 2025-06-06 15:02:15,804 - Proceso del script realmente finalizado.
