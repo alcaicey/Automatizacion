@@ -157,6 +157,7 @@ Antes de ejecutar la aplicación se deben definir las siguientes variables de en
 - Los datos se leen directamente desde los archivos JSON generados en la ubicación especificada
 - La actualización automática se gestiona tanto en el servidor como en el cliente
 - La aplicación detecta automáticamente la estructura del JSON y normaliza los campos
+- El analizador HAR también revisa la respuesta de `getEstadoSesionUsuario` y, si contiene fecha o duración de expiración, calcula el tiempo restante de la sesión.
 
 ## Solución de Problemas
 
