@@ -19,6 +19,9 @@ const stocksTable = document.getElementById('stocksTable');
 const loadingOverlay = document.getElementById('loadingOverlay');
 const loadingMessage = document.getElementById('loadingMessage');
 const nextUpdateInfo = document.getElementById('nextUpdateInfo');
+const sessionCountdown = document.getElementById('sessionCountdown');
+
+let sessionCountdownInterval = null;
 
 // Función para mostrar/ocultar el overlay de carga
 function toggleLoading(show, message = '') {
@@ -92,6 +95,7 @@ async function fetchAndDisplayStocks() {
         // Actualizar información de última actualización
         updateLastUpdateTime(data.timestamp);
         updateStatus(`Datos cargados correctamente. ${stockCodes.length > 0 ? `Mostrando ${data.count || 0} acción(es).` : 'Mostrando todas las acciones.'}`);
+        fetchSessionTime();
         
     } catch (error) {
         console.error('Error al obtener datos:', error);
@@ -327,6 +331,52 @@ function updateNextUpdateInfo() {
     }
 }
 
+// Función para iniciar el contador de sesión
+function startSessionCountdown(seconds) {
+    if (sessionCountdownInterval) {
+        clearInterval(sessionCountdownInterval);
+        sessionCountdownInterval = null;
+    }
+
+    let remaining = parseInt(seconds, 10);
+    if (isNaN(remaining) || remaining <= 0) {
+        sessionCountdown.textContent = '';
+        return;
+    }
+
+    function update() {
+        if (remaining <= 0) {
+            sessionCountdown.textContent = 'Sesión expirada';
+            clearInterval(sessionCountdownInterval);
+            sessionCountdownInterval = null;
+            return;
+        }
+
+        const m = Math.floor(remaining / 60);
+        const s = remaining % 60;
+        sessionCountdown.textContent = `Sesión expira en: ${m}m ${s}s`;
+        remaining -= 1;
+    }
+
+    update();
+    sessionCountdownInterval = setInterval(update, 1000);
+}
+
+// Función para obtener el tiempo restante de la sesión desde el servidor
+async function fetchSessionTime() {
+    try {
+        const response = await fetch('/api/session-time');
+        const data = await response.json();
+        if (data && data.remaining_seconds != null) {
+            startSessionCountdown(data.remaining_seconds);
+        } else {
+            sessionCountdown.textContent = '';
+        }
+    } catch (error) {
+        console.error('Error al obtener tiempo de sesión:', error);
+    }
+}
+
 // Función para guardar los códigos de acciones en localStorage
 function saveStockCodes() {
     const codes = Array.from(stockCodeInputs).map(input => input.value.trim());
@@ -350,6 +400,7 @@ function loadStockCodes() {
 document.addEventListener('DOMContentLoaded', () => {
     // Cargar códigos guardados
     loadStockCodes();
+    fetchSessionTime();
     
     // Configurar event listeners
     stockFilterForm.addEventListener('submit', async (e) => {
