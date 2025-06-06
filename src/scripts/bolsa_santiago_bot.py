@@ -227,12 +227,22 @@ def run_automation(logger_param, attempt=1, max_attempts=2):
 
         logger_param.info("Proceso del script realmente finalizado.")
         if not is_mis_conexiones_page or attempt >= max_attempts:
-            input(
-                "Presiona Enter para terminar el script (después del análisis HAR). El navegador permanecerá abierto." 
-            )
-            logger_param.info(
-                "El navegador no se cerrará automáticamente. Ciérrelo manualmente cuando ya no lo necesite."
-            )
+            try:
+                input(
+                    "Presiona Enter para terminar el script (después del análisis HAR). El navegador permanecerá abierto."
+                )
+                logger_param.info(
+                    "El navegador no se cerrará automáticamente. Ciérrelo manualmente cuando ya no lo necesite."
+                )
+            except EOFError:
+                logger_param.warning(
+                    "EOFError al esperar la confirmación del usuario. Manteniendo el navegador abierto indefinidamente."
+                )
+                logger_param.info(
+                    "El script está esperando indefinidamente a que el usuario cierre el navegador manualmente."
+                )
+                while True:
+                    time.sleep(60)
 
 
 if __name__ == "__main__":
