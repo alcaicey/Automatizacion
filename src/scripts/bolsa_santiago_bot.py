@@ -21,8 +21,8 @@ from src.config import (
     CERRAR_TODAS_SESIONES_SELECTOR,
 )
 
-# Importar la función de análisis del otro archivo
-from har_analyzer import analyze_har_and_extract_data
+# Importar la función de análisis ubicada en src.scripts
+from src.scripts.har_analyzer import analyze_har_and_extract_data
 
 # --- Configuración de Logging Global ---
 LOG_FILENAME = ""

@@ -85,7 +85,7 @@ La aplicación normaliza automáticamente los nombres de los campos para mantene
 - Python 3.11 o superior
 - Navegador web moderno (Chrome, Firefox, Edge, Safari)
 - Conexión a Internet
-- Scripts bolsa_santiago_bot.py y har_analyzer.py en la ubicación especificada
+- Scripts `bolsa_santiago_bot.py` y `har_analyzer.py` ubicados en `src/scripts`
 
 ## Variables de Entorno
 
