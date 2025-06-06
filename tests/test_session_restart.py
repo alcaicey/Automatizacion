@@ -81,7 +81,12 @@ def test_restart_after_closing_sessions(monkeypatch):
     monkeypatch.setattr(bot, "sync_playwright", lambda: dummy_playwright)
     monkeypatch.setattr(bot, "analyze_har_and_extract_data", lambda *a, **k: None)
     monkeypatch.setattr(bot, "configure_run_specific_logging", lambda *a, **k: None)
-    monkeypatch.setattr(builtins, "input", lambda *a, **k: "")
+    monkeypatch.setenv("BOLSA_NON_INTERACTIVE", "1")
+
+    def forbid_input(*args, **kwargs):
+        raise AssertionError("input should not be called")
+
+    monkeypatch.setattr(builtins, "input", forbid_input)
 
     logger = mock.Mock()
     bot.run_automation(logger, max_attempts=2)
@@ -92,6 +97,8 @@ def test_restart_after_closing_sessions(monkeypatch):
 
 def test_keep_browser_alive_on_eof(monkeypatch):
     attempt_ref = [0]
+
+    monkeypatch.delenv("BOLSA_NON_INTERACTIVE", raising=False)
 
     dummy_playwright = DummyPlaywright(attempt_ref)
     monkeypatch.setattr(bot, "sync_playwright", lambda: dummy_playwright)
