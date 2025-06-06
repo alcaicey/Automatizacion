@@ -5,6 +5,7 @@ import logging
 from datetime import datetime
 import os
 import random
+import argparse
 
 from src.config import (
     LOG_DIR,
@@ -21,8 +22,8 @@ from src.config import (
     CERRAR_TODAS_SESIONES_SELECTOR,
 )
 
-# Importar la función de análisis del otro archivo
-from har_analyzer import analyze_har_and_extract_data
+# Importar la función de análisis ubicada en src.scripts
+from src.scripts.har_analyzer import analyze_har_and_extract_data
 
 # --- Configuración de Logging Global ---
 LOG_FILENAME = ""
@@ -32,6 +33,9 @@ OUTPUT_ACCIONES_DATA_FILENAME = ""
 ANALYZED_SUMMARY_FILENAME = ""
 # Timestamp para nombrar archivos generados en cada ejecución
 TIMESTAMP_NOW = ""
+
+# Controla si el script se ejecuta en modo no interactivo
+NON_INTERACTIVE = os.getenv("BOLSA_NON_INTERACTIVE") == "1"
 
 logger_instance_global = logging.getLogger(__name__)
 # --- Fin Configuración de Logging ---
@@ -84,8 +88,11 @@ def handle_console_message(msg, logger_param):
         logger_param.info(f"JS CONSOLE ({msg.type}): {text}")
 
 
-def run_automation(logger_param, attempt=1, max_attempts=2):
-    current_har_filename = HAR_FILENAME 
+def run_automation(logger_param, attempt=1, max_attempts=2, *, non_interactive=None):
+    if non_interactive is None:
+        non_interactive = NON_INTERACTIVE or os.getenv("BOLSA_NON_INTERACTIVE") == "1"
+
+    current_har_filename = HAR_FILENAME
     current_output_acciones_data_filename = OUTPUT_ACCIONES_DATA_FILENAME
     current_analyzed_summary_filename = ANALYZED_SUMMARY_FILENAME
 
@@ -227,24 +234,43 @@ def run_automation(logger_param, attempt=1, max_attempts=2):
 
         logger_param.info("Proceso del script realmente finalizado.")
         if not is_mis_conexiones_page or attempt >= max_attempts:
-            try:
-                input(
-                    "Presiona Enter para terminar el script (después del análisis HAR). El navegador permanecerá abierto."
-                )
-                logger_param.info(
-                    "El navegador no se cerrará automáticamente. Ciérrelo manualmente cuando ya no lo necesite."
-                )
-            except EOFError:
-                logger_param.warning(
-                    "EOFError al esperar la confirmación del usuario. Manteniendo el navegador abierto indefinidamente."
-                )
-                logger_param.info(
-                    "El script está esperando indefinidamente a que el usuario cierre el navegador manualmente."
-                )
-                while True:
-                    time.sleep(60)
+            if non_interactive:
+                logger_param.info("Ejecución no interactiva: finalizando sin esperar entrada del usuario.")
+            else:
+                try:
+                    input(
+                        "Presiona Enter para terminar el script (después del análisis HAR). El navegador permanecerá abierto."
+                    )
+                    logger_param.info(
+                        "El navegador no se cerrará automáticamente. Ciérrelo manualmente cuando ya no lo necesite."
+                    )
+                except EOFError:
+                    logger_param.warning(
+                        "EOFError al esperar la confirmación del usuario. Manteniendo el navegador abierto indefinidamente."
+                    )
+                    logger_param.info(
+                        "El script está esperando indefinidamente a que el usuario cierre el navegador manualmente."
+                    )
+                    while True:
+                        time.sleep(60)
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Bolsa Santiago bot")
+    parser.add_argument(
+        "--non-interactive",
+        action="store_true",
+        help="No esperar confirmación del usuario al finalizar",
+    )
+    args = parser.parse_args(argv)
+
+    global NON_INTERACTIVE
+    if args.non_interactive:
+        NON_INTERACTIVE = True
+
+    configure_run_specific_logging(logger_instance_global)
+    run_automation(logger_instance_global, non_interactive=NON_INTERACTIVE)
 
 
 if __name__ == "__main__":
-    configure_run_specific_logging(logger_instance_global) 
-    run_automation(logger_instance_global)
+    main()
