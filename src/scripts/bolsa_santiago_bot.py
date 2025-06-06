@@ -201,45 +201,49 @@ def run_automation(logger_param, attempt=1, max_attempts=2):
         logger_param.exception("ERROR GENERAL:")
         if page and not page.is_closed(): page.screenshot(path=os.path.join(LOG_DIR,f"general_error_{TIMESTAMP_NOW}.png"))
     finally:
-        logger_param.info("Bloque Finally: Intentando cerrar contexto y navegador...")
-        
-        effective_har_filename = HAR_FILENAME 
+        logger_param.info("Bloque Finally: Preparando análisis HAR y finalización...")
+
+        effective_har_filename = HAR_FILENAME
         effective_output_acciones_data_filename = OUTPUT_ACCIONES_DATA_FILENAME
         effective_analyzed_summary_filename = ANALYZED_SUMMARY_FILENAME
 
-        if context:
-            try:
-                context.close() 
-                logger_param.info(f"Contexto cerrado. Archivo HAR debería estar guardado en: {effective_har_filename}")
-            except Exception as e_har:
-                logger_param.error(f"Error al cerrar el contexto (HAR podría no haberse guardado completamente): {e_har}")
-        else:
-            logger_param.warning("Contexto no fue inicializado o ya estaba cerrado.")
-
-        if browser and browser.is_connected():
-            try: browser.close()
-            except Exception as e_close_final: logger_param.warning(f"Error menor durante cierre final del navegador: {e_close_final}")
-        else: logger_param.warning("Navegador no fue inicializado o ya está cerrado.")
-        
-        if p_instance:
-            try: p_instance.stop()
-            except Exception as e_stop: logger_param.warning(f"Error al detener la instancia de Playwright: {e_stop}")
-
         if os.path.exists(effective_har_filename):
             analyze_har_and_extract_data(
-                effective_har_filename, 
-                API_PRIMARY_DATA_PATTERNS, 
-                URLS_TO_INSPECT_IN_HAR_FOR_CONTEXT, 
+                effective_har_filename,
+                API_PRIMARY_DATA_PATTERNS,
+                URLS_TO_INSPECT_IN_HAR_FOR_CONTEXT,
                 effective_output_acciones_data_filename,
                 effective_analyzed_summary_filename,
                 logger_param
             )
         else:
             logger_param.error(f"El archivo HAR {effective_har_filename} no fue creado o no se encontró, no se puede analizar.")
-        
+
         logger_param.info("Proceso del script realmente finalizado.")
         if not is_mis_conexiones_page or attempt >= max_attempts:
-             input("Presiona Enter para terminar el script (después del análisis HAR)...")
+            input("Presiona Enter para terminar el script (después del análisis HAR)...")
+            if context:
+                try:
+                    context.close()
+                    logger_param.info(f"Contexto cerrado. Archivo HAR debería estar guardado en: {effective_har_filename}")
+                except Exception as e_har:
+                    logger_param.error(f"Error al cerrar el contexto: {e_har}")
+            else:
+                logger_param.warning("Contexto no fue inicializado o ya estaba cerrado.")
+
+            if browser and browser.is_connected():
+                try:
+                    browser.close()
+                except Exception as e_close_final:
+                    logger_param.warning(f"Error menor durante cierre final del navegador: {e_close_final}")
+            else:
+                logger_param.warning("Navegador no fue inicializado o ya está cerrado.")
+
+            if p_instance:
+                try:
+                    p_instance.stop()
+                except Exception as e_stop:
+                    logger_param.warning(f"Error al detener la instancia de Playwright: {e_stop}")
 
 
 if __name__ == "__main__":
