@@ -89,3 +89,32 @@ def test_restart_after_closing_sessions(monkeypatch):
     # two attempts should have been performed: one for closing sessions and one for normal flow
     assert attempt_ref[0] == 2
 
+
+def test_keep_browser_alive_on_eof(monkeypatch):
+    attempt_ref = [0]
+
+    dummy_playwright = DummyPlaywright(attempt_ref)
+    monkeypatch.setattr(bot, "sync_playwright", lambda: dummy_playwright)
+    monkeypatch.setattr(bot, "analyze_har_and_extract_data", lambda *a, **k: None)
+    monkeypatch.setattr(bot, "configure_run_specific_logging", lambda *a, **k: None)
+
+    def raise_eof(*args, **kwargs):
+        raise EOFError()
+
+    monkeypatch.setattr(builtins, "input", raise_eof)
+
+    sleep_calls = []
+
+    def dummy_sleep(t):
+        sleep_calls.append(t)
+        if t == 60:
+            raise RuntimeError("loop started")
+
+    monkeypatch.setattr(bot.time, "sleep", dummy_sleep)
+
+    logger = mock.Mock()
+    with pytest.raises(RuntimeError, match="loop started"):
+        bot.run_automation(logger, max_attempts=1)
+
+    assert 60 in sleep_calls
+
