@@ -93,7 +93,7 @@ Antes de ejecutar la aplicación se deben definir las siguientes variables de en
 
 - **BOLSA_USERNAME** y **BOLSA_PASSWORD**: credenciales para iniciar sesión en el sitio de la Bolsa de Santiago.
 - **BOLSA_SCRIPTS_DIR**: (opcional) ruta al directorio que contiene `bolsa_santiago_bot.py`. Por defecto apunta a la carpeta `src/scripts` del proyecto.
-- **BOLSA_LOGS_DIR**: (opcional) directorio donde el bot almacenará sus logs y archivos JSON. Si no se especifica se utiliza `logs_bolsa` dentro de `BOLSA_SCRIPTS_DIR`.
+- **BOLSA_LOGS_DIR**: (opcional) directorio donde el bot almacenará sus logs y archivos JSON. Si no se especifica se utiliza `logs_bolsa` dentro de la carpeta `src` del proyecto.
 
 ## Instalación y Ejecución
 
