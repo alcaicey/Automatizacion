@@ -130,11 +130,15 @@ def run_bolsa_bot():
         # las importaciones relativas funcionen correctamente
         logger.info(
             f"Ejecutando: python -m {module_path} en el directorio {BASE_DIR}")
+        env = os.environ.copy()
+        env["BOLSA_NON_INTERACTIVE"] = "1"
+
         process = subprocess.run(
             [sys.executable, "-m", module_path],
             capture_output=True,  # Captura stdout y stderr
             text=True,
             cwd=BASE_DIR,  # Directorio de trabajo para el script
+            env=env,
             check=False  # No lanzar excepción si el script falla, lo manejamos con returncode
         )
         
