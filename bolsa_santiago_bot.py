@@ -24,8 +24,13 @@ logger_instance_global = logging.getLogger(__name__)
 INITIAL_PAGE_URL = "https://www.bolsadesantiago.com/plus_acciones_precios"
 TARGET_DATA_PAGE_URL = "https://www.bolsadesantiago.com/plus_acciones_precios"
 
-USERNAME = "alcaicey@gmail.com"
-PASSWORD = "Carlosirenee13#"
+USERNAME = os.environ.get("BOLSA_USERNAME")
+PASSWORD = os.environ.get("BOLSA_PASSWORD")
+
+if not USERNAME or not PASSWORD:
+    raise ValueError(
+        "Environment variables BOLSA_USERNAME and BOLSA_PASSWORD must be set"
+    )
 
 USERNAME_SELECTOR = "#username"
 PASSWORD_SELECTOR = "#password"

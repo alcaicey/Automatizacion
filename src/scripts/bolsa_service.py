@@ -9,9 +9,12 @@ import re
 import glob
 import random # Asegurarse de que random esté importado
 
-# Configuración de rutas personalizadas para Windows
-SCRIPTS_DIR = r"C:\Users\alcai\Desktop\Acciones\Automatizacion" # Directorio donde está bolsa_santiago_bot.py
-LOGS_DIR = os.path.join(SCRIPTS_DIR, "logs_bolsa") # Directorio donde bolsa_santiago_bot.py guarda sus logs y JSON
+# Configuración de rutas obtenidas desde variables de entorno
+SCRIPTS_DIR = os.environ.get("BOLSA_SCRIPTS_DIR")
+if not SCRIPTS_DIR:
+    raise ValueError("Environment variable BOLSA_SCRIPTS_DIR must be set")
+
+LOGS_DIR = os.environ.get("BOLSA_LOGS_DIR", os.path.join(SCRIPTS_DIR, "logs_bolsa"))
 
 # Configuración de logging para este script de servicio/orquestador
 logger = logging.getLogger(__name__)
