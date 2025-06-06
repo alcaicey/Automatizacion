@@ -6,47 +6,40 @@ from datetime import datetime
 import os
 import random
 
+from src.config import (
+    LOG_DIR,
+    INITIAL_PAGE_URL,
+    TARGET_DATA_PAGE_URL,
+    USERNAME,
+    PASSWORD,
+    USERNAME_SELECTOR,
+    PASSWORD_SELECTOR,
+    LOGIN_BUTTON_SELECTOR,
+    API_PRIMARY_DATA_PATTERNS,
+    URLS_TO_INSPECT_IN_HAR_FOR_CONTEXT,
+    MIS_CONEXIONES_TITLE_SELECTOR,
+    CERRAR_TODAS_SESIONES_SELECTOR,
+)
+
 # Importar la función de análisis del otro archivo
 from har_analyzer import analyze_har_and_extract_data
 
 # --- Configuración de Logging Global ---
-LOG_DIR = "logs_bolsa"
-os.makedirs(LOG_DIR, exist_ok=True)
-LOG_FILENAME = "" 
-HAR_FILENAME = "" 
-OUTPUT_ACCIONES_DATA_FILENAME = "" 
-ANALYZED_SUMMARY_FILENAME = "" 
+LOG_FILENAME = ""
+HAR_FILENAME = ""
+OUTPUT_ACCIONES_DATA_FILENAME = ""
+ANALYZED_SUMMARY_FILENAME = ""
 
 logger_instance_global = logging.getLogger(__name__)
 # --- Fin Configuración de Logging ---
 
 # --- CONFIGURACIÓN ---
-INITIAL_PAGE_URL = "https://www.bolsadesantiago.com/plus_acciones_precios"
-TARGET_DATA_PAGE_URL = "https://www.bolsadesantiago.com/plus_acciones_precios"
-
-USERNAME = os.environ.get("BOLSA_USERNAME")
-PASSWORD = os.environ.get("BOLSA_PASSWORD")
-
+# La mayoría de parámetros estáticos se obtienen desde src.config
+# Verificar que se hayan definido credenciales de acceso
 if not USERNAME or not PASSWORD:
     raise ValueError(
         "Environment variables BOLSA_USERNAME and BOLSA_PASSWORD must be set"
     )
-
-USERNAME_SELECTOR = "#username"
-PASSWORD_SELECTOR = "#password"
-LOGIN_BUTTON_SELECTOR = "#kc-login"
-
-API_PRIMARY_DATA_PATTERNS = [
-    "https://www.bolsadesantiago.com/api/RV_ResumenMercado/getAccionesPrecios",
-    "https://www.bolsadesantiago.com/api/Cuenta_Premium/getPremiumAccionesPrecios"
-]
-URLS_TO_INSPECT_IN_HAR_FOR_CONTEXT = [
-    "https://www.bolsadesantiago.com/api/Securities/csrfToken",
-    "https://www.bolsadesantiago.com/api/Comunes_User/getEstadoSesionUsuario",
-    "https://www.bolsadesantiago.com/api/Indices/getIndicesPremium"
-]
-MIS_CONEXIONES_TITLE_SELECTOR = "h1:has-text('MIS CONEXIONES')"
-CERRAR_TODAS_SESIONES_SELECTOR = "button:has-text('Cerrar sesión en todos los dispositivos')"
 # --- FIN DE LA CONFIGURACIÓN ---
 
 def configure_run_specific_logging(logger_to_configure):

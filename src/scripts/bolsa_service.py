@@ -7,15 +7,11 @@ from datetime import datetime
 import threading
 import re
 import glob
-import random # Asegurarse de que random esté importado
+import random  # Asegurarse de que random esté importado
 
-# Configuración de rutas obtenidas desde variables de entorno
-SCRIPTS_DIR = os.environ.get("BOLSA_SCRIPTS_DIR")
-if not SCRIPTS_DIR:
-    raise ValueError("Environment variable BOLSA_SCRIPTS_DIR must be set")
+from src.config import SCRIPTS_DIR, LOGS_DIR
 
-LOGS_DIR = os.environ.get("BOLSA_LOGS_DIR", os.path.join(SCRIPTS_DIR, "logs_bolsa"))
-
+# Rutas de trabajo obtenidas desde el módulo de configuración
 # Configuración de logging para este script de servicio/orquestador
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
