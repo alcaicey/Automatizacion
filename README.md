@@ -156,12 +156,16 @@ La aplicación normaliza automáticamente los nombres de los campos para mantene
 - **Datos no actualizados**: Hacer clic en "Actualizar" para ejecutar manualmente el script de scraping
 - **Errores de scraping**: Revisar los logs generados por el script bolsa_santiago_bot.py
 
-## Personalización Adicional
+## Personalización y variables de entorno
 
-Si necesitas cambiar las rutas de los archivos, puedes modificar las siguientes variables en el archivo `src/scripts/bolsa_service.py`:
+Para ejecutar los scripts se deben definir algunas variables de entorno:
 
-```python
-# Configuración de rutas personalizadas para Windows
-SCRIPTS_DIR = r"C:\Users\alcai\Desktop\Acciones\Automatizacion"
-LOGS_DIR = os.path.join(SCRIPTS_DIR, "logs_bolsa")
+- `BOLSA_USERNAME` y `BOLSA_PASSWORD`: credenciales de acceso a la Bolsa de Santiago.
+- `BOLSA_SCRIPTS_DIR` (opcional): ruta donde se ubican `bolsa_santiago_bot.py` y los logs. Por defecto se usa `src/scripts`.
+
+Ejemplo de configuración:
+```bash
+export BOLSA_USERNAME="usuario@example.com"
+export BOLSA_PASSWORD="tu-contraseña"
+# export BOLSA_SCRIPTS_DIR="/ruta/personalizada"  # opcional
 ```

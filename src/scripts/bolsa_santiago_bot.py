@@ -24,8 +24,8 @@ logger_instance_global = logging.getLogger(__name__)
 INITIAL_PAGE_URL = "https://www.bolsadesantiago.com/plus_acciones_precios"
 TARGET_DATA_PAGE_URL = "https://www.bolsadesantiago.com/plus_acciones_precios"
 
-USERNAME = "alcaicey@gmail.com"
-PASSWORD = "Carlosirenee13#"
+USERNAME = os.environ.get("BOLSA_USERNAME")
+PASSWORD = os.environ.get("BOLSA_PASSWORD")
 
 USERNAME_SELECTOR = "#username"
 PASSWORD_SELECTOR = "#password"
@@ -240,8 +240,6 @@ def run_automation(logger_param, attempt=1, max_attempts=2):
             logger_param.error(f"El archivo HAR {effective_har_filename} no fue creado o no se encontró, no se puede analizar.")
         
         logger_param.info("Proceso del script realmente finalizado.")
-        if not is_mis_conexiones_page or attempt >= max_attempts:
-             input("Presiona Enter para terminar el script (después del análisis HAR)...")
 
 
 if __name__ == "__main__":

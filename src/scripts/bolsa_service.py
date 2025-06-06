@@ -3,15 +3,16 @@ import json
 import logging
 import time
 import subprocess
+import sys
 from datetime import datetime
 import threading
 import re
 import glob
 import random # Asegurarse de que random esté importado
-
-# Configuración de rutas personalizadas para Windows
-SCRIPTS_DIR = r"C:\Users\alcai\Desktop\Acciones\Automatizacion" # Directorio donde está bolsa_santiago_bot.py
-LOGS_DIR = os.path.join(SCRIPTS_DIR, "logs_bolsa") # Directorio donde bolsa_santiago_bot.py guarda sus logs y JSON
+# Directorio base de los scripts. Puede sobreescribirse mediante la variable de entorno BOLSA_SCRIPTS_DIR.
+DEFAULT_SCRIPTS_DIR=os.path.dirname(os.path.abspath(__file__))
+SCRIPTS_DIR=os.environ.get("BOLSA_SCRIPTS_DIR", DEFAULT_SCRIPTS_DIR)
+LOGS_DIR=os.path.join(SCRIPTS_DIR, "logs_bolsa")
 
 # Configuración de logging para este script de servicio/orquestador
 logger = logging.getLogger(__name__)
@@ -32,8 +33,70 @@ if not logger.hasHandlers():
     logger.addHandler(stream_handler)
 
 # Variable para controlar el hilo de actualización
-update_thread = None
-stop_update_thread = False
+
+class PeriodicUpdater:
+    """Gestiona la actualización periódica de datos en un hilo dedicado."""
+
+    def __init__(self):
+        self.thread = None
+        self.stop_event = threading.Event()
+
+    def _run(self, min_interval_seconds, max_interval_seconds):
+        logger.info(
+            f"Hilo de actualización periódica iniciado. Intervalo: {min_interval_seconds}-{max_interval_seconds} segundos."
+        )
+        while not self.stop_event.is_set():
+            try:
+                logger.info("Ejecutando actualización periódica de datos...")
+                run_bolsa_bot()
+                interval = random.randint(min_interval_seconds, max_interval_seconds)
+                logger.info(f"Próxima actualización periódica en {interval} segundos.")
+                for _ in range(interval):
+                    if self.stop_event.is_set():
+                        logger.info("Señal de detención recibida en el hilo de actualización.")
+                        break
+                    time.sleep(1)
+            except Exception as e:
+                logger.exception(f"Error en la actualización periódica: {e}")
+                logger.info("Esperando 60 segundos antes de reintentar la actualización periódica.")
+                time.sleep(60)
+        logger.info("Hilo de actualización periódica detenido.")
+
+    def start(self, min_minutes=15, max_minutes=45):
+        if self.thread and self.thread.is_alive():
+            logger.info("El hilo de actualización periódica ya está en ejecución.")
+            return False
+        self.stop_event.clear()
+        min_interval_seconds = min_minutes * 60
+        max_interval_seconds = max_minutes * 60
+        self.thread = threading.Thread(
+            target=self._run,
+            args=(min_interval_seconds, max_interval_seconds),
+            daemon=True,
+        )
+        self.thread.start()
+        logger.info(
+            f"Actualización periódica iniciada. Intervalo entre ejecuciones: {min_minutes}-{max_minutes} minutos."
+        )
+        return True
+
+    def stop(self):
+        if not self.thread or not self.thread.is_alive():
+            logger.info("El hilo de actualización periódica no está en ejecución.")
+            return True
+        logger.info("Enviando señal de detención al hilo de actualización periódica...")
+        self.stop_event.set()
+        self.thread.join(timeout=10)
+        if self.thread.is_alive():
+            logger.warning(
+                "El hilo de actualización periódica no terminó limpiamente después de 10 segundos."
+            )
+        else:
+            logger.info("Hilo de actualización periódica detenido exitosamente.")
+        self.thread = None
+        return True
+
+updater = PeriodicUpdater()
 
 def get_latest_json_file():
     """
@@ -94,9 +157,9 @@ def run_bolsa_bot():
         
         # Usar Popen para no bloquear y poder capturar stdout/stderr si es necesario más adelante
         # o call/run para esperar a que termine. Por ahora, run es más simple si esperamos.
-        logger.info(f"Ejecutando: python \"{script_path}\" en el directorio {SCRIPTS_DIR}")
+        logger.info(f"Ejecutando: {sys.executable} \"{script_path}\" en el directorio {SCRIPTS_DIR}")
         process = subprocess.run(
-            ["python", script_path], 
+            [sys.executable, script_path],
             capture_output=True, # Captura stdout y stderr
             text=True, 
             cwd=SCRIPTS_DIR, # Directorio de trabajo para el script
@@ -206,79 +269,15 @@ def filter_stocks(stock_codes):
         logger.exception(f"Error en filter_stocks: {e}")
         return {"error": str(e), "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S")}
 
-def update_data_periodically(min_interval_seconds, max_interval_seconds):
-    """
-    Actualiza los datos periódicamente en un intervalo aleatorio.
-    """
-    global stop_update_thread
-    
-    logger.info(f"Hilo de actualización periódica iniciado. Intervalo: {min_interval_seconds}-{max_interval_seconds} segundos.")
-    while not stop_update_thread:
-        try:
-            logger.info("Ejecutando actualización periódica de datos...")
-            run_bolsa_bot() # Ejecuta el bot para obtener datos frescos
-            
-            interval = random.randint(min_interval_seconds, max_interval_seconds)
-            logger.info(f"Próxima actualización periódica en {interval} segundos.")
-            
-            # Esperar el intervalo, verificando periódicamente si debemos detenernos
-            for _ in range(interval):
-                if stop_update_thread:
-                    logger.info("Señal de detención recibida en el hilo de actualización.")
-                    break
-                time.sleep(1)
-                
-        except Exception as e:
-            logger.exception(f"Error en la actualización periódica: {e}")
-            logger.info("Esperando 60 segundos antes de reintentar la actualización periódica.")
-            time.sleep(60)
-    logger.info("Hilo de actualización periódica detenido.")
 
 
-def start_periodic_updates(min_minutes=15, max_minutes=45): # Intervalos más largos por defecto
-    """
-    Inicia la actualización periódica de datos en un hilo separado.
-    """
-    global update_thread, stop_update_thread
-    
-    if update_thread and update_thread.is_alive():
-        logger.info("El hilo de actualización periódica ya está en ejecución.")
-        return False
-    
-    stop_update_thread = False
-    min_interval_seconds = min_minutes * 60
-    max_interval_seconds = max_minutes * 60
-    
-    update_thread = threading.Thread(
-        target=update_data_periodically,
-        args=(min_interval_seconds, max_interval_seconds),
-        daemon=True # El hilo terminará cuando el programa principal termine
-    )
-    update_thread.start()
-    
-    logger.info(f"Actualización periódica iniciada. Intervalo entre ejecuciones: {min_minutes}-{max_minutes} minutos.")
-    return True
+def start_periodic_updates(min_minutes=15, max_minutes=45):
+    """Inicia la actualización periódica de datos."""
+    return updater.start(min_minutes, max_minutes)
 
 def stop_periodic_updates():
-    """
-    Detiene la actualización periódica de datos.
-    """
-    global stop_update_thread, update_thread
-    
-    if not update_thread or not update_thread.is_alive():
-        logger.info("El hilo de actualización periódica no está en ejecución.")
-        return True
-
-    logger.info("Enviando señal de detención al hilo de actualización periódica...")
-    stop_update_thread = True
-    update_thread.join(timeout=10) # Esperar hasta 10 segundos a que el hilo termine
-    
-    if update_thread.is_alive():
-        logger.warning("El hilo de actualización periódica no terminó limpiamente después de 10 segundos.")
-    else:
-        logger.info("Hilo de actualización periódica detenido exitosamente.")
-    update_thread = None
-    return True
+    """Detiene la actualización periódica de datos."""
+    return updater.stop()
 
 # Ejemplo de uso (puedes comentar o eliminar esto si usas el script como módulo)
 if __name__ == "__main__":
