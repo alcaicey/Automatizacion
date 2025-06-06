@@ -53,6 +53,8 @@ class DummyContext:
     def new_page(self):
         self.attempt_ref[0] += 1
         return DummyPage(self.attempt_ref)
+    def close(self):
+        pass
 
 class DummyBrowser:
     def __init__(self, attempt_ref):
