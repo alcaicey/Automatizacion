@@ -5,7 +5,14 @@ import json
 from datetime import datetime
 
 # Importar el servicio de bolsa
-from src.scripts.bolsa_service import get_latest_data, filter_stocks, run_bolsa_bot, start_periodic_updates, stop_periodic_updates
+from src.scripts.bolsa_service import (
+    get_latest_data,
+    filter_stocks,
+    run_bolsa_bot,
+    start_periodic_updates,
+    stop_periodic_updates,
+    get_session_remaining_seconds,
+)
 
 # Crear el blueprint
 api_bp = Blueprint('api', __name__)
@@ -107,6 +114,22 @@ def set_auto_update():
                 "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
             }), 400
     
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        }), 500
+
+
+@api_bp.route('/session-time', methods=['GET'])
+def session_time():
+    """Devuelve el tiempo restante de la sesión, si está disponible."""
+    try:
+        remaining = get_session_remaining_seconds()
+        return jsonify({
+            "remaining_seconds": remaining,
+            "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        })
     except Exception as e:
         return jsonify({
             "error": str(e),
