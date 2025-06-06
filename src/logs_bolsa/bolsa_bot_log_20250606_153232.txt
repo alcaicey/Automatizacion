@@ -1,0 +1,38 @@
+[INFO] 2025-06-06 15:32:32,082 - Logging configurado. Log: C:\Users\alcai\source\repos\alcaicey\Automatizacion\src\logs_bolsa\bolsa_bot_log_20250606_153232.txt, HAR: C:\Users\alcai\source\repos\alcaicey\Automatizacion\src\logs_bolsa\network_capture.har, Datos: C:\Users\alcai\source\repos\alcaicey\Automatizacion\src\logs_bolsa\acciones-precios-plus_20250606_153232.json
+[INFO] 2025-06-06 15:32:32,082 - --- Iniciando Intento de Automatización #1 ---
+[INFO] 2025-06-06 15:32:35,050 - Grabando tráfico de red en: C:\Users\alcai\source\repos\alcaicey\Automatizacion\src\logs_bolsa\network_capture.har
+[INFO] 2025-06-06 15:32:36,180 - Paso 1: Navegando a la página que requiere login: https://www.bolsadesantiago.com/plus_acciones_precios
+[INFO] 2025-06-06 15:32:37,554 - Paso 1: URL actual después de goto inicial: https://sso.bolsadesantiago.com/realms/Web_Publico/protocol/openid-connect/auth?approval_prompt=force&client_id=oauth2-proxy&redirect_uri=https%3A%2F%2Fwww.bolsadesantiago.com%2Foauth2%2Fcallback&response_type=code&scope=openid+email+profile&state=IrQ622o2U3qUJukh4lbplytqlecY18TcTODZjetOuqg%3A%2Fplus_acciones_precios
+[INFO] 2025-06-06 15:32:37,555 - Paso 2: Esperando por la página de login de SSO (si fuimos redirigidos)...
+[INFO] 2025-06-06 15:32:37,655 - Paso 2: Página de login de SSO cargada.
+[INFO] 2025-06-06 15:32:37,655 - Paso 3: Ingresando usuario: alcaicey@gmail.com
+[INFO] 2025-06-06 15:32:37,979 - Paso 3: Ingresando contraseña...
+[INFO] 2025-06-06 15:32:38,287 - Paso 3: Credenciales ingresadas.
+[INFO] 2025-06-06 15:32:38,287 - Paso 4: Haciendo clic en el botón de Iniciar Sesión...
+[INFO] 2025-06-06 15:32:39,114 - Paso 5: Esperando redirección post-login a www.bolsadesantiago.com...
+[INFO] 2025-06-06 15:32:41,214 - JS CONSOLE (info): GB Chat UID 
+[INFO] 2025-06-06 15:32:41,216 - JS CONSOLE (info): GB Chat UID NEW 68434259e906977e7047b437
+[INFO] 2025-06-06 15:32:41,219 - JS CONSOLE (info): GB: onStart
+[INFO] 2025-06-06 15:32:41,220 - JS CONSOLE (info): GB:  Channel check
+[INFO] 2025-06-06 15:32:41,228 - JS CONSOLE (warning): Modal "hubspot-modal" has scrollable flag set to true but height is not "auto" (75%)
+[INFO] 2025-06-06 15:32:41,413 - JS CONSOLE (info): GB: close
+[ERROR] 2025-06-06 15:32:41,679 - ERROR GENERAL:
+Traceback (most recent call last):
+  File "C:\Users\alcai\source\repos\alcaicey\Automatizacion\src\scripts\bolsa_santiago_bot.py", line 140, in run_automation
+    page.wait_for_url(
+  File "C:\Python312\Lib\site-packages\playwright\sync_api\_generated.py", line 9167, in wait_for_url
+    self._sync(
+  File "C:\Python312\Lib\site-packages\playwright\_impl\_sync_base.py", line 115, in _sync
+    return task.result()
+           ^^^^^^^^^^^^^
+  File "C:\Python312\Lib\site-packages\playwright\_impl\_page.py", line 576, in wait_for_url
+    return await self._main_frame.wait_for_url(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python312\Lib\site-packages\playwright\_impl\_frame.py", line 231, in wait_for_url
+    await self._wait_for_load_state_impl(state=waitUntil, timeout=timeout)
+  File "C:\Python312\Lib\site-packages\playwright\_impl\_frame.py", line 271, in _wait_for_load_state_impl
+    await waiter.result()
+playwright._impl._errors.Error: Target page, context or browser has been closed
+[INFO] 2025-06-06 15:32:41,685 - Bloque Finally: Preparando análisis HAR y finalización...
+[ERROR] 2025-06-06 15:32:41,686 - El archivo HAR C:\Users\alcai\source\repos\alcaicey\Automatizacion\src\logs_bolsa\network_capture.har no fue creado o no se encontró, no se puede analizar.
+[INFO] 2025-06-06 15:32:41,686 - Proceso del script realmente finalizado.

@@ -1,0 +1,35 @@
+[INFO] 2025-06-06 15:32:37,939 - Logging configurado. Log: C:\Users\alcai\source\repos\alcaicey\Automatizacion\src\logs_bolsa\bolsa_bot_log_20250606_153237.txt, HAR: C:\Users\alcai\source\repos\alcaicey\Automatizacion\src\logs_bolsa\network_capture.har, Datos: C:\Users\alcai\source\repos\alcaicey\Automatizacion\src\logs_bolsa\acciones-precios-plus_20250606_153237.json
+[INFO] 2025-06-06 15:32:37,940 - --- Iniciando Intento de Automatización #1 ---
+[INFO] 2025-06-06 15:32:42,107 - Grabando tráfico de red en: C:\Users\alcai\source\repos\alcaicey\Automatizacion\src\logs_bolsa\network_capture.har
+[INFO] 2025-06-06 15:32:43,591 - Paso 1: Navegando a la página que requiere login: https://www.bolsadesantiago.com/plus_acciones_precios
+[INFO] 2025-06-06 15:32:45,512 - JS CONSOLE (log): recaptchacompat disabled
+[INFO] 2025-06-06 15:32:46,073 - JS CONSOLE (debug):  
+[INFO] 2025-06-06 15:32:46,340 - JS CONSOLE (debug):  
+[INFO] 2025-06-06 15:32:47,178 - Paso 1: URL actual después de goto inicial: http://validate.perfdrive.com/?ssa=fb3a9fbe-88e3-4ae7-a921-c54040ec4f0a&ssb=98608268241&ssc=https%3A%2F%2Fwww.bolsadesantiago.com%2Fplus_acciones_precios&ssi=f6f1673b-bjuj-466a-b3ca-ffcf6a8e8b90&ssk=support@shieldsquare.com&ssm=02355820349967901101518708770940&ssn=9b7b68a5ae7ca80e20a612f1a3e8b07e135de353a051-e388-434a-b3baf8&sso=88bc2fa2-4f92b16535a574cfedefc910455e36ad8f73eb429cd7d166&ssp=39593535851749244436174922280794144&ssq=57273723836590767620738365395533915467366&ssr=MjAxLjE4OC4xOTIuOTc=&sst=Mozilla/5.0%20(Windows%20NT%2010.0;%20Win64;%20x64)%20AppleWebKit/537.36%20(KHTML,%20like%20Gecko)%20Chrome/120.0.0.0%20Safari/537.36&ssu=&ssv=&ssw=&ssx=W10=
+[INFO] 2025-06-06 15:32:47,178 - Paso 2: Esperando por la página de login de SSO (si fuimos redirigidos)...
+[ERROR] 2025-06-06 15:32:48,310 - ERROR GENERAL:
+Traceback (most recent call last):
+  File "C:\Users\alcai\source\repos\alcaicey\Automatizacion\src\scripts\bolsa_santiago_bot.py", line 124, in run_automation
+    page.wait_for_url(lambda url: "sso.bolsadesantiago.com" in url, timeout=30000)
+  File "C:\Python312\Lib\site-packages\playwright\sync_api\_generated.py", line 9167, in wait_for_url
+    self._sync(
+  File "C:\Python312\Lib\site-packages\playwright\_impl\_sync_base.py", line 115, in _sync
+    return task.result()
+           ^^^^^^^^^^^^^
+  File "C:\Python312\Lib\site-packages\playwright\_impl\_page.py", line 576, in wait_for_url
+    return await self._main_frame.wait_for_url(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python312\Lib\site-packages\playwright\_impl\_frame.py", line 233, in wait_for_url
+    async with self.expect_navigation(
+  File "C:\Python312\Lib\site-packages\playwright\_impl\_event_context_manager.py", line 33, in __aexit__
+    await self._future
+  File "C:\Python312\Lib\site-packages\playwright\_impl\_frame.py", line 207, in continuation
+    event = await waiter.result()
+            ^^^^^^^^^^^^^^^^^^^^^
+playwright._impl._errors.Error: Target page, context or browser has been closed
+=========================== logs ===========================
+waiting for navigation to "<function ImplToApiMapping.wrap_handler.<locals>.wrapper_func at 0x0000013F27087560>" until 'load'
+============================================================
+[INFO] 2025-06-06 15:32:48,379 - Bloque Finally: Preparando análisis HAR y finalización...
+[ERROR] 2025-06-06 15:32:48,380 - El archivo HAR C:\Users\alcai\source\repos\alcaicey\Automatizacion\src\logs_bolsa\network_capture.har no fue creado o no se encontró, no se puede analizar.
+[INFO] 2025-06-06 15:32:48,384 - Proceso del script realmente finalizado.
