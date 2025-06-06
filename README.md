@@ -49,10 +49,10 @@ bolsa_app/
 
 ## Configuración Personalizada
 
-Esta aplicación está configurada para trabajar con los siguientes directorios personalizados:
+Esta aplicación utiliza las rutas definidas en las variables de entorno `BOLSA_SCRIPTS_DIR` y `BOLSA_LOGS_DIR`:
 
-- **Scripts de scraping**: `C:\Users\alcai\Desktop\Acciones\Automatizacion\bolsa_santiago_bot.py`
-- **Archivos JSON generados**: `C:\Users\alcai\Desktop\Acciones\Automatizacion\logs_bolsa\acciones-precios-plus_*.json`
+- **Scripts de scraping**: `<BOLSA_SCRIPTS_DIR>/bolsa_santiago_bot.py`
+- **Archivos JSON generados**: `<BOLSA_LOGS_DIR>/acciones-precios-plus_*.json`
 
 La aplicación siempre selecciona el archivo JSON más reciente basándose en la fecha de modificación y muestra el timestamp extraído del nombre del archivo en la interfaz.
 
@@ -86,6 +86,14 @@ La aplicación normaliza automáticamente los nombres de los campos para mantene
 - Navegador web moderno (Chrome, Firefox, Edge, Safari)
 - Conexión a Internet
 - Scripts bolsa_santiago_bot.py y har_analyzer.py en la ubicación especificada
+
+## Variables de Entorno
+
+Antes de ejecutar la aplicación se deben definir las siguientes variables de entorno:
+
+- **BOLSA_USERNAME** y **BOLSA_PASSWORD**: credenciales para iniciar sesión en el sitio de la Bolsa de Santiago.
+- **BOLSA_SCRIPTS_DIR**: ruta al directorio que contiene `bolsa_santiago_bot.py`.
+- **BOLSA_LOGS_DIR**: (opcional) directorio donde el bot almacenará sus logs y archivos JSON. Por defecto se usa `logs_bolsa` dentro de `BOLSA_SCRIPTS_DIR`.
 
 ## Instalación y Ejecución
 
@@ -158,10 +166,7 @@ La aplicación normaliza automáticamente los nombres de los campos para mantene
 
 ## Personalización Adicional
 
-Si necesitas cambiar las rutas de los archivos, puedes modificar las siguientes variables en el archivo `src/scripts/bolsa_service.py`:
+Para cambiar las rutas de los archivos de scraping puedes definir las variables
+de entorno `BOLSA_SCRIPTS_DIR` y `BOLSA_LOGS_DIR` antes de ejecutar la
+aplicación. Así no es necesario modificar el código de `bolsa_service.py`.
 
-```python
-# Configuración de rutas personalizadas para Windows
-SCRIPTS_DIR = r"C:\Users\alcai\Desktop\Acciones\Automatizacion"
-LOGS_DIR = os.path.join(SCRIPTS_DIR, "logs_bolsa")
-```
