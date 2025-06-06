@@ -216,6 +216,13 @@ def run_automation(logger_param, attempt=1, max_attempts=2, *, non_interactive=N
     finally:
         logger_param.info("Bloque Finally: Preparando análisis HAR y finalización...")
 
+        # Cerrar el contexto para asegurar que la captura HAR se escriba
+        if context is not None:
+            try:
+                context.close()
+            except Exception as close_err:
+                logger_param.warning(f"No se pudo cerrar el contexto del navegador: {close_err}")
+
         effective_har_filename = HAR_FILENAME
         effective_output_acciones_data_filename = OUTPUT_ACCIONES_DATA_FILENAME
         effective_analyzed_summary_filename = ANALYZED_SUMMARY_FILENAME
