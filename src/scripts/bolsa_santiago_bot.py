@@ -162,11 +162,11 @@ def run_automation(logger_param, attempt=1, max_attempts=2):
                     time.sleep(5) 
                     logger_param.info(f"Paso 7: Página actualizada después de cerrar sesiones. URL actual: {page.url}")
                     logger_param.info("Paso 7: Sesiones cerradas. Reiniciando el proceso de automatización...")
-                    if context: context.close() 
-                    if browser: browser.close()
-                    if p_instance: p_instance.stop()
-                    time.sleep(random.uniform(3,7)) 
-                    configure_run_specific_logging(logger_param) 
+                    logger_param.info(
+                        "El navegador permanecerá abierto; cierre manualmente si es necesario."
+                    )
+                    time.sleep(random.uniform(3,7))
+                    configure_run_specific_logging(logger_param)
                     return run_automation(logger_param, attempt + 1, max_attempts)
                 else:
                     logger_param.error("Paso 7: Botón 'Cerrar sesión en todos los dispositivos' no encontrado.")
@@ -227,29 +227,12 @@ def run_automation(logger_param, attempt=1, max_attempts=2):
 
         logger_param.info("Proceso del script realmente finalizado.")
         if not is_mis_conexiones_page or attempt >= max_attempts:
-            input("Presiona Enter para terminar el script (después del análisis HAR)...")
-            if context:
-                try:
-                    context.close()
-                    logger_param.info(f"Contexto cerrado. Archivo HAR debería estar guardado en: {effective_har_filename}")
-                except Exception as e_har:
-                    logger_param.error(f"Error al cerrar el contexto: {e_har}")
-            else:
-                logger_param.warning("Contexto no fue inicializado o ya estaba cerrado.")
-
-            if browser and browser.is_connected():
-                try:
-                    browser.close()
-                except Exception as e_close_final:
-                    logger_param.warning(f"Error menor durante cierre final del navegador: {e_close_final}")
-            else:
-                logger_param.warning("Navegador no fue inicializado o ya está cerrado.")
-
-            if p_instance:
-                try:
-                    p_instance.stop()
-                except Exception as e_stop:
-                    logger_param.warning(f"Error al detener la instancia de Playwright: {e_stop}")
+            input(
+                "Presiona Enter para terminar el script (después del análisis HAR). El navegador permanecerá abierto." 
+            )
+            logger_param.info(
+                "El navegador no se cerrará automáticamente. Ciérrelo manualmente cuando ya no lo necesite."
+            )
 
 
 if __name__ == "__main__":
