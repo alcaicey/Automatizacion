@@ -10,14 +10,14 @@ import glob
 import random  # Asegurarse de que random esté importado
 import sys
 
-from src.config import SCRIPTS_DIR, LOGS_DIR, BASE_DIR
+from src.config import SCRIPTS_DIR, LOGS_DIR, BASE_DIR, PROJECT_SRC_DIR
 
 # Rutas de trabajo obtenidas desde el módulo de configuración
 # Configuración de logging para este script de servicio/orquestador
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 # Crear directorio de logs para este script si no existe (diferente al de bolsa_santiago_bot.py)
-service_log_dir = os.path.join(SCRIPTS_DIR, "service_logs")
+service_log_dir = os.path.join(PROJECT_SRC_DIR, 'service_logs')
 os.makedirs(service_log_dir, exist_ok=True)
 service_log_file = os.path.join(service_log_dir, "bolsa_service.log")
 
@@ -79,6 +79,44 @@ def extract_timestamp_from_filename(filename):
     except Exception as e:
         logger.exception(f"Error al extraer timestamp del nombre de archivo '{filename}': {e}")
         return datetime.now().strftime("%d/%m/%Y %H:%M:%S") # Fallback a ahora
+
+def get_latest_summary_file():
+    """Devuelve la ruta al resumen HAR más reciente generado por el bot."""
+    try:
+        pattern = os.path.join(LOGS_DIR, "network_summary_*.json")
+        summary_files = glob.glob(pattern)
+
+        if not summary_files:
+            logger.warning(f"No se encontraron archivos 'network_summary_*.json' en {LOGS_DIR}")
+            return None
+
+        latest_summary = max(summary_files, key=os.path.getmtime)
+        logger.info(f"Archivo de resumen HAR más reciente encontrado: {latest_summary}")
+        return latest_summary
+
+    except Exception as e:
+        logger.exception(f"Error al buscar el archivo de resumen HAR más reciente: {e}")
+        return None
+
+def get_session_remaining_seconds():
+    """Obtiene los segundos restantes de la sesión desde el resumen HAR más reciente."""
+    try:
+        summary_path = get_latest_summary_file()
+        if not summary_path or not os.path.exists(summary_path):
+            return None
+
+        with open(summary_path, 'r', encoding='utf-8') as f:
+            summary_data = json.load(f)
+
+        if isinstance(summary_data, list):
+            for entry in summary_data:
+                if isinstance(entry, dict) and "session_remaining_seconds" in entry:
+                    return int(entry["session_remaining_seconds"])
+
+        return None
+    except Exception as e:
+        logger.exception(f"Error al obtener los segundos restantes de la sesión: {e}")
+        return None
 
 def run_bolsa_bot():
     """
