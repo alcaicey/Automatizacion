@@ -27,7 +27,6 @@ API_PRIMARY_DATA_PATTERNS = [
 ]
 
 URLS_TO_INSPECT_IN_HAR_FOR_CONTEXT = [
-    'https://www.bolsadesantiago.com/api/Securities/csrfToken',
     'https://www.bolsadesantiago.com/api/Comunes_User/getEstadoSesionUsuario',
     'https://www.bolsadesantiago.com/api/Indices/getIndicesPremium',
 ]
