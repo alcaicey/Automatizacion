@@ -49,7 +49,7 @@ bolsa_app/
 
 ## Configuración Personalizada
 
-Esta aplicación utiliza las rutas definidas en las variables de entorno `BOLSA_SCRIPTS_DIR` y `BOLSA_LOGS_DIR`:
+Esta aplicación utiliza un archivo de configuración (`src/config.py`) donde se definen las rutas por defecto y otros parámetros estáticos. Las variables de entorno `BOLSA_SCRIPTS_DIR` y `BOLSA_LOGS_DIR` son opcionales y permiten sobrescribir dichas rutas:
 
 - **Scripts de scraping**: `<BOLSA_SCRIPTS_DIR>/bolsa_santiago_bot.py`
 - **Archivos JSON generados**: `<BOLSA_LOGS_DIR>/acciones-precios-plus_*.json`
@@ -92,8 +92,8 @@ La aplicación normaliza automáticamente los nombres de los campos para mantene
 Antes de ejecutar la aplicación se deben definir las siguientes variables de entorno:
 
 - **BOLSA_USERNAME** y **BOLSA_PASSWORD**: credenciales para iniciar sesión en el sitio de la Bolsa de Santiago.
-- **BOLSA_SCRIPTS_DIR**: ruta al directorio que contiene `bolsa_santiago_bot.py`.
-- **BOLSA_LOGS_DIR**: (opcional) directorio donde el bot almacenará sus logs y archivos JSON. Por defecto se usa `logs_bolsa` dentro de `BOLSA_SCRIPTS_DIR`.
+- **BOLSA_SCRIPTS_DIR**: (opcional) ruta al directorio que contiene `bolsa_santiago_bot.py`. Por defecto apunta a la carpeta `src/scripts` del proyecto.
+- **BOLSA_LOGS_DIR**: (opcional) directorio donde el bot almacenará sus logs y archivos JSON. Si no se especifica se utiliza `logs_bolsa` dentro de `BOLSA_SCRIPTS_DIR`.
 
 ## Instalación y Ejecución
 
@@ -166,7 +166,7 @@ Antes de ejecutar la aplicación se deben definir las siguientes variables de en
 
 ## Personalización Adicional
 
-Para cambiar las rutas de los archivos de scraping puedes definir las variables
-de entorno `BOLSA_SCRIPTS_DIR` y `BOLSA_LOGS_DIR` antes de ejecutar la
-aplicación. Así no es necesario modificar el código de `bolsa_service.py`.
+Si necesitas usar rutas diferentes a las predeterminadas puedes definir las
+variables de entorno `BOLSA_SCRIPTS_DIR` y `BOLSA_LOGS_DIR` antes de ejecutar la
+aplicación. De esta forma no es necesario modificar `src/config.py`.
 
