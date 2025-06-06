@@ -26,9 +26,12 @@ from har_analyzer import analyze_har_and_extract_data
 
 # --- Configuración de Logging Global ---
 LOG_FILENAME = ""
-HAR_FILENAME = ""
+# Archivo HAR con nombre fijo para capturas de red
+HAR_FILENAME = os.path.join(LOG_DIR, "network_capture.har")
 OUTPUT_ACCIONES_DATA_FILENAME = ""
 ANALYZED_SUMMARY_FILENAME = ""
+# Timestamp para nombrar archivos generados en cada ejecución
+TIMESTAMP_NOW = ""
 
 logger_instance_global = logging.getLogger(__name__)
 # --- Fin Configuración de Logging ---
@@ -43,7 +46,7 @@ if not USERNAME or not PASSWORD:
 # --- FIN DE LA CONFIGURACIÓN ---
 
 def configure_run_specific_logging(logger_to_configure):
-    global LOG_FILENAME, HAR_FILENAME, OUTPUT_ACCIONES_DATA_FILENAME, ANALYZED_SUMMARY_FILENAME
+    global LOG_FILENAME, OUTPUT_ACCIONES_DATA_FILENAME, ANALYZED_SUMMARY_FILENAME, TIMESTAMP_NOW
     
     for handler in list(logger_to_configure.handlers):
         logger_to_configure.removeHandler(handler)
@@ -51,9 +54,12 @@ def configure_run_specific_logging(logger_to_configure):
 
     TIMESTAMP_NOW = datetime.now().strftime('%Y%m%d_%H%M%S')
     LOG_FILENAME = os.path.join(LOG_DIR, f"bolsa_bot_log_{TIMESTAMP_NOW}.txt")
-    HAR_FILENAME = os.path.join(LOG_DIR, f"bolsa_bot_network_{TIMESTAMP_NOW}.har")
     OUTPUT_ACCIONES_DATA_FILENAME = os.path.join(LOG_DIR, f"acciones-precios-plus_{TIMESTAMP_NOW}.json")
     ANALYZED_SUMMARY_FILENAME = os.path.join(LOG_DIR, f"network_summary_{TIMESTAMP_NOW}.json")
+
+    # Borrar captura HAR previa para iniciar una nueva
+    if os.path.exists(HAR_FILENAME):
+        os.remove(HAR_FILENAME)
 
     logger_to_configure.setLevel(logging.INFO)
     file_handler = logging.FileHandler(LOG_FILENAME, encoding='utf-8')
