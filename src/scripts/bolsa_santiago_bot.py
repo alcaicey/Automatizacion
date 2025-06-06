@@ -26,9 +26,12 @@ from har_analyzer import analyze_har_and_extract_data
 
 # --- Configuración de Logging Global ---
 LOG_FILENAME = ""
-HAR_FILENAME = ""
+# Archivo HAR con nombre fijo para capturas de red
+HAR_FILENAME = os.path.join(LOG_DIR, "network_capture.har")
 OUTPUT_ACCIONES_DATA_FILENAME = ""
 ANALYZED_SUMMARY_FILENAME = ""
+# Timestamp para nombrar archivos generados en cada ejecución
+TIMESTAMP_NOW = ""
 
 logger_instance_global = logging.getLogger(__name__)
 # --- Fin Configuración de Logging ---
@@ -43,7 +46,7 @@ if not USERNAME or not PASSWORD:
 # --- FIN DE LA CONFIGURACIÓN ---
 
 def configure_run_specific_logging(logger_to_configure):
-    global LOG_FILENAME, HAR_FILENAME, OUTPUT_ACCIONES_DATA_FILENAME, ANALYZED_SUMMARY_FILENAME
+    global LOG_FILENAME, OUTPUT_ACCIONES_DATA_FILENAME, ANALYZED_SUMMARY_FILENAME, TIMESTAMP_NOW
     
     for handler in list(logger_to_configure.handlers):
         logger_to_configure.removeHandler(handler)
@@ -51,9 +54,12 @@ def configure_run_specific_logging(logger_to_configure):
 
     TIMESTAMP_NOW = datetime.now().strftime('%Y%m%d_%H%M%S')
     LOG_FILENAME = os.path.join(LOG_DIR, f"bolsa_bot_log_{TIMESTAMP_NOW}.txt")
-    HAR_FILENAME = os.path.join(LOG_DIR, f"bolsa_bot_network_{TIMESTAMP_NOW}.har")
     OUTPUT_ACCIONES_DATA_FILENAME = os.path.join(LOG_DIR, f"acciones-precios-plus_{TIMESTAMP_NOW}.json")
     ANALYZED_SUMMARY_FILENAME = os.path.join(LOG_DIR, f"network_summary_{TIMESTAMP_NOW}.json")
+
+    # Borrar captura HAR previa para iniciar una nueva
+    if os.path.exists(HAR_FILENAME):
+        os.remove(HAR_FILENAME)
 
     logger_to_configure.setLevel(logging.INFO)
     file_handler = logging.FileHandler(LOG_FILENAME, encoding='utf-8')
@@ -156,11 +162,11 @@ def run_automation(logger_param, attempt=1, max_attempts=2):
                     time.sleep(5) 
                     logger_param.info(f"Paso 7: Página actualizada después de cerrar sesiones. URL actual: {page.url}")
                     logger_param.info("Paso 7: Sesiones cerradas. Reiniciando el proceso de automatización...")
-                    if context: context.close() 
-                    if browser: browser.close()
-                    if p_instance: p_instance.stop()
-                    time.sleep(random.uniform(3,7)) 
-                    configure_run_specific_logging(logger_param) 
+                    logger_param.info(
+                        "El navegador permanecerá abierto; cierre manualmente si es necesario."
+                    )
+                    time.sleep(random.uniform(3,7))
+                    configure_run_specific_logging(logger_param)
                     return run_automation(logger_param, attempt + 1, max_attempts)
                 else:
                     logger_param.error("Paso 7: Botón 'Cerrar sesión en todos los dispositivos' no encontrado.")
@@ -201,45 +207,42 @@ def run_automation(logger_param, attempt=1, max_attempts=2):
         logger_param.exception("ERROR GENERAL:")
         if page and not page.is_closed(): page.screenshot(path=os.path.join(LOG_DIR,f"general_error_{TIMESTAMP_NOW}.png"))
     finally:
-        logger_param.info("Bloque Finally: Intentando cerrar contexto y navegador...")
-        
-        effective_har_filename = HAR_FILENAME 
+        logger_param.info("Bloque Finally: Preparando análisis HAR y finalización...")
+
+        effective_har_filename = HAR_FILENAME
         effective_output_acciones_data_filename = OUTPUT_ACCIONES_DATA_FILENAME
         effective_analyzed_summary_filename = ANALYZED_SUMMARY_FILENAME
 
-        if context:
-            try:
-                context.close() 
-                logger_param.info(f"Contexto cerrado. Archivo HAR debería estar guardado en: {effective_har_filename}")
-            except Exception as e_har:
-                logger_param.error(f"Error al cerrar el contexto (HAR podría no haberse guardado completamente): {e_har}")
-        else:
-            logger_param.warning("Contexto no fue inicializado o ya estaba cerrado.")
-
-        if browser and browser.is_connected():
-            try: browser.close()
-            except Exception as e_close_final: logger_param.warning(f"Error menor durante cierre final del navegador: {e_close_final}")
-        else: logger_param.warning("Navegador no fue inicializado o ya está cerrado.")
-        
-        if p_instance:
-            try: p_instance.stop()
-            except Exception as e_stop: logger_param.warning(f"Error al detener la instancia de Playwright: {e_stop}")
-
         if os.path.exists(effective_har_filename):
             analyze_har_and_extract_data(
-                effective_har_filename, 
-                API_PRIMARY_DATA_PATTERNS, 
-                URLS_TO_INSPECT_IN_HAR_FOR_CONTEXT, 
+                effective_har_filename,
+                API_PRIMARY_DATA_PATTERNS,
+                URLS_TO_INSPECT_IN_HAR_FOR_CONTEXT,
                 effective_output_acciones_data_filename,
                 effective_analyzed_summary_filename,
                 logger_param
             )
         else:
             logger_param.error(f"El archivo HAR {effective_har_filename} no fue creado o no se encontró, no se puede analizar.")
-        
+
         logger_param.info("Proceso del script realmente finalizado.")
         if not is_mis_conexiones_page or attempt >= max_attempts:
-             input("Presiona Enter para terminar el script (después del análisis HAR)...")
+            try:
+                input(
+                    "Presiona Enter para terminar el script (después del análisis HAR). El navegador permanecerá abierto."
+                )
+                logger_param.info(
+                    "El navegador no se cerrará automáticamente. Ciérrelo manualmente cuando ya no lo necesite."
+                )
+            except EOFError:
+                logger_param.warning(
+                    "EOFError al esperar la confirmación del usuario. Manteniendo el navegador abierto indefinidamente."
+                )
+                logger_param.info(
+                    "El script está esperando indefinidamente a que el usuario cierre el navegador manualmente."
+                )
+                while True:
+                    time.sleep(60)
 
 
 if __name__ == "__main__":

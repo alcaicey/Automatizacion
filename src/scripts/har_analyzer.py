@@ -1,6 +1,7 @@
 import json
 import logging
 import os # Necesario para os.path.join
+from datetime import datetime, timezone, timedelta
 
 # Este logger se usará si la función es llamada sin un logger_param explícito.
 # Es bueno tener un logger por defecto para el módulo.
@@ -27,6 +28,15 @@ def analyze_har_and_extract_data(har_filepath, primary_api_url_patterns, other_u
         
         for entry_index, entry in enumerate(entries):
             request_url = entry.get("request", {}).get("url", "")
+
+            # Filtrar explícitamente solicitudes al endpoint csrfToken para evitar
+            # generar ruido innecesario en los logs.  Usamos "in" para abarcar
+            # posibles parámetros de consulta.
+            if "api/Securities/csrfToken" in request_url:
+                effective_logger.debug(
+                    f"HAR: Ignorando solicitud CSRF token (Entrada #{entry_index}): {request_url}"
+                )
+                continue
             response_content = entry.get("response", {}).get("content", {})
             response_text = response_content.get("text", "") 
             response_text = response_text or "" 
@@ -59,15 +69,41 @@ def analyze_har_and_extract_data(har_filepath, primary_api_url_patterns, other_u
                 if status == 200 and summary["response_content_mime"] and "application/json" in summary["response_content_mime"] and response_text:
                     try:
                         parsed_json = json.loads(response_text)
-                        summary["data_json"] = parsed_json # Guardar el JSON completo para el resumen
+                        summary["data_json"] = parsed_json  # Guardar el JSON completo para el resumen
+
+                        # Detectar expiración de sesión en respuesta de getEstadoSesionUsuario
+                        if "getEstadoSesionUsuario" in request_url and isinstance(parsed_json, dict):
+                            remaining_sec = None
+                            expiration_dt = None
+                            for k, v in parsed_json.items():
+                                lk = k.lower()
+                                if isinstance(v, (int, float)) and ("exp" in lk or "venc" in lk):
+                                    remaining_sec = float(v)
+                                elif isinstance(v, str) and ("exp" in lk or "venc" in lk):
+                                    try:
+                                        expiration_dt = datetime.fromisoformat(v.replace("Z", "+00:00"))
+                                    except ValueError:
+                                        pass
+                            if expiration_dt is not None:
+                                remaining_sec = (expiration_dt - datetime.now(expiration_dt.tzinfo or timezone.utc)).total_seconds()
+                            if remaining_sec is not None:
+                                summary["session_remaining_seconds"] = int(remaining_sec)
+                                effective_logger.info(
+                                    f"HAR: Sesión expira en {int(remaining_sec)} segundos según {request_url}"
+                                )
+
                         if is_primary_target and not target_api_response_found_and_saved:
                             target_api_response_found_and_saved = True
                             with open(output_data_filepath, 'w', encoding='utf-8') as f_out_data:
                                 json.dump(parsed_json, f_out_data, indent=2, ensure_ascii=False)
-                            effective_logger.info(f"*** DATOS DE ACCIONES COMPLETOS GUARDADOS EN: {output_data_filepath} desde {request_url} ***")
+                            effective_logger.info(
+                                f"*** DATOS DE ACCIONES COMPLETOS GUARDADOS EN: {output_data_filepath} desde {request_url} ***"
+                            )
                     except json.JSONDecodeError:
                         summary["data_preview"] = f"Error: No se pudo parsear JSON. Preview: {response_text[:200]}"
-                        effective_logger.warning(f"No se pudo parsear JSON para {request_url}. Preview: {response_text[:200]}")
+                        effective_logger.warning(
+                            f"No se pudo parsear JSON para {request_url}. Preview: {response_text[:200]}"
+                        )
                 elif "<html" in response_text.lower() and ("captcha" in response_text.lower() or "radware" in response_text.lower()):
                     summary["is_captcha_page"] = True
                     summary["data_preview"] = response_text[:200] + "..."

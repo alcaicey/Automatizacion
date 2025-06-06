@@ -7,7 +7,8 @@ PROJECT_SRC_DIR = os.path.join(BASE_DIR, 'src')
 SCRIPTS_DIR = os.environ.get('BOLSA_SCRIPTS_DIR', os.path.join(PROJECT_SRC_DIR, 'scripts'))
 
 # Directorio donde se guardan los logs y archivos JSON generados por el bot
-LOGS_DIR = os.environ.get('BOLSA_LOGS_DIR', os.path.join(SCRIPTS_DIR, 'logs_bolsa'))
+LOGS_DIR = os.environ.get('BOLSA_LOGS_DIR', os.path.join(PROJECT_SRC_DIR, 'logs_bolsa'))
+os.makedirs(LOGS_DIR, exist_ok=True)
 
 # Credenciales de acceso
 USERNAME = os.environ.get('BOLSA_USERNAME', 'alcaicey@gmail.com')
@@ -27,7 +28,6 @@ API_PRIMARY_DATA_PATTERNS = [
 ]
 
 URLS_TO_INSPECT_IN_HAR_FOR_CONTEXT = [
-    'https://www.bolsadesantiago.com/api/Securities/csrfToken',
     'https://www.bolsadesantiago.com/api/Comunes_User/getEstadoSesionUsuario',
     'https://www.bolsadesantiago.com/api/Indices/getIndicesPremium',
 ]
@@ -36,5 +36,5 @@ MIS_CONEXIONES_TITLE_SELECTOR = "h1:has-text('MIS CONEXIONES')"
 CERRAR_TODAS_SESIONES_SELECTOR = "button:has-text('Cerrar sesión en todos los dispositivos')"
 
 # Carpeta base de logs para la ejecución del bot
-LOG_DIR = os.path.join(SCRIPTS_DIR, 'logs_bolsa')
+LOG_DIR = os.path.join(PROJECT_SRC_DIR, 'logs_bolsa')
 os.makedirs(LOG_DIR, exist_ok=True)
