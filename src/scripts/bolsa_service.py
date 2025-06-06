@@ -8,8 +8,9 @@ import threading
 import re
 import glob
 import random  # Asegurarse de que random esté importado
+import sys
 
-from src.config import SCRIPTS_DIR, LOGS_DIR
+from src.config import SCRIPTS_DIR, LOGS_DIR, BASE_DIR
 
 # Rutas de trabajo obtenidas desde el módulo de configuración
 # Configuración de logging para este script de servicio/orquestador
@@ -85,21 +86,18 @@ def run_bolsa_bot():
     """
     try:
         logger.info("Iniciando ejecución de bolsa_santiago_bot.py para obtener datos frescos...")
-        script_path = os.path.join(SCRIPTS_DIR, "bolsa_santiago_bot.py")
-        
-        if not os.path.exists(script_path):
-            logger.error(f"El script 'bolsa_santiago_bot.py' no existe en: {script_path}")
-            return None
-        
-        # Usar Popen para no bloquear y poder capturar stdout/stderr si es necesario más adelante
-        # o call/run para esperar a que termine. Por ahora, run es más simple si esperamos.
-        logger.info(f"Ejecutando: python \"{script_path}\" en el directorio {SCRIPTS_DIR}")
+        module_path = "src.scripts.bolsa_santiago_bot"
+
+        # Ejecutar el script como módulo desde la raíz del proyecto para asegurar que
+        # las importaciones relativas funcionen correctamente
+        logger.info(
+            f"Ejecutando: python -m {module_path} en el directorio {BASE_DIR}")
         process = subprocess.run(
-            ["python", script_path], 
-            capture_output=True, # Captura stdout y stderr
-            text=True, 
-            cwd=SCRIPTS_DIR, # Directorio de trabajo para el script
-            check=False # No lanzar excepción si el script falla, lo manejamos con returncode
+            [sys.executable, "-m", module_path],
+            capture_output=True,  # Captura stdout y stderr
+            text=True,
+            cwd=BASE_DIR,  # Directorio de trabajo para el script
+            check=False  # No lanzar excepción si el script falla, lo manejamos con returncode
         )
         
         if process.stdout:
