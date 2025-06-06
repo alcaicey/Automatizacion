@@ -28,8 +28,14 @@ def analyze_har_and_extract_data(har_filepath, primary_api_url_patterns, other_u
         
         for entry_index, entry in enumerate(entries):
             request_url = entry.get("request", {}).get("url", "")
-            if "https://www.bolsadesantiago.com/api/Securities/csrfToken" in request_url:
-                effective_logger.debug(f"HAR: Ignorando solicitud CSRF token (Entrada #{entry_index}): {request_url}")
+
+            # Filtrar explícitamente solicitudes al endpoint csrfToken para evitar
+            # generar ruido innecesario en los logs.  Usamos "in" en vez de
+            # comparación exacta para cubrir variantes con parámetros de consulta.
+            if "api/Securities/csrfToken" in request_url:
+                effective_logger.debug(
+                    f"HAR: Ignorando solicitud CSRF token (Entrada #{entry_index}): {request_url}"
+                )
                 continue
             response_content = entry.get("response", {}).get("content", {})
             response_text = response_content.get("text", "") 
