@@ -36,7 +36,8 @@ bolsa_app/
 ├── src/
 │   ├── models/            # Modelos de datos (no utilizados en esta versión)
 │   ├── routes/            # Rutas de la API
-│   │   └── api.py         # Endpoints de la API
+│   │   ├── api.py         # Endpoints de acciones
+│   │   └── user.py        # Endpoints de usuarios
 │   ├── scripts/           # Scripts de servicio
 │   │   ├── __init__.py
 │   │   └── bolsa_service.py  # Servicio para gestionar datos de acciones
@@ -163,6 +164,17 @@ Antes de ejecutar la aplicación se deben definir las siguientes variables de en
 - Los datos se almacenan en PostgreSQL/TimescaleDB y se notifican mediante SocketIO
 - La aplicación detecta automáticamente la estructura del JSON y normaliza los campos
 - El analizador HAR también revisa la respuesta de `getEstadoSesionUsuario` y, si contiene fecha o duración de expiración, calcula el tiempo restante de la sesión.
+
+## API de Usuarios
+
+Los endpoints para gestionar usuarios se encuentran bajo la ruta `/api/users`.
+Las operaciones disponibles incluyen:
+
+- `GET /api/users` para obtener todos los usuarios.
+- `POST /api/users` para crear un usuario nuevo.
+- `GET /api/users/<id>` para consultar un usuario por su identificador.
+- `PUT /api/users/<id>` para actualizarlo.
+- `DELETE /api/users/<id>` para eliminarlo.
 
 ## Solución de Problemas
 
