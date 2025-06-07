@@ -1,15 +1,19 @@
 import builtins
 from unittest import mock
-import types
 import os
 import sys
 
 import pytest
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+)  # noqa: E402
 
-from src.scripts import bolsa_santiago_bot as bot
-from src.config import MIS_CONEXIONES_TITLE_SELECTOR, CERRAR_TODAS_SESIONES_SELECTOR
+from src.scripts import bolsa_santiago_bot as bot  # noqa: E402
+from src.config import (  # noqa: E402
+    MIS_CONEXIONES_TITLE_SELECTOR,
+    CERRAR_TODAS_SESIONES_SELECTOR,
+)
 
 class DummyLocator:
     def __init__(self, visible=True):
@@ -81,8 +85,16 @@ def test_restart_after_closing_sessions(monkeypatch):
 
     dummy_playwright = DummyPlaywright(attempt_ref)
     monkeypatch.setattr(bot, "sync_playwright", lambda: dummy_playwright)
-    monkeypatch.setattr(bot, "analyze_har_and_extract_data", lambda *a, **k: None)
-    monkeypatch.setattr(bot, "configure_run_specific_logging", lambda *a, **k: None)
+    monkeypatch.setattr(
+        bot,
+        "analyze_har_and_extract_data",
+        lambda *a, **k: None,
+    )
+    monkeypatch.setattr(
+        bot,
+        "configure_run_specific_logging",
+        lambda *a, **k: None,
+    )
     monkeypatch.setenv("BOLSA_NON_INTERACTIVE", "1")
 
     def forbid_input(*args, **kwargs):
@@ -93,7 +105,8 @@ def test_restart_after_closing_sessions(monkeypatch):
     logger = mock.Mock()
     bot.run_automation(logger, max_attempts=2)
 
-    # two attempts should have been performed: one for closing sessions and one for normal flow
+    # two attempts should have been performed: one for closing sessions and
+    # one for normal flow
     assert attempt_ref[0] == 2
 
 
@@ -104,8 +117,16 @@ def test_keep_browser_alive_on_eof(monkeypatch):
 
     dummy_playwright = DummyPlaywright(attempt_ref)
     monkeypatch.setattr(bot, "sync_playwright", lambda: dummy_playwright)
-    monkeypatch.setattr(bot, "analyze_har_and_extract_data", lambda *a, **k: None)
-    monkeypatch.setattr(bot, "configure_run_specific_logging", lambda *a, **k: None)
+    monkeypatch.setattr(
+        bot,
+        "analyze_har_and_extract_data",
+        lambda *a, **k: None,
+    )
+    monkeypatch.setattr(
+        bot,
+        "configure_run_specific_logging",
+        lambda *a, **k: None,
+    )
 
     def raise_eof(*args, **kwargs):
         raise EOFError()
