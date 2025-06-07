@@ -1,16 +1,11 @@
 import builtins
-from unittest import mock
 import os
-import sys
+from unittest import mock
 
 import pytest
 
-sys.path.insert(
-    0, os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-)  # noqa: E402
-
-from src.scripts import bolsa_santiago_bot as bot  # noqa: E402
-from src.config import (  # noqa: E402
+from src.scripts import bolsa_santiago_bot as bot
+from src.config import (
     MIS_CONEXIONES_TITLE_SELECTOR,
     CERRAR_TODAS_SESIONES_SELECTOR,
 )
