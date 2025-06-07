@@ -1,10 +1,5 @@
 import os
-import sys
 import pytest
-
-sys.path.insert(
-    0, os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-)  # noqa: E402
 
 # Ensure database is sqlite for tests
 os.environ['DATABASE_URL'] = 'sqlite:///:memory:'
