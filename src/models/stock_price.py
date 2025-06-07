@@ -24,7 +24,10 @@ class StockPrice(db.Model):
 
 @event.listens_for(StockPrice.__table__, 'after_create')
 def create_timescale_hypertable(target, connection, **kw):
-    connection.execute(DDL("CREATE EXTENSION IF NOT EXISTS timescaledb"))
-    connection.execute(
-        DDL("SELECT create_hypertable('stock_prices', 'timestamp', if_not_exists => TRUE)")
-    )
+    if connection.dialect.name == "postgresql":
+        connection.execute(DDL("CREATE EXTENSION IF NOT EXISTS timescaledb"))
+        connection.execute(
+            DDL(
+                "SELECT create_hypertable('stock_prices', 'timestamp', if_not_exists => TRUE)"
+            )
+        )
