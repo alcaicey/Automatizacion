@@ -21,6 +21,7 @@ Esta aplicación web permite filtrar y visualizar datos de acciones de la Bolsa 
    - Indicador de progreso durante la generación del JSON (hasta 20 segundos)
    - Actualización automática configurable (1-3 o 1-5 minutos)
    - Indicador de próxima actualización y timestamp del último archivo JSON
+   - Actualización en tiempo real vía WebSocket al almacenar nuevos datos
 
 4. **Visualización de Datos**:
    - Tabla con columnas para Acción, Precio, Variación, Compra, Venta, Monto, Moneda y Volumen
@@ -94,6 +95,7 @@ Antes de ejecutar la aplicación se deben definir las siguientes variables de en
 - **BOLSA_USERNAME** y **BOLSA_PASSWORD**: credenciales para iniciar sesión en el sitio de la Bolsa de Santiago.
 - **BOLSA_SCRIPTS_DIR**: (opcional) ruta al directorio que contiene `bolsa_santiago_bot.py`. Por defecto apunta a la carpeta `src/scripts` del proyecto.
 - **BOLSA_LOGS_DIR**: (opcional) directorio donde el bot almacenará sus logs y archivos JSON. Si no se especifica se utiliza `logs_bolsa` dentro de la carpeta `src` del proyecto.
+- **DATABASE_URL**: cadena de conexión para PostgreSQL/TimescaleDB. Ejemplo: `postgresql://postgres:postgres@localhost:5432/bolsa`.
 
 ## Instalación y Ejecución
 
@@ -111,6 +113,8 @@ Antes de ejecutar la aplicación se deben definir las siguientes variables de en
    
    # Instalar dependencias
    pip install -r requirements.txt
+   # Iniciar TimescaleDB con docker-compose
+   docker-compose up -d db
    ```
 
 2. **Ejecución de la aplicación**:
@@ -156,6 +160,7 @@ Antes de ejecutar la aplicación se deben definir las siguientes variables de en
 - El scraping se realiza mediante el script bolsa_santiago_bot.py existente
 - Los datos se leen directamente desde los archivos JSON generados en la ubicación especificada
 - La actualización automática se gestiona tanto en el servidor como en el cliente
+- Los datos se almacenan en PostgreSQL/TimescaleDB y se notifican mediante SocketIO
 - La aplicación detecta automáticamente la estructura del JSON y normaliza los campos
 - El analizador HAR también revisa la respuesta de `getEstadoSesionUsuario` y, si contiene fecha o duración de expiración, calcula el tiempo restante de la sesión.
 
