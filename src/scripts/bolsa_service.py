@@ -10,6 +10,10 @@ import glob
 import random  # Asegurarse de que random esté importado
 import sys
 
+from src.extensions import socketio
+from src.models import db
+from src.models.stock_price import StockPrice
+
 from src.config import SCRIPTS_DIR, LOGS_DIR, BASE_DIR, PROJECT_SRC_DIR
 
 # Rutas de trabajo obtenidas desde el módulo de configuración
@@ -79,6 +83,31 @@ def extract_timestamp_from_filename(filename):
     except Exception as e:
         logger.exception(f"Error al extraer timestamp del nombre de archivo '{filename}': {e}")
         return datetime.now().strftime("%d/%m/%Y %H:%M:%S") # Fallback a ahora
+
+def store_prices_in_db(json_path):
+    """Guarda los precios de acciones en la base de datos y emite notificación."""
+    try:
+        with open(json_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        rows = data.get("listaResult") if isinstance(data, dict) else data
+        timestamp_str = extract_timestamp_from_filename(json_path)
+        ts = datetime.strptime(timestamp_str, "%d/%m/%Y %H:%M:%S")
+        if isinstance(rows, list):
+            for item in rows:
+                if not isinstance(item, dict):
+                    continue
+                record = StockPrice(
+                    symbol=item.get("NEMO"),
+                    price=float(item.get("PRECIO_CIERRE", 0) or 0),
+                    variation=float(item.get("VARIACION", 0) or 0),
+                    timestamp=ts,
+                )
+                db.session.add(record)
+            db.session.commit()
+            socketio.emit('new_data')
+    except Exception as e:
+        logger.exception(f"Error al guardar datos en DB: {e}")
 
 def get_latest_summary_file():
     """Devuelve la ruta al resumen HAR más reciente generado por el bot."""
@@ -152,9 +181,10 @@ def run_bolsa_bot():
             return None
         
         latest_json = get_latest_json_file() # Busca el archivo generado por el bot
-        
+
         if latest_json:
             logger.info(f"bolsa_santiago_bot.py ejecutado, datos actualizados en: {latest_json}")
+            store_prices_in_db(latest_json)
             return latest_json
         else:
             logger.error("bolsa_santiago_bot.py ejecutado, pero no se encontró el archivo JSON de datos esperado.")

@@ -398,6 +398,11 @@ function loadStockCodes() {
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
+    // Conectar con el servidor vía WebSocket
+    const socket = io();
+    socket.on('new_data', () => {
+        fetchAndDisplayStocks();
+    });
     // Cargar códigos guardados
     loadStockCodes();
     fetchSessionTime();
