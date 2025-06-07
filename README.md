@@ -232,3 +232,10 @@ pytest -q
 Al establecer `BOLSA_NON_INTERACTIVE=1` las pruebas podrán ejecutar el bot de forma
 no interactiva.
 
+Para comprobar que la base de datos configurada es accesible se puede ejecutar
+el siguiente comando después de completar la instalación:
+
+```bash
+pytest tests/test_database_connection.py
+```
+
