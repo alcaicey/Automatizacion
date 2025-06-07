@@ -2,7 +2,9 @@ import os
 import sys
 import pytest
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+)  # noqa: E402
 
 # Ensure database is sqlite for tests
 os.environ['DATABASE_URL'] = 'sqlite:///:memory:'
@@ -23,4 +25,3 @@ def test_get_users_endpoint(app):
     client = app.test_client()
     resp = client.get('/api/users')
     assert resp.status_code == 200
-
