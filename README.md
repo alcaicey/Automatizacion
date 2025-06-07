@@ -111,8 +111,8 @@ Antes de ejecutar la aplicación se deben definir las siguientes variables de en
    # En Linux/Mac:
    source venv/bin/activate
    
-   # Instalar dependencias
-   pip install -r requirements.txt
+   # Instalar dependencias y Playwright
+   pip install -r requirements.txt && playwright install
    # Iniciar TimescaleDB con docker-compose
    docker-compose up -d db
    ```
