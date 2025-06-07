@@ -97,6 +97,7 @@ Antes de ejecutar la aplicación se deben definir las siguientes variables de en
 - **BOLSA_SCRIPTS_DIR**: (opcional) ruta al directorio que contiene `bolsa_santiago_bot.py`. Por defecto apunta a la carpeta `src/scripts` del proyecto.
 - **BOLSA_LOGS_DIR**: (opcional) directorio donde el bot almacenará sus logs y archivos JSON. Si no se especifica se utiliza `logs_bolsa` dentro de la carpeta `src` del proyecto.
 - **DATABASE_URL**: cadena de conexión para PostgreSQL/TimescaleDB. Ejemplo: `postgresql://postgres:postgres@localhost:5432/bolsa`.
+- **BOLSA_NON_INTERACTIVE**: si se establece en `1`, permite ejecutar `bolsa_santiago_bot.py` sin confirmación de usuario. Útil para automatización y pruebas.
 
 ## Instalación y Ejecución
 
@@ -200,6 +201,18 @@ aplicación. De esta forma no es necesario modificar `src/config.py`.
   actualizará inmediatamente sin necesidad de recargar la página.
 - **Refactorización del servicio**: `bolsa_service.py` y `bolsa_santiago_bot.py`
   se modificarán para escribir de forma simultánea en JSON y en TimescaleDB.
-  También se prepararán scripts de despliegue (por ejemplo `docker-compose`) para
-  facilitar el uso de TimescaleDB en entornos cloud.
+    También se prepararán scripts de despliegue (por ejemplo `docker-compose`) para
+    facilitar el uso de TimescaleDB en entornos cloud.
+
+## Ejecución de Pruebas
+
+Para ejecutar las pruebas automatizadas de la aplicación:
+
+```bash
+pip install -r requirements.txt && playwright install
+pytest -q
+```
+
+Al establecer `BOLSA_NON_INTERACTIVE=1` las pruebas podrán ejecutar el bot de forma
+no interactiva.
 
