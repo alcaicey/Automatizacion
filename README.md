@@ -171,3 +171,18 @@ Si necesitas usar rutas diferentes a las predeterminadas puedes definir las
 variables de entorno `BOLSA_SCRIPTS_DIR` y `BOLSA_LOGS_DIR` antes de ejecutar la
 aplicación. De esta forma no es necesario modificar `src/config.py`.
 
+## Futuras Mejoras
+
+- **Persistencia en la nube con TimescaleDB**: Los precios que actualmente se
+  almacenan únicamente en archivos JSON también se guardarán en una base de datos
+  TimescaleDB (sobre PostgreSQL). Esta solución está optimizada para series de
+  tiempo y permitirá consultas históricas y análisis más avanzados.
+- **Actualización en tiempo real de la interfaz**: Se incorporará un servidor
+  WebSocket (por ejemplo mediante Flask‑SocketIO) para notificar a los clientes
+  cada vez que nuevos registros se inserten en la base de datos. Así, la tabla se
+  actualizará inmediatamente sin necesidad de recargar la página.
+- **Refactorización del servicio**: `bolsa_service.py` y `bolsa_santiago_bot.py`
+  se modificarán para escribir de forma simultánea en JSON y en TimescaleDB.
+  También se prepararán scripts de despliegue (por ejemplo `docker-compose`) para
+  facilitar el uso de TimescaleDB en entornos cloud.
+
