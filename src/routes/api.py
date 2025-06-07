@@ -14,6 +14,9 @@ from src.scripts.bolsa_service import (
     get_session_remaining_seconds,
 )
 
+from src.models.stock_price import StockPrice
+from src.models import db
+
 # Crear el blueprint
 api_bp = Blueprint('api', __name__)
 
@@ -135,3 +138,81 @@ def session_time():
             "error": str(e),
             "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
         }), 500
+
+
+# ----- CRUD de precios almacenados -----
+
+@api_bp.route('/prices', methods=['GET'])
+def list_prices():
+    """Devuelve una lista de precios almacenados."""
+    try:
+        limit = request.args.get('limit', type=int)
+        query = StockPrice.query.order_by(StockPrice.timestamp.desc())
+        if limit:
+            query = query.limit(limit)
+        prices = query.all()
+        return jsonify([p.to_dict() for p in prices])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@api_bp.route('/prices', methods=['POST'])
+def create_price():
+    """Crea un nuevo registro de precio."""
+    data = request.get_json() or {}
+    try:
+        ts = data.get('timestamp')
+        ts = datetime.fromisoformat(ts) if ts else datetime.utcnow()
+        price = StockPrice(
+            symbol=data.get('symbol'),
+            price=data.get('price', 0),
+            variation=data.get('variation'),
+            timestamp=ts,
+        )
+        db.session.add(price)
+        db.session.commit()
+        return jsonify(price.to_dict()), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
+
+
+@api_bp.route('/prices/<int:price_id>', methods=['GET'])
+def get_price(price_id):
+    """Obtiene un registro de precio por ID."""
+    price = StockPrice.query.get_or_404(price_id)
+    return jsonify(price.to_dict())
+
+
+@api_bp.route('/prices/<int:price_id>', methods=['PUT'])
+def update_price(price_id):
+    """Actualiza un registro existente."""
+    price = StockPrice.query.get_or_404(price_id)
+    data = request.get_json() or {}
+    try:
+        if 'symbol' in data:
+            price.symbol = data['symbol']
+        if 'price' in data:
+            price.price = data['price']
+        if 'variation' in data:
+            price.variation = data['variation']
+        if 'timestamp' in data:
+            price.timestamp = datetime.fromisoformat(data['timestamp'])
+        db.session.commit()
+        return jsonify(price.to_dict())
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
+
+
+@api_bp.route('/prices/<int:price_id>', methods=['DELETE'])
+def delete_price(price_id):
+    """Elimina un registro de precio."""
+    price = StockPrice.query.get_or_404(price_id)
+    try:
+        db.session.delete(price)
+        db.session.commit()
+        return '', 204
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
