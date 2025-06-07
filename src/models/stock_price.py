@@ -1,7 +1,7 @@
-from datetime import datetime
 from sqlalchemy import event, DDL
 
 from . import db
+
 
 class StockPrice(db.Model):
     __tablename__ = 'stock_prices'
@@ -18,7 +18,9 @@ class StockPrice(db.Model):
             'symbol': self.symbol,
             'price': self.price,
             'variation': self.variation,
-            'timestamp': self.timestamp.isoformat() if self.timestamp else None,
+            'timestamp': (
+                self.timestamp.isoformat() if self.timestamp else None
+            ),
         }
 
 
@@ -28,6 +30,7 @@ def create_timescale_hypertable(target, connection, **kw):
         connection.execute(DDL("CREATE EXTENSION IF NOT EXISTS timescaledb"))
         connection.execute(
             DDL(
-                "SELECT create_hypertable('stock_prices', 'timestamp', if_not_exists => TRUE)"
+                "SELECT create_hypertable('stock_prices', 'timestamp', "
+                "if_not_exists => TRUE)"
             )
         )
