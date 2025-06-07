@@ -38,3 +38,8 @@ CERRAR_TODAS_SESIONES_SELECTOR = "button:has-text('Cerrar sesión en todos los d
 # Carpeta base de logs para la ejecución del bot
 LOG_DIR = os.path.join(PROJECT_SRC_DIR, 'logs_bolsa')
 os.makedirs(LOG_DIR, exist_ok=True)
+
+# Configuración de base de datos
+DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/bolsa')
+SQLALCHEMY_DATABASE_URI = DATABASE_URL
+SQLALCHEMY_TRACK_MODIFICATIONS = False
