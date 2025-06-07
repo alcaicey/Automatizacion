@@ -3,6 +3,10 @@ import os
 from flask import Flask, render_template, send_from_directory
 from flask_cors import CORS
 
+from src.extensions import socketio
+from src.models import db
+from src.config import SQLALCHEMY_DATABASE_URI, SQLALCHEMY_TRACK_MODIFICATIONS
+
 # Añadir el directorio raíz al path para importaciones absolutas
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
@@ -11,7 +15,11 @@ from src.routes.api import api_bp
 
 # Crear la aplicación Flask
 app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = SQLALCHEMY_DATABASE_URI
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = SQLALCHEMY_TRACK_MODIFICATIONS
 CORS(app)  # Habilitar CORS para todas las rutas
+db.init_app(app)
+socketio.init_app(app, cors_allowed_origins="*")
 
 # Registrar blueprints
 app.register_blueprint(api_bp, url_prefix='/api')
@@ -29,5 +37,7 @@ if __name__ == '__main__':
     os.makedirs(os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs"), exist_ok=True)
     os.makedirs(os.path.join(os.path.dirname(os.path.dirname(__file__)), "data"), exist_ok=True)
     
-    # Iniciar la aplicación
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Iniciar la aplicación con soporte WebSocket
+    with app.app_context():
+        db.create_all()
+    socketio.run(app, host='0.0.0.0', port=5000, debug=True)
