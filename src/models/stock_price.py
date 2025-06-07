@@ -12,6 +12,15 @@ class StockPrice(db.Model):
     variation = db.Column(db.Float)
     timestamp = db.Column(db.DateTime, nullable=False, index=True)
 
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'symbol': self.symbol,
+            'price': self.price,
+            'variation': self.variation,
+            'timestamp': self.timestamp.isoformat() if self.timestamp else None,
+        }
+
 
 @event.listens_for(StockPrice.__table__, 'after_create')
 def create_timescale_hypertable(target, connection, **kw):
