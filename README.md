@@ -100,6 +100,8 @@ Antes de ejecutar la aplicación se deben definir las siguientes variables de en
 - **BOLSA_NON_INTERACTIVE**: si se establece en `1`, permite ejecutar `bolsa_santiago_bot.py` sin confirmación de usuario. Útil para automatización y pruebas.
   Para ejecutar el bot de forma interactiva (por ejemplo si se presenta un CAPTCHA),
   omite esta variable o envíe `{"non_interactive": false}` al endpoint `/api/stocks/update`.
+  Si la variable no está definida, al iniciar la aplicación con `python src/main.py` se
+  preguntará si desea habilitar la ejecución no interactiva.
 
 ## Instalación y Ejecución
 

@@ -18,7 +18,7 @@ def test_filter_endpoint_launches_browser(app, tmp_path, monkeypatch):
 
     calls = []
 
-    def fake_run(app=None):
+    def fake_run(app=None, non_interactive=True):
         calls.append(True)
         if app:
             with app.app_context():
@@ -43,7 +43,7 @@ def test_update_endpoint_launches_browser(app, tmp_path, monkeypatch):
 
     calls = []
 
-    def fake_run(app=None):
+    def fake_run(app=None, non_interactive=True):
         calls.append(True)
         if app:
             with app.app_context():
