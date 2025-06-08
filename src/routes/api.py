@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request, current_app
+from flask import Blueprint, jsonify, request, current_app, abort
 from datetime import datetime
 
 # Importar el servicio de bolsa
@@ -183,17 +183,25 @@ def create_price():
         return jsonify({"error": str(e)}), 400
 
 
-@api_bp.route('/prices/<int:price_id>', methods=['GET'])
-def get_price(price_id):
-    """Obtiene un registro de precio por ID."""
-    price = StockPrice.query.get_or_404(price_id)
+@api_bp.route('/prices/<string:symbol>/<string:ts>', methods=['GET'])
+def get_price(symbol, ts):
+    """Obtiene un registro de precio por símbolo y timestamp."""
+    try:
+        timestamp = datetime.fromisoformat(ts)
+    except ValueError:
+        abort(400, description="Invalid timestamp format")
+    price = StockPrice.query.filter_by(symbol=symbol, timestamp=timestamp).first_or_404()
     return jsonify(price.to_dict())
 
 
-@api_bp.route('/prices/<int:price_id>', methods=['PUT'])
-def update_price(price_id):
+@api_bp.route('/prices/<string:symbol>/<string:ts>', methods=['PUT'])
+def update_price(symbol, ts):
     """Actualiza un registro existente."""
-    price = StockPrice.query.get_or_404(price_id)
+    try:
+        timestamp = datetime.fromisoformat(ts)
+    except ValueError:
+        abort(400, description="Invalid timestamp format")
+    price = StockPrice.query.filter_by(symbol=symbol, timestamp=timestamp).first_or_404()
     data = request.get_json() or {}
     try:
         if 'symbol' in data:
@@ -211,10 +219,14 @@ def update_price(price_id):
         return jsonify({"error": str(e)}), 400
 
 
-@api_bp.route('/prices/<int:price_id>', methods=['DELETE'])
-def delete_price(price_id):
+@api_bp.route('/prices/<string:symbol>/<string:ts>', methods=['DELETE'])
+def delete_price(symbol, ts):
     """Elimina un registro de precio."""
-    price = StockPrice.query.get_or_404(price_id)
+    try:
+        timestamp = datetime.fromisoformat(ts)
+    except ValueError:
+        abort(400, description="Invalid timestamp format")
+    price = StockPrice.query.filter_by(symbol=symbol, timestamp=timestamp).first_or_404()
     try:
         db.session.delete(price)
         db.session.commit()

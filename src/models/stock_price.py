@@ -8,19 +8,15 @@ class StockPrice(db.Model):
     # Ensure each price record for a given symbol and timestamp is unique. This
     # also satisfies TimescaleDB's requirement for a constraint that includes
     # the time column.
-    __table_args__ = (
-        db.UniqueConstraint('symbol', 'timestamp', name='uix_symbol_timestamp'),
-    )
+    __table_args__ = ()
 
-    id = db.Column(db.Integer, primary_key=True)
-    symbol = db.Column(db.String(50), nullable=False)
+    symbol = db.Column(db.String(50), primary_key=True)
+    timestamp = db.Column(db.DateTime, primary_key=True, nullable=False, index=True)
     price = db.Column(db.Float, nullable=False)
     variation = db.Column(db.Float)
-    timestamp = db.Column(db.DateTime, nullable=False, index=True)
 
     def to_dict(self):
         return {
-            'id': self.id,
             'symbol': self.symbol,
             'price': self.price,
             'variation': self.variation,
