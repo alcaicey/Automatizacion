@@ -398,6 +398,13 @@ function loadStockCodes() {
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
+    fetch('/api/credentials')
+        .then(r => r.json())
+        .then(data => {
+            if (!data.has_credentials) {
+                window.location.href = '/login.html';
+            }
+        });
     // Conectar con el servidor vía WebSocket
     const socket = io();
     socket.on('new_data', () => {

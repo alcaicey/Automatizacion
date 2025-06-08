@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request, current_app, abort
 from datetime import datetime
+import os
 
 # Importar el servicio de bolsa
 from src.scripts.bolsa_service import (
@@ -13,6 +14,7 @@ from src.scripts.bolsa_service import (
 
 from src.models.stock_price import StockPrice
 from src.models import db
+from src.models.credentials import Credential
 
 # Crear el blueprint
 api_bp = Blueprint('api', __name__)
@@ -153,6 +155,45 @@ def session_time():
             "error": str(e),
             "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
         }), 500
+
+
+@api_bp.route('/credentials', methods=['GET'])
+def credentials_status():
+    """Devuelve si existen credenciales almacenadas."""
+    cred = Credential.query.first()
+    if cred or (os.getenv('BOLSA_USERNAME') and os.getenv('BOLSA_PASSWORD')):
+        return jsonify({"has_credentials": True})
+    return jsonify({"has_credentials": False})
+
+
+@api_bp.route('/credentials', methods=['POST'])
+def set_credentials():
+    """Guarda las credenciales y opcionalmente las persiste."""
+    data = request.get_json() or {}
+    username = data.get('username')
+    password = data.get('password')
+    remember = bool(data.get('remember'))
+
+    if not username or not password:
+        return jsonify({"error": "username and password required"}), 400
+
+    os.environ['BOLSA_USERNAME'] = username
+    os.environ['BOLSA_PASSWORD'] = password
+
+    if remember:
+        cred = Credential.query.first()
+        if cred:
+            cred.username = username
+            cred.password = password
+        else:
+            cred = Credential(username=username, password=password)
+            db.session.add(cred)
+        db.session.commit()
+    else:
+        Credential.query.delete()
+        db.session.commit()
+
+    return jsonify({"success": True})
 
 
 # ----- CRUD de precios almacenados -----
