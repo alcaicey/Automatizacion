@@ -32,6 +32,8 @@ class DummyPage:
         pass
     def click(self, selector):
         pass
+    def content(self):
+        return ""
     def locator(self, selector):
         # mis conexiones visible only on first attempt
         if selector == MIS_CONEXIONES_TITLE_SELECTOR:
@@ -45,6 +47,10 @@ class DummyPage:
         pass
     def reload(self, *args, **kwargs):
         pass
+    def screenshot(self, *args, **kwargs):
+        pass
+    def is_closed(self):
+        return False
 
 class DummyContext:
     def __init__(self, attempt_ref):

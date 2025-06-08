@@ -142,6 +142,32 @@ def run_automation(logger_param, attempt=1, max_attempts=2, *, non_interactive=N
         logger_param.info("Paso 4: Haciendo clic en el botón de Iniciar Sesión...")
         page.click(LOGIN_BUTTON_SELECTOR)
 
+        logger_param.info("Paso 4b: Comprobando indicios de CAPTCHA tras el login...")
+        page_content = ""
+        try:
+            page_content = page.content()
+        except PlaywrightError as err:
+            logger_param.debug(f"No se pudo obtener el contenido de la página: {err}")
+        indicators = ["radware", "captcha"]
+        captcha_detected = any(ind in page.url.lower() for ind in indicators)
+        if not captcha_detected and page_content:
+            lower_content = page_content.lower()
+            captcha_detected = any(ind in lower_content for ind in indicators)
+
+        if captcha_detected:
+            logger_param.warning("Posible CAPTCHA detectado. Esperando al usuario si es posible...")
+            if not non_interactive:
+                try:
+                    page.wait_for_function(
+                        "() => !document.body.innerText.toLowerCase().includes('captcha') "
+                        "&& !window.location.href.toLowerCase().includes('radware') "
+                        "&& !window.location.href.toLowerCase().includes('captcha')",
+                        timeout=120000,
+                    )
+                    logger_param.info("Continuando después de la resolución del CAPTCHA")
+                except PlaywrightTimeoutError:
+                    logger_param.warning("Timeout esperando resolución del CAPTCHA, se continúa")
+
         logger_param.info("Paso 5: Esperando redirección post-login a www.bolsadesantiago.com...")
         try:
             page.wait_for_url(
