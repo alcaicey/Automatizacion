@@ -121,6 +121,8 @@ Antes de ejecutar la aplicación se deben definir las siguientes variables de en
    
     # Instalar dependencias (incluye pytest)
     pip install -r requirements.txt
+    # Instalar dependencias de sistema para Playwright
+    npx playwright install-deps
     # Instalar los navegadores de Playwright
    python -m playwright install
    # Iniciar TimescaleDB con docker-compose
@@ -136,6 +138,7 @@ Al usar PowerShell 5.x no está disponible el operador `&&`. Ejecuta cada comand
 python -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt  # incluye pytest
+npx playwright install-deps
 python -m playwright install
 docker-compose up -d db
 ```
@@ -232,6 +235,7 @@ Para ejecutar las pruebas automatizadas de la aplicación (todas las dependencia
 
 ```bash
 pip install -r requirements.txt
+npx playwright install-deps
 python -m playwright install
 pytest -q
 ```
