@@ -51,6 +51,17 @@ def is_bot_running():
     with bot_lock:
         return bot_running
 
+def send_enter_key_to_browser():
+    """Simula presionar ENTER en el navegador abierto para refrescar la página."""
+    try:
+        import pyautogui
+        pyautogui.press('enter')
+        logger.info("ENTER enviado al navegador en ejecución")
+        return True
+    except Exception as e:
+        logger.exception(f"No se pudo enviar ENTER al navegador: {e}")
+        return False
+
 def get_latest_json_file():
     """
     Obtiene el archivo JSON de datos de acciones más reciente del directorio de logs

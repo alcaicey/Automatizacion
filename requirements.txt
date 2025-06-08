@@ -6,3 +6,4 @@ playwright==1.52.0
 flask-socketio==5.3.6
 psycopg2-binary==2.9.9
 pytest
+pyautogui
