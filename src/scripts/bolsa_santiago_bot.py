@@ -180,18 +180,11 @@ def run_automation(logger_param, attempt=1, max_attempts=2, *, non_interactive=N
             captcha_detected = any(ind in lower_content for ind in indicators)
 
         if captcha_detected:
-            logger_param.warning("Posible CAPTCHA detectado. Esperando al usuario si es posible...")
-            if not non_interactive:
-                try:
-                    page.wait_for_function(
-                        "() => !document.body.innerText.toLowerCase().includes('captcha') "
-                        "&& !window.location.href.toLowerCase().includes('radware') "
-                        "&& !window.location.href.toLowerCase().includes('captcha')",
-                        timeout=120000,
-                    )
-                    logger_param.info("Continuando después de la resolución del CAPTCHA")
-                except PlaywrightTimeoutError:
-                    logger_param.warning("Timeout esperando resolución del CAPTCHA, se continúa")
+            logger_param.warning(
+                "Posible CAPTCHA detectado. Esperando 10 segundos para que el usuario realice la acción..."
+            )
+            time.sleep(10)
+            logger_param.info("Continuando después de la espera por CAPTCHA")
 
         logger_param.info("Paso 5: Esperando redirección post-login a www.bolsadesantiago.com...")
         try:
