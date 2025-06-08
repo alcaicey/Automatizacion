@@ -8,7 +8,7 @@ import random
 import argparse
 
 from src.config import (
-    LOG_DIR,
+    LOGS_DIR,
     INITIAL_PAGE_URL,
     TARGET_DATA_PAGE_URL,
     USERNAME,
@@ -28,7 +28,7 @@ from src.scripts.har_analyzer import analyze_har_and_extract_data
 # --- Configuración de Logging Global ---
 LOG_FILENAME = ""
 # Archivo HAR con nombre fijo para capturas de red
-HAR_FILENAME = os.path.join(LOG_DIR, "network_capture.har")
+HAR_FILENAME = os.path.join(LOGS_DIR, "network_capture.har")
 OUTPUT_ACCIONES_DATA_FILENAME = ""
 ANALYZED_SUMMARY_FILENAME = ""
 # Timestamp para nombrar archivos generados en cada ejecución
@@ -66,9 +66,9 @@ def configure_run_specific_logging(logger_to_configure):
         handler.close()
 
     TIMESTAMP_NOW = datetime.now().strftime('%Y%m%d_%H%M%S')
-    LOG_FILENAME = os.path.join(LOG_DIR, f"bolsa_bot_log_{TIMESTAMP_NOW}.txt")
-    OUTPUT_ACCIONES_DATA_FILENAME = os.path.join(LOG_DIR, f"acciones-precios-plus_{TIMESTAMP_NOW}.json")
-    ANALYZED_SUMMARY_FILENAME = os.path.join(LOG_DIR, f"network_summary_{TIMESTAMP_NOW}.json")
+    LOG_FILENAME = os.path.join(LOGS_DIR, f"bolsa_bot_log_{TIMESTAMP_NOW}.txt")
+    OUTPUT_ACCIONES_DATA_FILENAME = os.path.join(LOGS_DIR, f"acciones-precios-plus_{TIMESTAMP_NOW}.json")
+    ANALYZED_SUMMARY_FILENAME = os.path.join(LOGS_DIR, f"network_summary_{TIMESTAMP_NOW}.json")
 
     # Borrar captura HAR previa para iniciar una nueva
     if os.path.exists(HAR_FILENAME):
@@ -187,7 +187,8 @@ def run_automation(logger_param, attempt=1, max_attempts=2, *, non_interactive=N
             logger_param.info(f"Paso 5: Redirección a www.bolsadesantiago.com exitosa. URL actual: {page.url}")
         except PlaywrightTimeoutError:
             logger_param.error(f"Paso 5: Timeout esperando redirección. URL actual: {page.url if page else 'N/A'}")
-            if page and not page.is_closed(): page.screenshot(path=os.path.join(LOG_DIR,f"timeout_post_login_redirect_{TIMESTAMP_NOW}.png"))
+            if page and not page.is_closed():
+                page.screenshot(path=os.path.join(LOGS_DIR, f"timeout_post_login_redirect_{TIMESTAMP_NOW}.png"))
             raise
 
         time.sleep(3)
@@ -245,10 +246,12 @@ def run_automation(logger_param, attempt=1, max_attempts=2, *, non_interactive=N
 
     except PlaywrightTimeoutError as pte:
         logger_param.error(f"ERROR DE TIMEOUT: {pte}")
-        if page and not page.is_closed(): page.screenshot(path=os.path.join(LOG_DIR, f"timeout_error_{TIMESTAMP_NOW}.png"))
+        if page and not page.is_closed():
+            page.screenshot(path=os.path.join(LOGS_DIR, f"timeout_error_{TIMESTAMP_NOW}.png"))
     except Exception as e:
         logger_param.exception("ERROR GENERAL:")
-        if page and not page.is_closed(): page.screenshot(path=os.path.join(LOG_DIR,f"general_error_{TIMESTAMP_NOW}.png"))
+        if page and not page.is_closed():
+            page.screenshot(path=os.path.join(LOGS_DIR, f"general_error_{TIMESTAMP_NOW}.png"))
     finally:
         logger_param.info("Bloque Finally: Preparando análisis HAR y finalización...")
 
