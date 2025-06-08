@@ -18,6 +18,7 @@ from src.models.stock_price import StockPrice
 from src.models import db
 from src.models.credentials import Credential
 from src.models.column_preference import ColumnPreference
+from src.models.stock_filter import StockFilter
 
 # Crear el blueprint
 api_bp = Blueprint('api', __name__)
@@ -228,6 +229,35 @@ def set_column_preferences():
         pref.columns_json = cols_json
     else:
         pref = ColumnPreference(columns_json=cols_json)
+        db.session.add(pref)
+    db.session.commit()
+    return jsonify({"success": True})
+
+
+@api_bp.route('/stock-filter', methods=['GET'])
+def get_stock_filter():
+    """Devuelve los códigos de acciones guardados."""
+    pref = StockFilter.query.first()
+    if pref:
+        return jsonify({"codes": pref.codes_json, "all": pref.all})
+    return jsonify({"codes": None, "all": False})
+
+
+@api_bp.route('/stock-filter', methods=['POST'])
+def set_stock_filter():
+    """Guarda los códigos de acciones."""
+    data = request.get_json() or {}
+    codes = data.get('codes')
+    all_flag = bool(data.get('all'))
+    if not isinstance(codes, list):
+        return jsonify({"error": "'codes' must be a list"}), 400
+    codes_json = json.dumps(codes)
+    pref = StockFilter.query.first()
+    if pref:
+        pref.codes_json = codes_json
+        pref.all = all_flag
+    else:
+        pref = StockFilter(codes_json=codes_json, all=all_flag)
         db.session.add(pref)
     db.session.commit()
     return jsonify({"success": True})
