@@ -11,8 +11,11 @@ LOGS_DIR = os.environ.get('BOLSA_LOGS_DIR', os.path.join(PROJECT_SRC_DIR, 'logs_
 os.makedirs(LOGS_DIR, exist_ok=True)
 
 # Credenciales de acceso
-USERNAME = os.environ.get('BOLSA_USERNAME', 'alcaicey@gmail.com')
-PASSWORD = os.environ.get('BOLSA_PASSWORD', 'Carlosirenee13#')
+# Por defecto se utilizan cadenas vacías. Es obligatorio definirlas mediante las
+# variables de entorno ``BOLSA_USERNAME`` y ``BOLSA_PASSWORD`` antes de ejecutar
+# el bot.
+USERNAME = os.environ.get('BOLSA_USERNAME', '')
+PASSWORD = os.environ.get('BOLSA_PASSWORD', '')
 
 # URLs y selectores utilizados por el bot
 INITIAL_PAGE_URL = 'https://www.bolsadesantiago.com/plus_acciones_precios'
