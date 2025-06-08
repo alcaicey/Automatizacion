@@ -28,7 +28,7 @@ def test_update_restarts_when_enter_fails(app, monkeypatch):
 
     run_called = {}
 
-    def fake_run(app=None, non_interactive=None):
+    def fake_run(app=None, non_interactive=None, keep_open=True):
         run_called["run"] = True
 
     monkeypatch.setattr(

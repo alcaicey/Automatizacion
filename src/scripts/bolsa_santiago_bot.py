@@ -97,7 +97,7 @@ def handle_console_message(msg, logger_param):
         logger_param.info(f"JS CONSOLE ({msg.type}): {text}")
 
 
-def run_automation(logger_param, attempt=1, max_attempts=2, *, non_interactive=None):
+def run_automation(logger_param, attempt=1, max_attempts=2, *, non_interactive=None, keep_open=True):
     if non_interactive is None:
         non_interactive = NON_INTERACTIVE or os.getenv("BOLSA_NON_INTERACTIVE") == "1"
 
@@ -278,7 +278,7 @@ def run_automation(logger_param, attempt=1, max_attempts=2, *, non_interactive=N
             logger_param.error(f"El archivo HAR {effective_har_filename} no fue creado o no se encontró, no se puede analizar.")
 
         logger_param.info("Proceso del script realmente finalizado.")
-        if not is_mis_conexiones_page or attempt >= max_attempts:
+        if keep_open and (not is_mis_conexiones_page or attempt >= max_attempts):
             if browser is not None:
                 try:
                     keep_context = browser.new_context(
@@ -310,6 +310,7 @@ def run_automation(logger_param, attempt=1, max_attempts=2, *, non_interactive=N
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Bolsa Santiago bot")
+    parser.add_argument("--no-keep-open", dest="keep_open", action="store_false", help="Cerrar el navegador automáticamente al finalizar", default=True)
     parser.add_argument(
         "--non-interactive",
         action="store_true",
@@ -323,7 +324,7 @@ def main(argv=None):
 
     validate_credentials()
     configure_run_specific_logging(logger_instance_global)
-    run_automation(logger_instance_global, non_interactive=NON_INTERACTIVE)
+    run_automation(logger_instance_global, non_interactive=NON_INTERACTIVE, keep_open=args.keep_open)
 
 
 if __name__ == "__main__":

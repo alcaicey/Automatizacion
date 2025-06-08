@@ -43,7 +43,7 @@ def test_update_endpoint_triggers_websocket(app, tmp_path, monkeypatch):
     json_path = tmp_path / "acciones-precios-plus_20240102_000000.json"
     json_path.write_text(json.dumps(data), encoding="utf-8")
 
-    def fake_run(app=None, non_interactive=True):
+    def fake_run(app=None, non_interactive=True, keep_open=True):
         calls.append(True)
         with app.app_context():
             bolsa_service.store_prices_in_db(str(json_path), app=app)

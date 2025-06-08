@@ -194,7 +194,7 @@ def get_session_remaining_seconds():
         logger.exception(f"Error al obtener los segundos restantes de la sesión: {e}")
         return None
 
-def run_bolsa_bot(app=None, *, non_interactive=None):
+def run_bolsa_bot(app=None, *, non_interactive=None, keep_open=True):
     """Ejecuta ``bolsa_santiago_bot.py`` y devuelve la ruta al JSON generado.
 
     Parameters
@@ -207,6 +207,9 @@ def run_bolsa_bot(app=None, *, non_interactive=None):
         elimina dicha variable para permitir interacción (por ejemplo para
         resolver un CAPTCHA). Cuando es ``None`` (valor por defecto) se respeta
         el valor actual de la variable de entorno y no se modifica.
+    keep_open : bool, optional
+        Si es True (por defecto), el script mantiene el navegador abierto al finalizar.
+        Cuando es False, el navegador se cierra inmediatamente.
     """
     global bot_running
     ctx = app.app_context() if app else nullcontext()
@@ -235,8 +238,11 @@ def run_bolsa_bot(app=None, *, non_interactive=None):
             else:
                 env.pop("BOLSA_NON_INTERACTIVE", None)
 
+            cmd = [sys.executable, "-m", module_path]
+            if not keep_open:
+                cmd.append("--no-keep-open")
             process = subprocess.run(
-                [sys.executable, "-m", module_path],
+                cmd,
                 capture_output=True,  # Captura stdout y stderr
                 text=True,
                 cwd=BASE_DIR,  # Directorio de trabajo para el script
