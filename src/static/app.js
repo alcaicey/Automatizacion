@@ -29,23 +29,23 @@ window.addEventListener('unhandledrejection', (e) => {
     logErrorToServer(reason.message || String(reason), reason.stack, 'global');
 });
 
-// Elementos DOM
-const stockFilterForm = document.getElementById('stockFilterForm');
-const stockCodeInputs = document.querySelectorAll('.stock-code');
-const autoUpdateSelect = document.getElementById('autoUpdateSelect');
-const clearBtn = document.getElementById('clearBtn');
-const refreshBtn = document.getElementById('refreshBtn');
-const configColumnsBtn = document.getElementById('configColumnsBtn');
-const columnConfigForm = document.getElementById('columnConfigForm');
-const saveColumnPrefsBtn = document.getElementById('saveColumnPrefs');
-const statusMessage = document.getElementById('statusMessage');
-const lastUpdate = document.getElementById('lastUpdate');
-let stocksTable = document.getElementById('stocksTable');
-const loadingOverlay = document.getElementById('loadingOverlay');
-const loadingMessage = document.getElementById('loadingMessage');
-const nextUpdateInfo = document.getElementById('nextUpdateInfo');
-const sessionCountdown = document.getElementById('sessionCountdown');
-const allStocksCheck = document.getElementById('allStocksCheck');
+// Elementos DOM (se asignan tras DOMContentLoaded)
+let stockFilterForm;
+let stockCodeInputs;
+let autoUpdateSelect;
+let clearBtn;
+let refreshBtn;
+let configColumnsBtn;
+let columnConfigForm;
+let saveColumnPrefsBtn;
+let statusMessage;
+let lastUpdate;
+let stocksTable;
+let loadingOverlay;
+let loadingMessage;
+let nextUpdateInfo;
+let sessionCountdown;
+let allStocksCheck;
 
 let sessionCountdownInterval = null;
 let visibleColumns = [];
@@ -537,6 +537,23 @@ async function loadStockCodes() {
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
+    // Obtener referencias a los elementos del DOM
+    stockFilterForm = document.getElementById('stockFilterForm');
+    stockCodeInputs = document.querySelectorAll('.stock-code');
+    autoUpdateSelect = document.getElementById('autoUpdateSelect');
+    clearBtn = document.getElementById('clearBtn');
+    refreshBtn = document.getElementById('refreshBtn');
+    configColumnsBtn = document.getElementById('configColumnsBtn');
+    columnConfigForm = document.getElementById('columnConfigForm');
+    saveColumnPrefsBtn = document.getElementById('saveColumnPrefs');
+    statusMessage = document.getElementById('statusMessage');
+    lastUpdate = document.getElementById('lastUpdate');
+    stocksTable = document.getElementById('stocksTable');
+    loadingOverlay = document.getElementById('loadingOverlay');
+    loadingMessage = document.getElementById('loadingMessage');
+    nextUpdateInfo = document.getElementById('nextUpdateInfo');
+    sessionCountdown = document.getElementById('sessionCountdown');
+    allStocksCheck = document.getElementById('allStocksCheck');
     fetch('/api/credentials')
         .then(r => r.json())
         .then(data => {
