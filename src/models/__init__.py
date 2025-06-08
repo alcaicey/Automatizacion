@@ -7,3 +7,4 @@ db = SQLAlchemy()
 from .user import User  # noqa: E402,F401
 from .stock_price import StockPrice  # noqa: E402,F401
 from .credentials import Credential  # noqa: E402,F401
+from .column_preference import ColumnPreference  # noqa: E402,F401

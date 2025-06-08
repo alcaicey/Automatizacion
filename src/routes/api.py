@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request, current_app, abort
 from datetime import datetime
 import os
+import json
 
 # Importar el servicio de bolsa
 from src.scripts.bolsa_service import (
@@ -16,6 +17,7 @@ from src.scripts.bolsa_service import (
 from src.models.stock_price import StockPrice
 from src.models import db
 from src.models.credentials import Credential
+from src.models.column_preference import ColumnPreference
 
 # Crear el blueprint
 api_bp = Blueprint('api', __name__)
@@ -200,6 +202,34 @@ def set_credentials():
         Credential.query.delete()
         db.session.commit()
 
+    return jsonify({"success": True})
+
+
+@api_bp.route('/column-preferences', methods=['GET'])
+def get_column_preferences():
+    """Devuelve la configuración de columnas si existe."""
+    pref = ColumnPreference.query.first()
+    if pref:
+        return jsonify({"columns": pref.columns_json})
+    return jsonify({"columns": None})
+
+
+@api_bp.route('/column-preferences', methods=['POST'])
+def set_column_preferences():
+    """Guarda la configuración de columnas."""
+    data = request.get_json() or {}
+    cols = data.get('columns')
+    if not isinstance(cols, list):
+        return jsonify({"error": "'columns' must be a list"}), 400
+    pref = ColumnPreference.query.first()
+    import json
+    cols_json = json.dumps(cols)
+    if pref:
+        pref.columns_json = cols_json
+    else:
+        pref = ColumnPreference(columns_json=cols_json)
+        db.session.add(pref)
+    db.session.commit()
     return jsonify({"success": True})
 
 

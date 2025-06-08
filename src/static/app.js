@@ -13,6 +13,9 @@ const stockCodeInputs = document.querySelectorAll('.stock-code');
 const autoUpdateSelect = document.getElementById('autoUpdateSelect');
 const clearBtn = document.getElementById('clearBtn');
 const refreshBtn = document.getElementById('refreshBtn');
+const configColumnsBtn = document.getElementById('configColumnsBtn');
+const columnConfigForm = document.getElementById('columnConfigForm');
+const saveColumnPrefsBtn = document.getElementById('saveColumnPrefs');
 const statusMessage = document.getElementById('statusMessage');
 const lastUpdate = document.getElementById('lastUpdate');
 const stocksTable = document.getElementById('stocksTable');
@@ -22,6 +25,22 @@ const nextUpdateInfo = document.getElementById('nextUpdateInfo');
 const sessionCountdown = document.getElementById('sessionCountdown');
 
 let sessionCountdownInterval = null;
+let visibleColumns = [];
+let dataTable = null;
+
+const ALL_COLUMNS = [
+    { key: 'NEMO', label: 'Acción' },
+    { key: 'ISIN', label: 'ISIN' },
+    { key: 'PRECIO_CIERRE', label: 'Precio' },
+    { key: 'VARIACION', label: '$% Var' },
+    { key: 'PRECIO_COMPRA', label: 'Compra' },
+    { key: 'PRECIO_VENTA', label: 'Venta' },
+    { key: 'MONTO', label: 'Monto M$' },
+    { key: 'MONEDA', label: 'Moneda' },
+    { key: 'UN_TRANSADAS', label: 'Volumen' },
+    { key: 'BONO_VERDE', label: 'Bono Verde' },
+    { key: 'VALORES_EXTRANJEROS', label: 'Valores Extr.' },
+];
 
 // Función para mostrar/ocultar el overlay de carga
 function toggleLoading(show, message = '') {
@@ -58,6 +77,51 @@ function formatNumber(value, decimals = 2) {
         minimumFractionDigits: decimals,
         maximumFractionDigits: decimals
     });
+}
+
+// Crear los checkboxes de configuración
+function renderColumnConfig() {
+    columnConfigForm.innerHTML = '';
+    ALL_COLUMNS.forEach(col => {
+        const div = document.createElement('div');
+        div.className = 'form-check col-6';
+        div.innerHTML = `
+            <input class="form-check-input column-checkbox" type="checkbox" value="${col.key}" id="chk_${col.key}">
+            <label class="form-check-label" for="chk_${col.key}">${col.label}</label>
+        `;
+        columnConfigForm.appendChild(div);
+    });
+}
+
+async function loadColumnPreferences() {
+    try {
+        const resp = await fetch('/api/column-preferences');
+        const data = await resp.json();
+        if (data.columns) {
+            visibleColumns = JSON.parse(data.columns);
+        } else {
+            visibleColumns = ALL_COLUMNS.map(c => c.key);
+        }
+    } catch (e) {
+        visibleColumns = ALL_COLUMNS.map(c => c.key);
+    }
+    // Marcar checkboxes
+    document.querySelectorAll('.column-checkbox').forEach(chk => {
+        chk.checked = visibleColumns.includes(chk.value);
+    });
+}
+
+async function saveColumnPreferences() {
+    const cols = Array.from(document.querySelectorAll('.column-checkbox'))
+        .filter(c => c.checked)
+        .map(c => c.value);
+    visibleColumns = cols;
+    await fetch('/api/column-preferences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ columns: cols })
+    });
+    fetchAndDisplayStocks();
 }
 
 // Función para obtener y mostrar los datos de acciones
@@ -107,57 +171,70 @@ async function fetchAndDisplayStocks() {
 
 // Función para actualizar la tabla de acciones
 function updateStocksTable(data) {
+    const thead = stocksTable.querySelector('thead tr');
     const tbody = stocksTable.querySelector('tbody');
+    thead.innerHTML = '';
     tbody.innerHTML = '';
-    
-    // Verificar si hay datos para mostrar
-    const stocks = data.data || [];
-    
-    if (stocks.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="8" class="text-center py-4">
-                    <div class="text-muted">No hay datos disponibles</div>
-                </td>
-            </tr>
-        `;
-        return;
-    }
-    
-    // Crear filas para cada acción
-    stocks.forEach(stock => {
-        // Determinar si la variación es positiva o negativa
-        const variationValue = parseFloat(stock.VARIACION || 0);
-        const isPositive = variationValue > 0;
-        const isNegative = variationValue < 0;
-        const variationClass = isPositive ? 'variation-positive' : (isNegative ? 'variation-negative' : '');
-        const arrowIcon = isPositive ? 'fa-arrow-up arrow-up' : (isNegative ? 'fa-arrow-down arrow-down' : '');
-        
-        // Crear la fila
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td><strong>${stock.NEMO || '--'}</strong></td>
-            <td>${formatNumber(stock.PRECIO_CIERRE || 0)}</td>
-            <td class="${variationClass}">
-                ${arrowIcon ? `<i class="fas ${arrowIcon} me-1"></i>` : ''}
-                ${formatNumber(stock.VARIACION || 0)} (${formatNumber(variationValue, 2)}%)
-            </td>
-            <td>${formatNumber(stock.PRECIO_COMPRA || 0)}</td>
-            <td>${formatNumber(stock.PRECIO_VENTA || 0)}</td>
-            <td>${formatNumber(stock.MONTO || 0, 0)}</td>
-            <td>${stock.MONEDA || '--'}</td>
-            <td>${formatNumber(stock.UN_TRANSADAS || 0, 0)}</td>
-        `;
-        
-        tbody.appendChild(row);
+
+    const cols = visibleColumns.length ? visibleColumns : ALL_COLUMNS.map(c => c.key);
+    cols.forEach(key => {
+        const def = ALL_COLUMNS.find(c => c.key === key);
+        const th = document.createElement('th');
+        th.textContent = def ? def.label : key;
+        thead.appendChild(th);
     });
-    
-    // Aplicar animación de actualización
-    tbody.querySelectorAll('tr').forEach(row => {
-        row.classList.add('highlight-update');
-        setTimeout(() => {
-            row.classList.remove('highlight-update');
-        }, 2000);
+
+    const stocks = data.data || [];
+    if (stocks.length === 0) {
+        const row = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = cols.length;
+        td.className = 'text-center py-4';
+        td.innerHTML = '<div class="text-muted">No hay datos disponibles</div>';
+        row.appendChild(td);
+        tbody.appendChild(row);
+    } else {
+        stocks.forEach(stock => {
+            const row = document.createElement('tr');
+            cols.forEach(key => {
+                let html = '--';
+                if (key === 'NEMO') {
+                    html = `<strong>${stock.NEMO || '--'}</strong>`;
+                } else if (key === 'PRECIO_CIERRE') {
+                    html = formatNumber(stock.PRECIO_CIERRE || 0);
+                } else if (key === 'VARIACION') {
+                    const val = parseFloat(stock.VARIACION || 0);
+                    const isPos = val > 0;
+                    const isNeg = val < 0;
+                    const cls = isPos ? 'variation-positive' : (isNeg ? 'variation-negative' : '');
+                    const icon = isPos ? 'fa-arrow-up arrow-up' : (isNeg ? 'fa-arrow-down arrow-down' : '');
+                    html = `<span class="${cls}">${icon ? `<i class="fas ${icon} me-1"></i>` : ''}${formatNumber(stock.VARIACION || 0)} (${formatNumber(val,2)}%)</span>`;
+                } else if (key === 'PRECIO_COMPRA') {
+                    html = formatNumber(stock.PRECIO_COMPRA || 0);
+                } else if (key === 'PRECIO_VENTA') {
+                    html = formatNumber(stock.PRECIO_VENTA || 0);
+                } else if (key === 'MONTO') {
+                    html = formatNumber(stock.MONTO || 0, 0);
+                } else if (key === 'UN_TRANSADAS') {
+                    html = formatNumber(stock.UN_TRANSADAS || 0, 0);
+                } else {
+                    html = stock[key] ?? '--';
+                }
+                const td = document.createElement('td');
+                td.innerHTML = html;
+                row.appendChild(td);
+            });
+            tbody.appendChild(row);
+        });
+    }
+
+    if (dataTable) {
+        dataTable.destroy();
+    }
+    dataTable = new simpleDatatables.DataTable(stocksTable, {
+        searchable: true,
+        fixedHeight: true,
+        perPageSelect: false,
     });
 }
 
@@ -413,6 +490,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Cargar códigos guardados
     loadStockCodes();
     fetchSessionTime();
+    renderColumnConfig();
+    loadColumnPreferences().then(fetchAndDisplayStocks);
     
     // Configurar event listeners
     stockFilterForm.addEventListener('submit', async (e) => {
@@ -430,6 +509,16 @@ document.addEventListener('DOMContentLoaded', () => {
     
     refreshBtn.addEventListener('click', async () => {
         await updateStocksData();
+    });
+
+    configColumnsBtn.addEventListener('click', () => {
+        loadColumnPreferences();
+    });
+
+    saveColumnPrefsBtn.addEventListener('click', async () => {
+        await saveColumnPreferences();
+        const modal = bootstrap.Modal.getInstance(document.getElementById('columnConfigModal'));
+        modal.hide();
     });
     
     autoUpdateSelect.addEventListener('change', () => {
