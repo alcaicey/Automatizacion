@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, current_app
 from datetime import datetime
 
 # Importar el servicio de bolsa
@@ -51,7 +51,8 @@ def update_stocks():
         # Iniciar la actualización en un hilo separado para no bloquear la
         # respuesta
         import threading
-        update_thread = threading.Thread(target=run_bolsa_bot)
+        app = current_app._get_current_object()
+        update_thread = threading.Thread(target=run_bolsa_bot, kwargs={"app": app})
         update_thread.daemon = True
         update_thread.start()
 
@@ -94,7 +95,8 @@ def set_auto_update():
 
         elif mode == "1-3":
             # Actualización cada 1-3 minutos
-            start_periodic_updates(1, 3)
+            app = current_app._get_current_object()
+            start_periodic_updates(1, 3, app=app)
             return jsonify({
                 "success": True,
                 "message": (
@@ -105,7 +107,8 @@ def set_auto_update():
 
         elif mode == "1-5":
             # Actualización cada 1-5 minutos
-            start_periodic_updates(1, 5)
+            app = current_app._get_current_object()
+            start_periodic_updates(1, 5, app=app)
             return jsonify({
                 "success": True,
                 "message": (

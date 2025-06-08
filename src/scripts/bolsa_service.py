@@ -9,6 +9,8 @@ import re
 import glob
 import random  # Asegurarse de que random esté importado
 import sys
+from contextlib import nullcontext
+from flask import current_app
 
 from src.extensions import socketio
 from src.models import db
@@ -84,30 +86,32 @@ def extract_timestamp_from_filename(filename):
         logger.exception(f"Error al extraer timestamp del nombre de archivo '{filename}': {e}")
         return datetime.now().strftime("%d/%m/%Y %H:%M:%S") # Fallback a ahora
 
-def store_prices_in_db(json_path):
+def store_prices_in_db(json_path, app=None):
     """Guarda los precios de acciones en la base de datos y emite notificación."""
-    try:
-        with open(json_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+    ctx = app.app_context() if app else nullcontext()
+    with ctx:
+        try:
+            with open(json_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
 
-        rows = data.get("listaResult") if isinstance(data, dict) else data
-        timestamp_str = extract_timestamp_from_filename(json_path)
-        ts = datetime.strptime(timestamp_str, "%d/%m/%Y %H:%M:%S")
-        if isinstance(rows, list):
-            for item in rows:
-                if not isinstance(item, dict):
-                    continue
-                record = StockPrice(
-                    symbol=item.get("NEMO"),
-                    price=float(item.get("PRECIO_CIERRE", 0) or 0),
-                    variation=float(item.get("VARIACION", 0) or 0),
-                    timestamp=ts,
-                )
-                db.session.add(record)
-            db.session.commit()
-            socketio.emit('new_data')
-    except Exception as e:
-        logger.exception(f"Error al guardar datos en DB: {e}")
+            rows = data.get("listaResult") if isinstance(data, dict) else data
+            timestamp_str = extract_timestamp_from_filename(json_path)
+            ts = datetime.strptime(timestamp_str, "%d/%m/%Y %H:%M:%S")
+            if isinstance(rows, list):
+                for item in rows:
+                    if not isinstance(item, dict):
+                        continue
+                    record = StockPrice(
+                        symbol=item.get("NEMO"),
+                        price=float(item.get("PRECIO_CIERRE", 0) or 0),
+                        variation=float(item.get("VARIACION", 0) or 0),
+                        timestamp=ts,
+                    )
+                    db.session.add(record)
+                db.session.commit()
+                socketio.emit('new_data')
+        except Exception as e:
+            logger.exception(f"Error al guardar datos en DB: {e}")
 
 def get_latest_summary_file():
     """Devuelve la ruta al resumen HAR más reciente generado por el bot."""
@@ -147,52 +151,60 @@ def get_session_remaining_seconds():
         logger.exception(f"Error al obtener los segundos restantes de la sesión: {e}")
         return None
 
-def run_bolsa_bot():
+def run_bolsa_bot(app=None):
     """
     Ejecuta el script bolsa_santiago_bot.py y devuelve la ruta al archivo JSON de datos generado.
     """
-    try:
-        logger.info("Iniciando ejecución de bolsa_santiago_bot.py para obtener datos frescos...")
-        module_path = "src.scripts.bolsa_santiago_bot"
+    ctx = app.app_context() if app else nullcontext()
+    with ctx:
+        try:
+            logger.info("Iniciando ejecución de bolsa_santiago_bot.py para obtener datos frescos...")
+            module_path = "src.scripts.bolsa_santiago_bot"
 
-        # Ejecutar el script como módulo desde la raíz del proyecto para asegurar que
-        # las importaciones relativas funcionen correctamente
-        logger.info(
-            f"Ejecutando: python -m {module_path} en el directorio {BASE_DIR}")
-        env = os.environ.copy()
-        env["BOLSA_NON_INTERACTIVE"] = "1"
+            # Ejecutar el script como módulo desde la raíz del proyecto para asegurar que
+            # las importaciones relativas funcionen correctamente
+            logger.info(
+                f"Ejecutando: python -m {module_path} en el directorio {BASE_DIR}")
+            env = os.environ.copy()
+            env["BOLSA_NON_INTERACTIVE"] = "1"
 
-        process = subprocess.run(
-            [sys.executable, "-m", module_path],
-            capture_output=True,  # Captura stdout y stderr
-            text=True,
-            cwd=BASE_DIR,  # Directorio de trabajo para el script
-            env=env,
-            check=False  # No lanzar excepción si el script falla, lo manejamos con returncode
-        )
+            process = subprocess.run(
+                [sys.executable, "-m", module_path],
+                capture_output=True,  # Captura stdout y stderr
+                text=True,
+                cwd=BASE_DIR,  # Directorio de trabajo para el script
+                env=env,
+                check=False  # No lanzar excepción si el script falla, lo manejamos con returncode
+            )
         
-        if process.stdout:
-            logger.info(f"Salida de bolsa_santiago_bot.py:\n{process.stdout[-1000:]}") # Últimos 1000 caracteres
-        if process.stderr:
-            logger.error(f"Errores de bolsa_santiago_bot.py:\n{process.stderr}")
+            if process.stdout:
+                logger.info(f"Salida de bolsa_santiago_bot.py:\n{process.stdout[-1000:]}")  # Últimos 1000 caracteres
+            if process.stderr:
+                logger.error(f"Errores de bolsa_santiago_bot.py:\n{process.stderr}")
 
-        if process.returncode != 0:
-            logger.error(f"bolsa_santiago_bot.py terminó con código de error: {process.returncode}")
-            return None
-        
-        latest_json = get_latest_json_file() # Busca el archivo generado por el bot
+            if process.returncode != 0:
+                logger.error(
+                    f"bolsa_santiago_bot.py terminó con código de error: {process.returncode}"
+                )
+                return None
 
-        if latest_json:
-            logger.info(f"bolsa_santiago_bot.py ejecutado, datos actualizados en: {latest_json}")
-            store_prices_in_db(latest_json)
-            return latest_json
-        else:
-            logger.error("bolsa_santiago_bot.py ejecutado, pero no se encontró el archivo JSON de datos esperado.")
+            latest_json = get_latest_json_file()  # Busca el archivo generado por el bot
+
+            if latest_json:
+                logger.info(
+                    f"bolsa_santiago_bot.py ejecutado, datos actualizados en: {latest_json}"
+                )
+                store_prices_in_db(latest_json, app=app)
+                return latest_json
+            else:
+                logger.error(
+                    "bolsa_santiago_bot.py ejecutado, pero no se encontró el archivo JSON de datos esperado."
+                )
+                return None
+
+        except Exception as e:
+            logger.exception(f"Error en run_bolsa_bot: {e}")
             return None
-    
-    except Exception as e:
-        logger.exception(f"Error en run_bolsa_bot: {e}")
-        return None
 
 def get_latest_data():
     """
@@ -275,7 +287,7 @@ def filter_stocks(stock_codes):
         logger.exception(f"Error en filter_stocks: {e}")
         return {"error": str(e), "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S")}
 
-def update_data_periodically(min_interval_seconds, max_interval_seconds):
+def update_data_periodically(min_interval_seconds, max_interval_seconds, app=None):
     """
     Actualiza los datos periódicamente en un intervalo aleatorio.
     """
@@ -285,7 +297,7 @@ def update_data_periodically(min_interval_seconds, max_interval_seconds):
     while not stop_update_thread:
         try:
             logger.info("Ejecutando actualización periódica de datos...")
-            run_bolsa_bot() # Ejecuta el bot para obtener datos frescos
+            run_bolsa_bot(app=app)  # Ejecuta el bot para obtener datos frescos
             
             interval = random.randint(min_interval_seconds, max_interval_seconds)
             logger.info(f"Próxima actualización periódica en {interval} segundos.")
@@ -304,7 +316,7 @@ def update_data_periodically(min_interval_seconds, max_interval_seconds):
     logger.info("Hilo de actualización periódica detenido.")
 
 
-def start_periodic_updates(min_minutes=15, max_minutes=45): # Intervalos más largos por defecto
+def start_periodic_updates(min_minutes=15, max_minutes=45, app=None):  # Intervalos más largos por defecto
     """
     Inicia la actualización periódica de datos en un hilo separado.
     """
@@ -320,7 +332,7 @@ def start_periodic_updates(min_minutes=15, max_minutes=45): # Intervalos más la
     
     update_thread = threading.Thread(
         target=update_data_periodically,
-        args=(min_interval_seconds, max_interval_seconds),
+        args=(min_interval_seconds, max_interval_seconds, app),
         daemon=True # El hilo terminará cuando el programa principal termine
     )
     update_thread.start()
