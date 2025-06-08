@@ -6,6 +6,7 @@ let lastStockCodes = [];
 let nextUpdateTime = null;
 let updateStatusInterval = null;
 let isUpdating = false;
+let nextUpdateCountdownInterval = null;
 
 async function logErrorToServer(message, stack = '', action = '') {
     try {
@@ -328,13 +329,13 @@ async function setAutoUpdate(mode) {
             clearInterval(autoUpdateTimer);
             autoUpdateTimer = null;
             nextUpdateTime = null;
-            nextUpdateInfo.textContent = '';
+            stopNextUpdateCountdown();
         }
         
         // Si el modo es "off", solo detener el temporizador
         if (mode === 'off') {
             updateStatus('Actualización automática desactivada');
-            
+
             // Notificar al servidor
             await fetch('/api/stocks/auto-update', {
                 method: 'POST',
@@ -402,43 +403,43 @@ async function setAutoUpdate(mode) {
 }
 
 // Función para actualizar la información de próxima actualización
+function stopNextUpdateCountdown() {
+    if (nextUpdateCountdownInterval) {
+        clearInterval(nextUpdateCountdownInterval);
+        nextUpdateCountdownInterval = null;
+    }
+    nextUpdateInfo.textContent = '';
+}
+
 function updateNextUpdateInfo() {
+    stopNextUpdateCountdown();
+
     if (!nextUpdateTime) {
-        nextUpdateInfo.textContent = '';
         return;
     }
-    
+
     function updateCountdown() {
         const now = new Date();
         const diffMs = nextUpdateTime - now;
-        
+
+        const modeLabel = autoUpdateSelect.value === '1-3' ? '1-3 minutos' : '1-5 minutos';
+
         if (diffMs <= 0) {
             nextUpdateInfo.textContent = 'Actualizando...';
+            updateStatus(`Actualización automática configurada: ${modeLabel} - actualizando...`);
             return;
         }
-        
+
         const diffSecs = Math.floor(diffMs / 1000);
         const minutes = Math.floor(diffSecs / 60);
         const seconds = diffSecs % 60;
-        
+
         nextUpdateInfo.textContent = `Próxima actualización en: ${minutes}m ${seconds}s`;
+        updateStatus(`Actualización automática configurada: ${modeLabel} - próxima en ${minutes}m ${seconds}s`);
     }
-    
-    // Actualizar inmediatamente y luego cada segundo
+
     updateCountdown();
-    const countdownInterval = setInterval(updateCountdown, 1000);
-    
-    // Limpiar el intervalo cuando se actualice
-    if (autoUpdateTimer) {
-        const originalClearTimeout = window.clearTimeout;
-        const wrappedClearTimeout = function(id) {
-            if (id === autoUpdateTimer) {
-                clearInterval(countdownInterval);
-            }
-            return originalClearTimeout(id);
-        };
-        window.clearTimeout = wrappedClearTimeout;
-    }
+    nextUpdateCountdownInterval = setInterval(updateCountdown, 1000);
 }
 
 // Función para iniciar el contador de sesión
