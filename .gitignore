@@ -362,3 +362,7 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 src/logs_bolsa/
+
+# Python virtual environments
+envLocal/
+venv/
