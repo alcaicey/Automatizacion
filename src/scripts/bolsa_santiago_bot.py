@@ -42,11 +42,14 @@ logger_instance_global = logging.getLogger(__name__)
 
 # --- CONFIGURACIÓN ---
 # La mayoría de parámetros estáticos se obtienen desde src.config
-# Verificar que se hayan definido credenciales de acceso
-if not USERNAME or not PASSWORD:
-    raise ValueError(
-        "Environment variables BOLSA_USERNAME and BOLSA_PASSWORD must be set"
-    )
+
+def validate_credentials():
+    """Comprueba que las credenciales estén definidas en el entorno."""
+    if not USERNAME or not PASSWORD:
+        raise ValueError(
+            "Missing credentials: set BOLSA_USERNAME and BOLSA_PASSWORD"
+        )
+
 # --- FIN DE LA CONFIGURACIÓN ---
 
 def configure_run_specific_logging(logger_to_configure):
@@ -301,6 +304,7 @@ def main(argv=None):
     if args.non_interactive:
         NON_INTERACTIVE = True
 
+    validate_credentials()
     configure_run_specific_logging(logger_instance_global)
     run_automation(logger_instance_global, non_interactive=NON_INTERACTIVE)
 
