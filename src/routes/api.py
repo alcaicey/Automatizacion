@@ -76,13 +76,33 @@ def update_stocks():
 
         if is_bot_running():
             logger.info("Bot en ejecución, enviando ENTER para refrescar datos")
-            from src.scripts.bolsa_service import send_enter_key_to_browser
-            send_enter_key_to_browser()
-            return jsonify({
-                "success": True,
-                "message": "Bot en ejecución, enviado ENTER para refrescar",
-                "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-            })
+            from src.scripts import bolsa_service
+            success = bolsa_service.send_enter_key_to_browser()
+            if success:
+                return jsonify({
+                    "success": True,
+                    "message": "Bot en ejecución, enviado ENTER para refrescar",
+                    "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+                })
+            else:
+                logger.warning(
+                    "No se pudo enviar ENTER. Intentando relanzar la automatización."
+                )
+                with bolsa_service.bot_lock:
+                    bolsa_service.bot_running = False
+                import threading
+                app = current_app._get_current_object()
+                update_thread = threading.Thread(
+                    target=run_bolsa_bot,
+                    kwargs={"app": app, "non_interactive": non_interactive},
+                )
+                update_thread.daemon = True
+                update_thread.start()
+                return jsonify({
+                    "success": True,
+                    "message": "Bot reiniciado porque no se detectó navegador",
+                    "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+                })
 
         # Iniciar la actualización en un hilo separado para no bloquear la respuesta
         import threading
