@@ -177,6 +177,7 @@ docker-compose up -d db
 - Los datos se leen directamente desde los archivos JSON generados en la ubicación especificada
 - La actualización automática se gestiona tanto en el servidor como en el cliente
 - Los datos se almacenan en PostgreSQL/TimescaleDB y se notifican mediante SocketIO
+- El cliente web carga la librería de Socket.IO desde un CDN (`https://cdn.socket.io`)
 - La aplicación detecta automáticamente la estructura del JSON y normaliza los campos
 - El analizador HAR también revisa la respuesta de `getEstadoSesionUsuario` y, si contiene fecha o duración de expiración, calcula el tiempo restante de la sesión.
 
