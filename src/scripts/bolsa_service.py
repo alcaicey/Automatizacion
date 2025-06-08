@@ -151,9 +151,18 @@ def get_session_remaining_seconds():
         logger.exception(f"Error al obtener los segundos restantes de la sesión: {e}")
         return None
 
-def run_bolsa_bot(app=None):
-    """
-    Ejecuta el script bolsa_santiago_bot.py y devuelve la ruta al archivo JSON de datos generado.
+def run_bolsa_bot(app=None, *, non_interactive=True):
+    """Ejecuta ``bolsa_santiago_bot.py`` y devuelve la ruta al JSON generado.
+
+    Parameters
+    ----------
+    app : Flask, optional
+        Aplicación a cuyo contexto se asociará la ejecución.
+    non_interactive : bool, optional
+        Si es ``True`` (por defecto), se define la variable de entorno
+        ``BOLSA_NON_INTERACTIVE`` para que el bot no solicite confirmaciones
+        manuales. Establécelo en ``False`` para permitir interacción cuando se
+        deba resolver un CAPTCHA.
     """
     ctx = app.app_context() if app else nullcontext()
     with ctx:
@@ -166,7 +175,10 @@ def run_bolsa_bot(app=None):
             logger.info(
                 f"Ejecutando: python -m {module_path} en el directorio {BASE_DIR}")
             env = os.environ.copy()
-            env["BOLSA_NON_INTERACTIVE"] = "1"
+            if non_interactive:
+                env["BOLSA_NON_INTERACTIVE"] = "1"
+            else:
+                env.pop("BOLSA_NON_INTERACTIVE", None)
 
             process = subprocess.run(
                 [sys.executable, "-m", module_path],
