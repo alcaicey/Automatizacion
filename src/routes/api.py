@@ -223,7 +223,6 @@ def set_column_preferences():
     if not isinstance(cols, list):
         return jsonify({"error": "'columns' must be a list"}), 400
     pref = ColumnPreference.query.first()
-    import json
     cols_json = json.dumps(cols)
     if pref:
         pref.columns_json = cols_json
