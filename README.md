@@ -113,9 +113,9 @@ Antes de ejecutar la aplicación se deben definir las siguientes variables de en
    # En Linux/Mac:
    source venv/bin/activate
    
-   # Instalar dependencias
-   pip install -r requirements.txt
-   # Instalar los navegadores de Playwright
+    # Instalar dependencias (incluye pytest)
+    pip install -r requirements.txt
+    # Instalar los navegadores de Playwright
    python -m playwright install
    # Iniciar TimescaleDB con docker-compose
 
@@ -129,7 +129,7 @@ Al usar PowerShell 5.x no está disponible el operador `&&`. Ejecuta cada comand
 ```powershell
 python -m venv venv
 venv\Scripts\activate
-pip install -r requirements.txt
+pip install -r requirements.txt  # incluye pytest
 python -m playwright install
 docker-compose up -d db
 ```
@@ -221,7 +221,7 @@ aplicación. De esta forma no es necesario modificar `src/config.py`.
 
 ## Ejecución de Pruebas
 
-Para ejecutar las pruebas automatizadas de la aplicación:
+Para ejecutar las pruebas automatizadas de la aplicación (todas las dependencias se instalan desde `requirements.txt`, incluido `pytest`):
 
 ```bash
 pip install -r requirements.txt
