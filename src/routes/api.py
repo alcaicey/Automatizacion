@@ -6,6 +6,9 @@ import logging
 
 from src.config import LOGS_DIR
 
+# Logger de este módulo
+logger = logging.getLogger(__name__)
+
 # Importar el servicio de bolsa
 from src.scripts.bolsa_service import (
     get_latest_data,
@@ -72,9 +75,12 @@ def update_stocks():
             non_interactive = None
 
         if is_bot_running():
+            logger.info("Bot en ejecución, enviando ENTER para refrescar datos")
+            from src.scripts.bolsa_service import send_enter_key_to_browser
+            send_enter_key_to_browser()
             return jsonify({
-                "success": False,
-                "message": "La automatización ya está en ejecución",
+                "success": True,
+                "message": "Bot en ejecución, enviado ENTER para refrescar",
                 "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
             })
 
@@ -239,6 +245,35 @@ def set_column_preferences():
         pref.columns_json = cols_json
     else:
         pref = ColumnPreference(columns_json=cols_json)
+        db.session.add(pref)
+    db.session.commit()
+    return jsonify({"success": True})
+
+
+# ----- Filtro de acciones guardado -----
+
+@api_bp.route('/stock-filter', methods=['GET'])
+def get_stock_filter():
+    """Devuelve el filtro de acciones almacenado."""
+    pref = StockFilter.query.first()
+    if pref:
+        return jsonify({"codes": pref.codes_json, "all": pref.all})
+    return jsonify({"codes": None, "all": False})
+
+
+@api_bp.route('/stock-filter', methods=['POST'])
+def set_stock_filter():
+    """Guarda el filtro de acciones."""
+    data = request.get_json() or {}
+    codes = data.get('codes', [])
+    all_flag = bool(data.get('all', False))
+    codes_json = json.dumps(codes)
+    pref = StockFilter.query.first()
+    if pref:
+        pref.codes_json = codes_json
+        pref.all = all_flag
+    else:
+        pref = StockFilter(codes_json=codes_json, all=all_flag)
         db.session.add(pref)
     db.session.commit()
     return jsonify({"success": True})
