@@ -103,8 +103,8 @@ Antes de ejecutar la aplicación se deben definir las siguientes variables de en
 
 1. **Preparación del entorno**:
    ```bash
-   # Descomprimir el archivo
-   cd bolsa_app
+   # Descomprimir el archivo o clonar el repositorio
+   # Ubicarse en la raíz del proyecto (donde se encuentra este README)
    
    # Crear y activar entorno virtual
    python -m venv venv
@@ -136,8 +136,7 @@ docker-compose up -d db
 
 2. **Ejecución de la aplicación**:
    ```bash
-   # Desde el directorio raíz del proyecto
-   cd bolsa_app
+   # Desde la raíz del proyecto donde se configuró el entorno virtual
    # En Windows:
    venv\Scripts\activate
    # En Linux/Mac:
