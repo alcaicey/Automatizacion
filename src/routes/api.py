@@ -37,6 +37,17 @@ if not client_logger.handlers:
 # Crear el blueprint
 api_bp = Blueprint('api', __name__)
 
+@api_bp.route('/logs', methods=['POST'])
+def log_client_error():
+    data = request.get_json() or {}
+    message = data.get('message')
+    stack = data.get('stack', '')
+    action = data.get('action', '')
+    if not message:
+        return jsonify({'error': 'message required'}), 400
+    client_logger.error(f'[{action}] {message}\n{stack}')
+    return jsonify({'success': True}), 201
+
 
 @api_bp.route('/stocks', methods=['GET'])
 def get_stocks():
