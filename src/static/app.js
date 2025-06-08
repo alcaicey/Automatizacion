@@ -7,6 +7,27 @@ let nextUpdateTime = null;
 let updateStatusInterval = null;
 let isUpdating = false;
 
+async function logErrorToServer(message, stack = '', action = '') {
+    try {
+        await fetch('/api/logs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message, stack, action })
+        });
+    } catch (e) {
+        console.error('Error enviando log al servidor:', e);
+    }
+}
+
+window.addEventListener('error', (e) => {
+    logErrorToServer(e.message || 'Error', e.error ? e.error.stack : '', 'global');
+});
+
+window.addEventListener('unhandledrejection', (e) => {
+    const reason = e.reason || {};
+    logErrorToServer(reason.message || String(reason), reason.stack, 'global');
+});
+
 // Elementos DOM
 const stockFilterForm = document.getElementById('stockFilterForm');
 const stockCodeInputs = document.querySelectorAll('.stock-code');
@@ -164,6 +185,7 @@ async function fetchAndDisplayStocks() {
     } catch (error) {
         console.error('Error al obtener datos:', error);
         updateStatus(`Error al obtener datos: ${error.message}`, true);
+        logErrorToServer(error.message, error.stack, 'fetchAndDisplayStocks');
     } finally {
         toggleLoading(false);
     }
@@ -274,6 +296,7 @@ async function updateStocksData() {
             } catch (error) {
                 console.error('Error al actualizar datos:', error);
                 updateStatus(`Error al actualizar datos: ${error.message}`, true);
+                logErrorToServer(error.message, error.stack, 'updateStocksData');
                 toggleLoading(false);
             } finally {
                 isUpdating = false;
@@ -284,6 +307,7 @@ async function updateStocksData() {
         console.error('Error al actualizar datos:', error);
         updateStatus(`Error al actualizar datos: ${error.message}`, true);
         toggleLoading(false);
+        logErrorToServer(error.message, error.stack, 'updateStocksData');
         isUpdating = false;
     }
 }
@@ -365,6 +389,7 @@ async function setAutoUpdate(mode) {
         console.error('Error al configurar actualización automática:', error);
         updateStatus(`Error al configurar actualización automática: ${error.message}`, true);
         autoUpdateSelect.value = 'off';
+        logErrorToServer(error.message, error.stack, 'setAutoUpdate');
     }
 }
 
@@ -451,6 +476,7 @@ async function fetchSessionTime() {
         }
     } catch (error) {
         console.error('Error al obtener tiempo de sesión:', error);
+        logErrorToServer(error.message, error.stack, 'fetchSessionTime');
     }
 }
 

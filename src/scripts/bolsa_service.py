@@ -23,10 +23,8 @@ from src.config import SCRIPTS_DIR, LOGS_DIR, BASE_DIR, PROJECT_SRC_DIR
 # Configuración de logging para este script de servicio/orquestador
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-# Crear directorio de logs para este script si no existe (diferente al de bolsa_santiago_bot.py)
-service_log_dir = os.path.join(PROJECT_SRC_DIR, 'service_logs')
-os.makedirs(service_log_dir, exist_ok=True)
-service_log_file = os.path.join(service_log_dir, "bolsa_service.log")
+# Centralizar logs en la misma carpeta definida en LOGS_DIR
+service_log_file = os.path.join(LOGS_DIR, "bolsa_service.log")
 
 file_handler = logging.FileHandler(service_log_file, encoding='utf-8')
 file_handler.setFormatter(logging.Formatter('[%(levelname)s] %(asctime)s - %(message)s'))

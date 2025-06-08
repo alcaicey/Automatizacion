@@ -2,6 +2,9 @@ from flask import Blueprint, jsonify, request, current_app, abort
 from datetime import datetime
 import os
 import json
+import logging
+
+from src.config import LOGS_DIR
 
 # Importar el servicio de bolsa
 from src.scripts.bolsa_service import (
@@ -18,6 +21,14 @@ from src.models.stock_price import StockPrice
 from src.models import db
 from src.models.credentials import Credential
 from src.models.column_preference import ColumnPreference
+
+client_logger = logging.getLogger('client_errors')
+if not client_logger.handlers:
+    log_file = os.path.join(LOGS_DIR, 'frontend.log')
+    handler = logging.FileHandler(log_file, encoding='utf-8')
+    handler.setFormatter(logging.Formatter('[%(levelname)s] %(asctime)s - %(message)s'))
+    client_logger.addHandler(handler)
+    client_logger.setLevel(logging.INFO)
 
 # Crear el blueprint
 api_bp = Blueprint('api', __name__)
@@ -231,6 +242,20 @@ def set_column_preferences():
         db.session.add(pref)
     db.session.commit()
     return jsonify({"success": True})
+
+
+@api_bp.route('/logs', methods=['POST'])
+def log_client_error():
+    """Recibe mensajes de error del frontend y los guarda en un archivo."""
+    data = request.get_json() or {}
+    message = data.get('message', '')
+    stack = data.get('stack', '')
+    action = data.get('action', '')
+    log_text = f"{action} - {message}"
+    if stack:
+        log_text += f" | {stack}"
+    client_logger.error(log_text)
+    return jsonify({'success': True})
 
 
 # ----- CRUD de precios almacenados -----
