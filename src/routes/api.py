@@ -49,7 +49,10 @@ def update_stocks():
     """
     try:
         data = request.get_json(silent=True) or {}
-        non_interactive = data.get("non_interactive", True)
+        if "non_interactive" in data:
+            non_interactive = data["non_interactive"]
+        else:
+            non_interactive = None
 
         # Iniciar la actualización en un hilo separado para no bloquear la
         # respuesta

@@ -99,9 +99,11 @@ Antes de ejecutar la aplicación se deben definir las siguientes variables de en
 - **DATABASE_URL**: cadena de conexión para PostgreSQL/TimescaleDB. Ejemplo: `postgresql://postgres:postgres@localhost:5432/bolsa`.
 - **BOLSA_NON_INTERACTIVE**: si se establece en `1`, permite ejecutar `bolsa_santiago_bot.py` sin confirmación de usuario. Útil para automatización y pruebas.
   Para ejecutar el bot de forma interactiva (por ejemplo si se presenta un CAPTCHA),
-  omite esta variable o envíe `{"non_interactive": false}` al endpoint `/api/stocks/update`.
-  Si la variable no está definida, al iniciar la aplicación con `python src/main.py` se
-  preguntará si desea habilitar la ejecución no interactiva.
+  omite esta variable o envía `{"non_interactive": false}` al endpoint `/api/stocks/update`.
+  Si el parámetro `non_interactive` no se especifica en el endpoint, se empleará
+  el valor actual de `BOLSA_NON_INTERACTIVE`. Si la variable no está definida, al
+  iniciar la aplicación con `python src/main.py` se preguntará si se desea habilitar
+  la ejecución no interactiva.
 
 ## Instalación y Ejecución
 
@@ -163,7 +165,7 @@ docker-compose up -d db
 2. **Actualización de Datos**:
    - Hacer clic en "Actualizar" para ejecutar el script bolsa_santiago_bot.py y obtener datos recientes
    - Durante la actualización se muestra un indicador de progreso (puede tardar hasta 20 segundos)
-   - Si es necesario resolver un CAPTCHA manualmente, realiza la petición POST a `/api/stocks/update` enviando `{"non_interactive": false}` para ejecutar el bot de forma interactiva
+   - Si es necesario resolver un CAPTCHA manualmente, realiza la petición POST a `/api/stocks/update` enviando `{"non_interactive": false}` para ejecutar el bot de forma interactiva. Si no se incluye este campo, se tomará el valor configurado en `BOLSA_NON_INTERACTIVE`.
    - Seleccionar un modo de actualización automática en el desplegable:
      - Desactivado: Sin actualización automática
      - Random 1-3 minutos: Actualización aleatoria entre 1 y 3 minutos
