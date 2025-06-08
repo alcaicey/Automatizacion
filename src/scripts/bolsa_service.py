@@ -15,6 +15,7 @@ from flask import current_app
 from src.extensions import socketio
 from src.models import db
 from src.models.stock_price import StockPrice
+from src.models.last_update import LastUpdate
 from sqlalchemy.dialects.postgresql import insert
 
 from src.config import SCRIPTS_DIR, LOGS_DIR, BASE_DIR, PROJECT_SRC_DIR
@@ -130,6 +131,14 @@ def store_prices_in_db(json_path, app=None):
                         db.session.execute(stmt)
                     else:
                         db.session.merge(StockPrice(**values))
+
+                # Actualizar registro de última actualización
+                lu = LastUpdate.query.get(1)
+                if lu:
+                    lu.timestamp = ts
+                else:
+                    lu = LastUpdate(id=1, timestamp=ts)
+                    db.session.add(lu)
 
                 db.session.commit()
                 socketio.emit('new_data')
@@ -262,6 +271,19 @@ def get_latest_data():
     Si no existe, intenta ejecutar el bot para generarlo.
     """
     try:
+        # Intentar obtener datos desde la base de datos
+        latest_entry = (
+            StockPrice.query.order_by(StockPrice.timestamp.desc()).first()
+        )
+        if latest_entry:
+            ts = latest_entry.timestamp
+            prices = StockPrice.query.filter_by(timestamp=ts).all()
+            return {
+                "data": [p.to_dict() for p in prices],
+                "timestamp": ts.strftime("%d/%m/%Y %H:%M:%S"),
+                "source_file": "db",
+            }
+
         latest_json_path = get_latest_json_file()
         
         if not latest_json_path or not os.path.exists(latest_json_path):

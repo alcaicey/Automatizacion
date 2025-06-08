@@ -9,3 +9,4 @@ from .stock_price import StockPrice  # noqa: E402,F401
 from .credentials import Credential  # noqa: E402,F401
 from .column_preference import ColumnPreference  # noqa: E402,F401
 from .stock_filter import StockFilter  # noqa: E402,F401
+from .last_update import LastUpdate  # noqa: E402,F401
