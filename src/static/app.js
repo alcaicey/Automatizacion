@@ -44,6 +44,7 @@ const loadingOverlay = document.getElementById('loadingOverlay');
 const loadingMessage = document.getElementById('loadingMessage');
 const nextUpdateInfo = document.getElementById('nextUpdateInfo');
 const sessionCountdown = document.getElementById('sessionCountdown');
+const allStocksCheck = document.getElementById('allStocksCheck');
 
 let sessionCountdownInterval = null;
 let visibleColumns = [];
@@ -149,15 +150,20 @@ async function saveColumnPreferences() {
 async function fetchAndDisplayStocks() {
     try {
         toggleLoading(true, 'Cargando datos de acciones...');
-        
+
+        const allStocks = allStocksCheck.checked;
+
         // Obtener códigos de acciones no vacíos
-        const stockCodes = Array.from(stockCodeInputs)
+        let stockCodes = Array.from(stockCodeInputs)
             .map(input => input.value.trim())
             .filter(code => code !== '');
-        
+        if (allStocks) {
+            stockCodes = [];
+        }
+
         // Guardar los códigos para futuras actualizaciones
         lastStockCodes = [...stockCodes];
-        
+
         // Construir la URL con los parámetros de consulta
         let url = '/api/stocks';
         if (stockCodes.length > 0) {
@@ -483,21 +489,46 @@ async function fetchSessionTime() {
 }
 
 // Función para guardar los códigos de acciones en localStorage
-function saveStockCodes() {
+async function saveStockCodes() {
     const codes = Array.from(stockCodeInputs).map(input => input.value.trim());
-    localStorage.setItem('stockCodes', JSON.stringify(codes));
+    const all = allStocksCheck.checked;
+    localStorage.setItem('stockCodes', JSON.stringify({ codes, all }));
+    try {
+        await fetch('/api/stock-filter', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ codes, all })
+        });
+    } catch (e) {
+        console.error('Error saving stock codes', e);
+    }
 }
 
 // Función para cargar los códigos de acciones desde localStorage
-function loadStockCodes() {
-    const savedCodes = localStorage.getItem('stockCodes');
-    if (savedCodes) {
-        const codes = JSON.parse(savedCodes);
+async function loadStockCodes() {
+    let saved = null;
+    try {
+        const resp = await fetch('/api/stock-filter');
+        const data = await resp.json();
+        if (data.codes) {
+            saved = { codes: JSON.parse(data.codes), all: data.all };
+        }
+    } catch (e) {
+        console.error('Error loading codes from server', e);
+    }
+    if (!saved) {
+        const local = localStorage.getItem('stockCodes');
+        if (local) {
+            saved = JSON.parse(local);
+        }
+    }
+    if (saved) {
+        const { codes = [], all = false } = saved;
         stockCodeInputs.forEach((input, index) => {
-            if (codes[index]) {
-                input.value = codes[index];
-            }
+            input.value = codes[index] || '';
+            input.disabled = all;
         });
+        allStocksCheck.checked = all;
     }
 }
 
@@ -524,15 +555,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // Configurar event listeners
     stockFilterForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        saveStockCodes();
+        await saveStockCodes();
         await fetchAndDisplayStocks();
     });
     
-    clearBtn.addEventListener('click', () => {
+    clearBtn.addEventListener('click', async () => {
         stockCodeInputs.forEach(input => {
             input.value = '';
         });
-        saveStockCodes();
+        allStocksCheck.checked = false;
+        stockCodeInputs.forEach(input => {
+            input.disabled = false;
+        });
+        await saveStockCodes();
     });
     
     refreshBtn.addEventListener('click', async () => {
@@ -552,9 +587,17 @@ document.addEventListener('DOMContentLoaded', () => {
     autoUpdateSelect.addEventListener('change', () => {
         setAutoUpdate(autoUpdateSelect.value);
     });
+
+    allStocksCheck.addEventListener('change', async () => {
+        const disabled = allStocksCheck.checked;
+        stockCodeInputs.forEach(input => {
+            input.disabled = disabled;
+        });
+        await saveStockCodes();
+    });
     
     // Cargar datos iniciales si hay códigos guardados
-    const hasInitialCodes = Array.from(stockCodeInputs).some(input => input.value.trim() !== '');
+    const hasInitialCodes = Array.from(stockCodeInputs).some(input => input.value.trim() !== '') || allStocksCheck.checked;
     if (hasInitialCodes) {
         fetchAndDisplayStocks();
     }

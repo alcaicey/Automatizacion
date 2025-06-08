@@ -21,6 +21,7 @@ from src.models.stock_price import StockPrice
 from src.models import db
 from src.models.credentials import Credential
 from src.models.column_preference import ColumnPreference
+from src.models.stock_filter import StockFilter
 
 client_logger = logging.getLogger('client_errors')
 if not client_logger.handlers:
@@ -233,7 +234,6 @@ def set_column_preferences():
     if not isinstance(cols, list):
         return jsonify({"error": "'columns' must be a list"}), 400
     pref = ColumnPreference.query.first()
-    import json
     cols_json = json.dumps(cols)
     if pref:
         pref.columns_json = cols_json
@@ -243,21 +243,7 @@ def set_column_preferences():
     db.session.commit()
     return jsonify({"success": True})
 
-
-@api_bp.route('/logs', methods=['POST'])
-def log_client_error():
-    """Recibe mensajes de error del frontend y los guarda en un archivo."""
-    data = request.get_json() or {}
-    message = data.get('message', '')
-    stack = data.get('stack', '')
-    action = data.get('action', '')
-    log_text = f"{action} - {message}"
-    if stack:
-        log_text += f" | {stack}"
-    client_logger.error(log_text)
-    return jsonify({'success': True})
-
-
+  
 # ----- CRUD de precios almacenados -----
 
 @api_bp.route('/prices', methods=['GET'])
