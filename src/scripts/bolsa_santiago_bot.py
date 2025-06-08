@@ -36,6 +36,12 @@ TIMESTAMP_NOW = ""
 
 # Controla si el script se ejecuta en modo no interactivo
 NON_INTERACTIVE = os.getenv("BOLSA_NON_INTERACTIVE") == "1"
+# User-Agent reutilizado para todos los contextos
+DEFAULT_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/120.0.0.0 Safari/537.36"
+)
 
 logger_instance_global = logging.getLogger(__name__)
 # --- Fin Configuración de Logging ---
@@ -109,16 +115,17 @@ def run_automation(logger_param, attempt=1, max_attempts=2, *, non_interactive=N
     browser = None
     context = None
     page = None
-    is_mis_conexiones_page = False 
+    storage_state = None
+    is_mis_conexiones_page = False
 
     try:
         p_instance = sync_playwright().start()
         browser = p_instance.chromium.launch(headless=False, slow_mo=250, args=["--start-maximized"])
         context = browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            user_agent=DEFAULT_USER_AGENT,
             no_viewport=True,
             record_har_path=current_har_filename,
-            record_har_mode="full"
+            record_har_mode="full",
         )
         logger_param.info(f"Grabando tráfico de red en: {current_har_filename}")
         
@@ -245,9 +252,11 @@ def run_automation(logger_param, attempt=1, max_attempts=2, *, non_interactive=N
     finally:
         logger_param.info("Bloque Finally: Preparando análisis HAR y finalización...")
 
-        # Cerrar el contexto para asegurar que la captura HAR se escriba
+        # Guardar el estado de la sesión antes de cerrar el contexto
+        storage_state = None
         if context is not None:
             try:
+                storage_state = context.storage_state()
                 context.close()
             except Exception as close_err:
                 logger_param.warning(f"No se pudo cerrar el contexto del navegador: {close_err}")
@@ -270,25 +279,33 @@ def run_automation(logger_param, attempt=1, max_attempts=2, *, non_interactive=N
 
         logger_param.info("Proceso del script realmente finalizado.")
         if not is_mis_conexiones_page or attempt >= max_attempts:
-            if non_interactive:
-                logger_param.info("Ejecución no interactiva: finalizando sin esperar entrada del usuario.")
-            else:
+            if browser is not None:
                 try:
-                    input(
-                        "Presiona Enter para terminar el script (después del análisis HAR). El navegador permanecerá abierto."
+                    keep_context = browser.new_context(
+                        user_agent=DEFAULT_USER_AGENT,
+                        no_viewport=True,
+                        storage_state=storage_state or {},
                     )
+                    keep_page = keep_context.new_page()
+                    keep_page.goto(TARGET_DATA_PAGE_URL, timeout=60000)
                     logger_param.info(
-                        "El navegador no se cerrará automáticamente. Ciérrelo manualmente cuando ya no lo necesite."
+                        "Contexto adicional abierto para inspección manual. El script no cerrará el navegador."
                     )
-                except EOFError:
+                except Exception as reopen_err:
                     logger_param.warning(
-                        "EOFError al esperar la confirmación del usuario. Manteniendo el navegador abierto indefinidamente."
+                        f"No se pudo abrir un contexto de inspección: {reopen_err}"
                     )
-                    logger_param.info(
-                        "El script está esperando indefinidamente a que el usuario cierre el navegador manualmente."
-                    )
-                    while True:
-                        time.sleep(60)
+
+            logger_param.info(
+                "El script permanecerá en ejecución. Cierre el navegador manualmente cuando termine."
+            )
+            try:
+                while True:
+                    time.sleep(60)
+            except KeyboardInterrupt:
+                logger_param.info(
+                    "Interrupción recibida. Finalizando script y navegador..."
+                )
 
 
 def main(argv=None):
