@@ -53,6 +53,9 @@ def is_bot_running():
 
 def send_enter_key_to_browser():
     """Simula presionar ENTER en el navegador abierto para refrescar la página."""
+    if os.getenv("BOLSA_NON_INTERACTIVE") == "1":
+        logger.info("Entorno no interactivo detectado: se omite pyautogui")
+        return False
     try:
         import pyautogui
         pyautogui.press('enter')
@@ -222,6 +225,8 @@ def run_bolsa_bot(app=None, *, non_interactive=None, keep_open=True):
                 return None
             bot_running = True
         try:
+            logger.info("=== INICIO DE CICLO COMPLETO DE SCRAPING ===")
+            cycle_start = time.time()
             logger.info("Iniciando ejecución de bolsa_santiago_bot.py para obtener datos frescos...")
             module_path = "src.scripts.bolsa_santiago_bot"
 
@@ -263,12 +268,20 @@ def run_bolsa_bot(app=None, *, non_interactive=None, keep_open=True):
 
             latest_json = get_latest_json_file()  # Busca el archivo generado por el bot
 
-            if latest_json:
+            if latest_json and os.path.getmtime(latest_json) > cycle_start:
                 logger.info(
                     f"bolsa_santiago_bot.py ejecutado, datos actualizados en: {latest_json}"
                 )
                 store_prices_in_db(latest_json, app=app)
                 return latest_json
+            elif latest_json:
+                old_name = f"{latest_json}.old"
+                store_prices_in_db(latest_json, app=app)
+                os.rename(latest_json, old_name)
+                logger.warning(
+                    f"No se generaron datos nuevos. Archivo antiguo renombrado a: {old_name}"
+                )
+                return None
             else:
                 logger.error(
                     "bolsa_santiago_bot.py ejecutado, pero no se encontró el archivo JSON de datos esperado."
@@ -281,6 +294,7 @@ def run_bolsa_bot(app=None, *, non_interactive=None, keep_open=True):
         finally:
             with bot_lock:
                 bot_running = False
+            logger.info("=== FIN DE CICLO COMPLETO DE SCRAPING ===")
 
 def get_latest_data():
     """

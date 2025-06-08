@@ -86,6 +86,19 @@ def configure_run_specific_logging(logger_to_configure):
     logger_to_configure.info(f"Logging configurado. Log: {LOG_FILENAME}, HAR: {HAR_FILENAME}, Datos: {OUTPUT_ACCIONES_DATA_FILENAME}")
 
 
+def ensure_timestamp_current(logger_to_configure):
+    """Verifica que el timestamp global esté actualizado y reconfigura si es necesario."""
+    global TIMESTAMP_NOW
+    try:
+        if not TIMESTAMP_NOW:
+            raise ValueError("Timestamp vacío")
+        ts_dt = datetime.strptime(TIMESTAMP_NOW, '%Y%m%d_%H%M%S')
+        if abs((datetime.now() - ts_dt).total_seconds()) > 3600:
+            raise ValueError("Timestamp desfasado")
+    except Exception:
+        configure_run_specific_logging(logger_to_configure)
+
+
 def handle_console_message(msg, logger_param):
     text = msg.text
     if "Failed to load resource" in text and \
@@ -100,6 +113,8 @@ def handle_console_message(msg, logger_param):
 def run_automation(logger_param, attempt=1, max_attempts=2, *, non_interactive=None, keep_open=True):
     if non_interactive is None:
         non_interactive = NON_INTERACTIVE or os.getenv("BOLSA_NON_INTERACTIVE") == "1"
+
+    ensure_timestamp_current(logger_param)
 
     current_har_filename = HAR_FILENAME
     current_output_acciones_data_filename = OUTPUT_ACCIONES_DATA_FILENAME
