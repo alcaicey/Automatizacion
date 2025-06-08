@@ -39,7 +39,7 @@ const columnConfigForm = document.getElementById('columnConfigForm');
 const saveColumnPrefsBtn = document.getElementById('saveColumnPrefs');
 const statusMessage = document.getElementById('statusMessage');
 const lastUpdate = document.getElementById('lastUpdate');
-const stocksTable = document.getElementById('stocksTable');
+let stocksTable = document.getElementById('stocksTable');
 const loadingOverlay = document.getElementById('loadingOverlay');
 const loadingMessage = document.getElementById('loadingMessage');
 const nextUpdateInfo = document.getElementById('nextUpdateInfo');
@@ -202,6 +202,8 @@ function updateStocksTable(data) {
     if (dataTable) {
         dataTable.destroy();
         dataTable = null;
+        // destroy() replaces the table element, so refresh the reference
+        stocksTable = document.getElementById('stocksTable');
     }
 
     const thead = stocksTable.querySelector('thead tr');
