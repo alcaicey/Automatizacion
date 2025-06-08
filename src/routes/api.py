@@ -2,6 +2,9 @@ from flask import Blueprint, jsonify, request, current_app, abort
 from datetime import datetime
 import os
 import json
+import logging
+
+from src.config import LOGS_DIR
 
 # Importar el servicio de bolsa
 from src.scripts.bolsa_service import (
@@ -19,6 +22,14 @@ from src.models import db
 from src.models.credentials import Credential
 from src.models.column_preference import ColumnPreference
 from src.models.stock_filter import StockFilter
+
+client_logger = logging.getLogger('client_errors')
+if not client_logger.handlers:
+    log_file = os.path.join(LOGS_DIR, 'frontend.log')
+    handler = logging.FileHandler(log_file, encoding='utf-8')
+    handler.setFormatter(logging.Formatter('[%(levelname)s] %(asctime)s - %(message)s'))
+    client_logger.addHandler(handler)
+    client_logger.setLevel(logging.INFO)
 
 # Crear el blueprint
 api_bp = Blueprint('api', __name__)
@@ -232,36 +243,7 @@ def set_column_preferences():
     db.session.commit()
     return jsonify({"success": True})
 
-
-@api_bp.route('/stock-filter', methods=['GET'])
-def get_stock_filter():
-    """Devuelve los códigos de acciones guardados."""
-    pref = StockFilter.query.first()
-    if pref:
-        return jsonify({"codes": pref.codes_json, "all": pref.all})
-    return jsonify({"codes": None, "all": False})
-
-
-@api_bp.route('/stock-filter', methods=['POST'])
-def set_stock_filter():
-    """Guarda los códigos de acciones."""
-    data = request.get_json() or {}
-    codes = data.get('codes')
-    all_flag = bool(data.get('all'))
-    if not isinstance(codes, list):
-        return jsonify({"error": "'codes' must be a list"}), 400
-    codes_json = json.dumps(codes)
-    pref = StockFilter.query.first()
-    if pref:
-        pref.codes_json = codes_json
-        pref.all = all_flag
-    else:
-        pref = StockFilter(codes_json=codes_json, all=all_flag)
-        db.session.add(pref)
-    db.session.commit()
-    return jsonify({"success": True})
-
-
+  
 # ----- CRUD de precios almacenados -----
 
 @api_bp.route('/prices', methods=['GET'])
