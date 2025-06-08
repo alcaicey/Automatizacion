@@ -171,6 +171,11 @@ async function fetchAndDisplayStocks() {
 
 // Función para actualizar la tabla de acciones
 function updateStocksTable(data) {
+    if (dataTable) {
+        dataTable.destroy();
+        dataTable = null;
+    }
+
     const thead = stocksTable.querySelector('thead tr');
     const tbody = stocksTable.querySelector('tbody');
     thead.innerHTML = '';
@@ -228,9 +233,6 @@ function updateStocksTable(data) {
         });
     }
 
-    if (dataTable) {
-        dataTable.destroy();
-    }
     dataTable = new simpleDatatables.DataTable(stocksTable, {
         searchable: true,
         fixedHeight: true,
