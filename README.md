@@ -156,7 +156,10 @@ docker-compose up -d db
 
 3. **Acceso a la aplicación**:
    - Abrir un navegador web
-   - Acceder a `http://localhost:5000`
+   - Visitar `http://localhost:5000/login.html` la primera vez para registrar las credenciales
+   - Ingresar el usuario y contraseña que se utilizarán para el bot. Si se marca
+     "Recordar credenciales" se almacenarán en la base de datos y se cargarán automáticamente en reinicios posteriores.
+   - Tras un inicio exitoso se redirige a `index.html`. Si las credenciales ya están guardadas se puede acceder directamente a `http://localhost:5000`.
 
 ## Uso de la Aplicación
 

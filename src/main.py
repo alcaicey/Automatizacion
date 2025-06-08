@@ -9,6 +9,7 @@ from flask_cors import CORS
 
 from src.extensions import socketio
 from src.models import db
+from src.models.credentials import Credential
 from src.config import SQLALCHEMY_DATABASE_URI, SQLALCHEMY_TRACK_MODIFICATIONS
 
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
@@ -24,6 +25,14 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = SQLALCHEMY_TRACK_MODIFICATIONS
 CORS(app)  # Habilitar CORS para todas las rutas
 db.init_app(app)
 socketio.init_app(app, cors_allowed_origins="*")
+
+
+def load_saved_credentials():
+    """Carga credenciales desde la base de datos si existen."""
+    cred = Credential.query.first()
+    if cred:
+        os.environ.setdefault("BOLSA_USERNAME", cred.username)
+        os.environ.setdefault("BOLSA_PASSWORD", cred.password)
 
 # Registrar blueprints
 app.register_blueprint(api_bp, url_prefix='/api')
@@ -69,4 +78,5 @@ if __name__ == '__main__':
     # Iniciar la aplicación con soporte WebSocket
     with app.app_context():
         db.create_all()
+        load_saved_credentials()
     socketio.run(app, host='0.0.0.0', port=5000, debug=True)
