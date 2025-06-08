@@ -30,6 +30,25 @@ app.register_blueprint(api_bp, url_prefix='/api')
 app.register_blueprint(user_bp, url_prefix='/api')
 
 
+# Preguntar por la configuración de ejecución interactiva del bot
+def _prompt_non_interactive():
+    """Solicita al usuario si desea activar el modo no interactivo."""
+    if os.environ.get("BOLSA_NON_INTERACTIVE") is not None:
+        return
+
+    try:
+        resp = input(
+            "\u00bfEjecutar bolsa_santiago_bot.py sin confirmaci\u00f3n de usuario? "
+            "[s/N]: "
+        ).strip().lower()
+    except EOFError:
+        resp = ""
+
+    if resp in {"s", "y", "yes", "si"}:
+        os.environ["BOLSA_NON_INTERACTIVE"] = "1"
+    else:
+        os.environ["BOLSA_NON_INTERACTIVE"] = "0"
+
 # Ruta principal que sirve el frontend
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
@@ -43,7 +62,10 @@ if __name__ == '__main__':
     # Crear directorios necesarios si no existen
     os.makedirs(os.path.join(BASE_DIR, "logs"), exist_ok=True)
     os.makedirs(os.path.join(BASE_DIR, "data"), exist_ok=True)
-    
+
+    # Configurar la variable BOLSA_NON_INTERACTIVE si es necesario
+    _prompt_non_interactive()
+
     # Iniciar la aplicación con soporte WebSocket
     with app.app_context():
         db.create_all()
