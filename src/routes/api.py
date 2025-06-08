@@ -7,6 +7,7 @@ from src.scripts.bolsa_service import (
     get_latest_data,
     filter_stocks,
     run_bolsa_bot,
+    is_bot_running,
     start_periodic_updates,
     stop_periodic_updates,
     get_session_remaining_seconds,
@@ -56,8 +57,14 @@ def update_stocks():
         else:
             non_interactive = None
 
-        # Iniciar la actualización en un hilo separado para no bloquear la
-        # respuesta
+        if is_bot_running():
+            return jsonify({
+                "success": False,
+                "message": "La automatización ya está en ejecución",
+                "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+            })
+
+        # Iniciar la actualización en un hilo separado para no bloquear la respuesta
         import threading
         app = current_app._get_current_object()
         update_thread = threading.Thread(

@@ -42,6 +42,16 @@ if not logger.hasHandlers():
 update_thread = None
 stop_update_thread = False
 
+# Controla si ya hay una instancia del bot corriendo para evitar abrir
+# varias ventanas del navegador simultáneamente.
+bot_running = False
+bot_lock = threading.Lock()
+
+def is_bot_running():
+    """Devuelve True si el bot se está ejecutando actualmente."""
+    with bot_lock:
+        return bot_running
+
 def get_latest_json_file():
     """
     Obtiene el archivo JSON de datos de acciones más reciente del directorio de logs
@@ -180,8 +190,16 @@ def run_bolsa_bot(app=None, *, non_interactive=None):
         resolver un CAPTCHA). Cuando es ``None`` (valor por defecto) se respeta
         el valor actual de la variable de entorno y no se modifica.
     """
+    global bot_running
     ctx = app.app_context() if app else nullcontext()
     with ctx:
+        with bot_lock:
+            if bot_running:
+                logger.info(
+                    "La automatización ya está en ejecución. No se iniciará una nueva instancia."
+                )
+                return None
+            bot_running = True
         try:
             logger.info("Iniciando ejecución de bolsa_santiago_bot.py para obtener datos frescos...")
             module_path = "src.scripts.bolsa_santiago_bot"
@@ -236,6 +254,9 @@ def run_bolsa_bot(app=None, *, non_interactive=None):
         except Exception as e:
             logger.exception(f"Error en run_bolsa_bot: {e}")
             return None
+        finally:
+            with bot_lock:
+                bot_running = False
 
 def get_latest_data():
     """
@@ -247,7 +268,10 @@ def get_latest_data():
         
         if not latest_json_path or not os.path.exists(latest_json_path):
             logger.warning("No existe archivo de datos o no es accesible. Ejecutando scraping...")
-            latest_json_path = run_bolsa_bot() # Intentar generar uno nuevo
+            if not is_bot_running():
+                latest_json_path = run_bolsa_bot()
+            else:
+                logger.info("El bot ya se está ejecutando, no se iniciará una nueva instancia para obtener datos.")
             
         if latest_json_path and os.path.exists(latest_json_path):
             with open(latest_json_path, 'r', encoding='utf-8') as f:
@@ -328,7 +352,10 @@ def update_data_periodically(min_interval_seconds, max_interval_seconds, app=Non
     while not stop_update_thread:
         try:
             logger.info("Ejecutando actualización periódica de datos...")
-            run_bolsa_bot(app=app)  # Ejecuta el bot para obtener datos frescos
+            if not is_bot_running():
+                run_bolsa_bot(app=app)
+            else:
+                logger.info("Se omite la ejecución porque el bot ya está en marcha.")
             
             interval = random.randint(min_interval_seconds, max_interval_seconds)
             logger.info(f"Próxima actualización periódica en {interval} segundos.")
