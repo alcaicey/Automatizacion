@@ -104,7 +104,7 @@ def test_restart_after_closing_sessions(monkeypatch):
     monkeypatch.setattr(builtins, "input", forbid_input)
 
     logger = mock.Mock()
-    bot.run_automation(logger, max_attempts=2)
+    bot.run_automation(logger, max_attempts=2, keep_open=False)
 
     # dos intentos principales deben haberse ejecutado. Tras los cambios el
     # script abre un contexto adicional al finalizar, por lo que el contador
@@ -150,3 +150,17 @@ def test_keep_browser_alive_on_eof(monkeypatch):
 
     assert 60 in sleep_calls
 
+
+def test_no_sleep_when_keep_open_false(monkeypatch):
+    attempt_ref = [0]
+    monkeypatch.delenv("BOLSA_NON_INTERACTIVE", raising=False)
+    dummy_playwright = DummyPlaywright(attempt_ref)
+    monkeypatch.setattr(bot, "sync_playwright", lambda: dummy_playwright)
+    monkeypatch.setattr(bot, "analyze_har_and_extract_data", lambda *a, **k: None)
+    monkeypatch.setattr(bot, "configure_run_specific_logging", lambda *a, **k: None)
+    monkeypatch.setattr(builtins, "input", lambda *a, **k: "")
+    sleep_calls = []
+    monkeypatch.setattr(bot.time, "sleep", lambda t: sleep_calls.append(t))
+    logger = mock.Mock()
+    bot.run_automation(logger, max_attempts=1, keep_open=False)
+    assert 60 not in sleep_calls

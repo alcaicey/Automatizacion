@@ -87,7 +87,7 @@ def test_wait_on_captcha(monkeypatch):
     monkeypatch.setattr(builtins, "input", lambda *a, **k: "")
 
     logger = mock.Mock()
-    bot.run_automation(logger, max_attempts=1, non_interactive=False)
+    bot.run_automation(logger, max_attempts=1, non_interactive=False, keep_open=False)
 
     assert page.wait_for_function_calls
     js, timeout = page.wait_for_function_calls[0]
