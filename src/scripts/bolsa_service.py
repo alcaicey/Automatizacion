@@ -15,6 +15,7 @@ from flask import current_app
 from src.extensions import socketio
 from src.models import db
 from src.models.stock_price import StockPrice
+from sqlalchemy.dialects.postgresql import insert
 
 from src.config import SCRIPTS_DIR, LOGS_DIR, BASE_DIR, PROJECT_SRC_DIR
 
@@ -97,17 +98,31 @@ def store_prices_in_db(json_path, app=None):
             rows = data.get("listaResult") if isinstance(data, dict) else data
             timestamp_str = extract_timestamp_from_filename(json_path)
             ts = datetime.strptime(timestamp_str, "%d/%m/%Y %H:%M:%S")
+
             if isinstance(rows, list):
                 for item in rows:
                     if not isinstance(item, dict):
                         continue
-                    record = StockPrice(
-                        symbol=item.get("NEMO"),
-                        price=float(item.get("PRECIO_CIERRE", 0) or 0),
-                        variation=float(item.get("VARIACION", 0) or 0),
-                        timestamp=ts,
-                    )
-                    db.session.add(record)
+                    values = {
+                        "symbol": item.get("NEMO"),
+                        "price": float(item.get("PRECIO_CIERRE", 0) or 0),
+                        "variation": float(item.get("VARIACION", 0) or 0),
+                        "timestamp": ts,
+                    }
+
+                    bind = db.session.get_bind()
+                    if bind and bind.dialect.name == "postgresql":
+                        stmt = (
+                            insert(StockPrice)
+                            .values(**values)
+                            .on_conflict_do_nothing(
+                                index_elements=["symbol", "timestamp"]
+                            )
+                        )
+                        db.session.execute(stmt)
+                    else:
+                        db.session.merge(StockPrice(**values))
+
                 db.session.commit()
                 socketio.emit('new_data')
         except Exception as e:
