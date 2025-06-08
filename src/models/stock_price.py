@@ -5,6 +5,12 @@ from . import db
 
 class StockPrice(db.Model):
     __tablename__ = 'stock_prices'
+    # Ensure each price record for a given symbol and timestamp is unique. This
+    # also satisfies TimescaleDB's requirement for a constraint that includes
+    # the time column.
+    __table_args__ = (
+        db.UniqueConstraint('symbol', 'timestamp', name='uix_symbol_timestamp'),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     symbol = db.Column(db.String(50), nullable=False)
