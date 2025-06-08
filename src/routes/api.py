@@ -48,11 +48,17 @@ def update_stocks():
     Endpoint para actualizar manualmente los datos de acciones
     """
     try:
+        data = request.get_json(silent=True) or {}
+        non_interactive = data.get("non_interactive", True)
+
         # Iniciar la actualización en un hilo separado para no bloquear la
         # respuesta
         import threading
         app = current_app._get_current_object()
-        update_thread = threading.Thread(target=run_bolsa_bot, kwargs={"app": app})
+        update_thread = threading.Thread(
+            target=run_bolsa_bot,
+            kwargs={"app": app, "non_interactive": non_interactive},
+        )
         update_thread.daemon = True
         update_thread.start()
 
