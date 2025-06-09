@@ -47,20 +47,45 @@ stop_update_thread = False
 bot_running = False
 bot_lock = threading.Lock()
 
+def get_last_update_timestamp(app=None):
+    """Devuelve la marca de tiempo de la última actualización registrada."""
+    ctx = app.app_context() if app else nullcontext()
+    with ctx:
+        lu = LastUpdate.query.get(1)
+        return lu.timestamp if lu else None
+
 def is_bot_running():
     """Devuelve True si el bot se está ejecutando actualmente."""
     with bot_lock:
         return bot_running
 
-def send_enter_key_to_browser():
-    """Simula presionar ENTER en el navegador abierto para refrescar la página."""
+def send_enter_key_to_browser(app=None, wait_seconds=5):
+    """Refresca la página activa enviando ``Ctrl+L`` y ``Enter``.
+
+    Si ``app`` se proporciona, se registrará si ``last_update`` cambia
+    después del intento de recarga.
+    """
+    if app is None:
+        try:
+            app = current_app._get_current_object()
+        except Exception:
+            app = None
     if os.getenv("BOLSA_NON_INTERACTIVE") == "1":
         logger.info("Entorno no interactivo detectado: se omite pyautogui")
         return False
+    prev_ts = get_last_update_timestamp(app)
     try:
         import pyautogui
+        pyautogui.hotkey('ctrl', 'l')
         pyautogui.press('enter')
         logger.info("ENTER enviado al navegador en ejecución")
+        if wait_seconds:
+            time.sleep(wait_seconds)
+        new_ts = get_last_update_timestamp(app)
+        if new_ts and prev_ts != new_ts:
+            logger.info(f"last_update modificado: {prev_ts} -> {new_ts}")
+        else:
+            logger.warning("last_update no cambió tras refrescar la página")
         return True
     except Exception as e:
         logger.exception(f"No se pudo enviar ENTER al navegador: {e}")
@@ -292,6 +317,9 @@ def run_bolsa_bot(app=None, *, non_interactive=None, keep_open=True, force_updat
                 )
                 return None
             bot_running = True
+        lu_before = get_last_update_timestamp(app)
+        if lu_before:
+            logger.info(f"last_update antes de ejecutar: {lu_before}")
         prev_file = get_latest_json_file()
         prev_hash, prev_ts = get_json_hash_and_timestamp(prev_file) if prev_file else (None, None)
         logger.info(f"Hash previo: {prev_hash}, timestamp previo: {prev_ts}")
@@ -353,11 +381,23 @@ def run_bolsa_bot(app=None, *, non_interactive=None, keep_open=True, force_updat
                 logger.info(
                     f"bolsa_santiago_bot.py ejecutado, datos actualizados en: {latest_json}"
                 )
+                prev_lu = get_last_update_timestamp(app)
                 store_prices_in_db(latest_json, app=app)
+                new_lu = get_last_update_timestamp(app)
+                if new_lu and prev_lu != new_lu:
+                    logger.info(f"last_update modificado: {prev_lu} -> {new_lu}")
+                else:
+                    logger.warning("last_update no cambió tras almacenar datos")
                 return latest_json
             elif latest_json:
                 old_name = f"{latest_json}.old"
+                prev_lu = get_last_update_timestamp(app)
                 store_prices_in_db(latest_json, app=app)
+                new_lu = get_last_update_timestamp(app)
+                if new_lu and prev_lu != new_lu:
+                    logger.info(f"last_update modificado: {prev_lu} -> {new_lu}")
+                else:
+                    logger.warning("last_update no cambió tras almacenar datos")
                 os.rename(latest_json, old_name)
                 logger.warning(
                     f"No se generaron datos nuevos. Archivo antiguo renombrado a: {old_name}"
