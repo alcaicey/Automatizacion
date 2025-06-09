@@ -35,19 +35,20 @@
         </div>
     </nav>
     <div class="container py-4">
-        <h1 class="mb-4">Arquitectura de la Aplicación</h1>
+        <h1 class="mb-4">⚙️ Arquitectura de la Aplicación</h1>
         <h2 class="h5">Diagrama de Arquitectura</h2>
         <div id="archDiagram" class="mermaid">
-            %%{init: {'theme':'base','themeVariables':{'primaryColor':'#e8f5e9','primaryBorderColor':'#a5d6a7','lineColor':'#4caf50','fontFamily':'Inter'}} }%%
+            %%{init: {'theme':'base','themeVariables':{'primaryColor':'#d1e7dd','primaryBorderColor':'#93c5b3','lineColor':'#198754','fontFamily':'Inter'}} }%%
             graph LR
-                ServiceAgent --> ScrapingAgent
-                ScrapingAgent --> HARParserAgent
+                ServiceAgent["🧠 ServiceAgent"] --> ScrapingAgent["🌐 ScrapingAgent"]
+                ScrapingAgent --> HARParserAgent["🔄 HARParserAgent"]
                 HARParserAgent --> SessionAgent
                 ScrapingAgent --> HARFile[HAR File]
                 HARParserAgent --> Data[Datos JSON]
                 Data --> ServiceAgent
-                ServiceAgent --> RealTimeSyncAgent
+                ServiceAgent --> RealTimeSyncAgent["🌐 RealTimeSyncAgent"]
                 RealTimeSyncAgent --> Frontend[Web Frontend]
+                click Data noop "Datos transformados en JSON"
                 click ServiceAgent noop "Orquesta la ejecución periódica y guarda resultados"
                 click ScrapingAgent noop "Captura los datos desde el sitio web"
                 click HARParserAgent noop "Extrae las respuestas JSON del HAR"
@@ -68,16 +69,16 @@
         </div>
         <h2 class="h5 mt-4">Flujo de Recolección de Datos</h2>
         <div id="flowDiagram" class="mermaid">
-            %%{init: {'theme':'base','themeVariables':{'primaryColor':'#e3f2fd','primaryBorderColor':'#90caf9','lineColor':'#42a5f5','fontFamily':'Inter'}} }%%
+            %%{init: {'theme':'base','themeVariables':{'primaryColor':'#e2eafc','primaryBorderColor':'#a7bff6','lineColor':'#0d6efd','fontFamily':'Inter'}} }%%
             flowchart TD
                 Start([Iniciar recolección]) --> Login{¿Login correcto?}
-                Login -- Sí --> Scrape[Ejecución del scraping]
+                Login -- Sí --> Scrape["🌐 Ejecución del scraping"]
                 Login -- No --> LoginError[Credenciales inválidas]
                 LoginError --> EndAuth(Fin error)
                 Scrape --> Response{¿Respuesta válida?}
-                Response -- Sí --> Validate[Validar datos]
+                Response -- Sí --> Validate["🔄 Validar datos"]
                 Validate --> Cache[Almacenar en caché]
-                Cache --> Notify[Guardar y notificar]
+                Cache --> Notify["🧠 Guardar y notificar"]
                 Notify --> EndSuccess(Fin éxito)
                 Response -- No --> Retry{¿Reintentar?}
                 Retry -- Sí --> Scrape

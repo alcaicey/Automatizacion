@@ -336,14 +336,9 @@ def get_latest_data():
         latest_entry = (
             StockPrice.query.order_by(StockPrice.timestamp.desc()).first()
         )
+        ts_db = None
         if latest_entry:
-            ts = latest_entry.timestamp
-            prices = StockPrice.query.filter_by(timestamp=ts).all()
-            return {
-                "data": [p.to_dict() for p in prices],
-                "timestamp": ts.strftime("%d/%m/%Y %H:%M:%S"),
-                "source_file": "db",
-            }
+            ts_db = latest_entry.timestamp
 
         latest_json_path = get_latest_json_file()
         
@@ -355,23 +350,60 @@ def get_latest_data():
                 logger.info("El bot ya se está ejecutando, no se iniciará una nueva instancia para obtener datos.")
             
         if latest_json_path and os.path.exists(latest_json_path):
-            with open(latest_json_path, 'r', encoding='utf-8') as f:
+            file_timestamp = extract_timestamp_from_filename(latest_json_path)
+            try:
+                ts_file_dt = datetime.strptime(file_timestamp, "%d/%m/%Y %H:%M:%S")
+            except Exception:
+                ts_file_dt = None
+
+            if ts_db and ts_file_dt and ts_file_dt <= ts_db:
+                prices = StockPrice.query.filter_by(timestamp=ts_db).all()
+                return {
+                    "data": [p.to_dict() for p in prices],
+                    "timestamp": ts_db.strftime("%d/%m/%Y %H:%M:%S"),
+                    "source_file": "db",
+                }
+
+            with open(latest_json_path, "r", encoding="utf-8") as f:
                 data_content = json.load(f)
-            
-            timestamp = extract_timestamp_from_filename(latest_json_path)
-            
-            # La estructura esperada de los datos de acciones es {"listaResult": [acciones]}
-            # o podría ser directamente una lista [acciones] si la API Cuenta_Premium lo devolviera así.
+
+            timestamp = file_timestamp
+
             if isinstance(data_content, dict) and "listaResult" in data_content and isinstance(data_content["listaResult"], list):
-                return {"data": data_content["listaResult"], "timestamp": timestamp, "source_file": latest_json_path}
-            elif isinstance(data_content, list): # Si el JSON raíz es la lista de acciones
-                return {"data": data_content, "timestamp": timestamp, "source_file": latest_json_path}
+                return {
+                    "data": data_content["listaResult"],
+                    "timestamp": timestamp,
+                    "source_file": latest_json_path,
+                }
+            elif isinstance(data_content, list):
+                return {
+                    "data": data_content,
+                    "timestamp": timestamp,
+                    "source_file": latest_json_path,
+                }
             else:
-                logger.error(f"El archivo JSON {latest_json_path} no tiene la estructura esperada ('listaResult' o lista raíz). Contenido: {str(data_content)[:200]}")
-                return {"error": "Estructura de datos inesperada en archivo JSON.", "timestamp": timestamp, "source_file": latest_json_path}
-        else:
-            logger.error("No se pudo obtener el archivo de datos actualizado.")
-            return {"error": "No se pudieron obtener datos", "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S")}
+                logger.error(
+                    f"El archivo JSON {latest_json_path} no tiene la estructura esperada ('listaResult' o lista raíz). Contenido: {str(data_content)[:200]}"
+                )
+                return {
+                    "error": "Estructura de datos inesperada en archivo JSON.",
+                    "timestamp": timestamp,
+                    "source_file": latest_json_path,
+                }
+
+        if ts_db:
+            prices = StockPrice.query.filter_by(timestamp=ts_db).all()
+            return {
+                "data": [p.to_dict() for p in prices],
+                "timestamp": ts_db.strftime("%d/%m/%Y %H:%M:%S"),
+                "source_file": "db",
+            }
+
+        logger.error("No se pudo obtener el archivo de datos actualizado.")
+        return {
+            "error": "No se pudieron obtener datos",
+            "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+        }
     
     except Exception as e:
         logger.exception(f"Error en get_latest_data: {e}")
@@ -404,15 +436,26 @@ def filter_stocks(stock_codes):
         stock_codes_upper = [code.upper().strip() for code in stock_codes if isinstance(code, str) and code.strip()]
         
         filtered_stocks = []
+
+        def extract_symbol(item):
+            if not isinstance(item, dict):
+                return None
+            for k, v in item.items():
+                if isinstance(k, str) and re.search(r"(nemo|symbol)", k, re.IGNORECASE):
+                    if isinstance(v, str):
+                        return v.strip()
+            return None
+
         for stock in stocks_list:
-            nemo = stock.get("NEMO") or stock.get("symbol") if isinstance(stock, dict) else None
-            if isinstance(nemo, str) and nemo.upper() in stock_codes_upper:
-                filtered_stocks.append(stock)
-            else:
+            symbol = extract_symbol(stock)
+            if not symbol:
                 logger.warning(
-                    "Elemento de acción con formato inesperado o sin 'NEMO/symbol': %s",
+                    "Elemento de acción con formato inesperado o sin clave de símbolo: %s",
                     str(stock)[:100],
                 )
+                continue
+            if re.fullmatch(r"[A-Z0-9.-]+", symbol.upper()) and symbol.upper() in stock_codes_upper:
+                filtered_stocks.append(stock)
         
         logger.info(f"Filtradas {len(filtered_stocks)} acciones de {len(stocks_list)} originales.")
         return {
