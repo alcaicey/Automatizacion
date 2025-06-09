@@ -9,6 +9,7 @@ import re
 import glob
 import random  # Asegurarse de que random esté importado
 import sys
+import hashlib
 from contextlib import nullcontext
 from flask import current_app
 
@@ -109,6 +110,23 @@ def extract_timestamp_from_filename(filename):
     except Exception as e:
         logger.exception(f"Error al extraer timestamp del nombre de archivo '{filename}': {e}")
         return datetime.now().strftime("%d/%m/%Y %H:%M:%S") # Fallback a ahora
+
+
+def get_json_hash_and_timestamp(path):
+    """Devuelve hash md5 y timestamp extraído del JSON."""
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        ts = None
+        if isinstance(data, dict):
+            for k, v in data.items():
+                if isinstance(k, str) and any(t in k.lower() for t in ["time", "fecha", "stamp"]):
+                    ts = str(v)
+                    break
+        hash_val = hashlib.md5(json.dumps(data, sort_keys=True).encode("utf-8")).hexdigest()
+        return hash_val, ts
+    except Exception:
+        return None, None
 
 def store_prices_in_db(json_path, app=None):
     """Guarda los precios de acciones en la base de datos y emite notificación."""
@@ -227,6 +245,8 @@ def run_bolsa_bot(app=None, *, non_interactive=None, keep_open=True):
                 )
                 return None
             bot_running = True
+        prev_file = get_latest_json_file()
+        prev_hash, _ = get_json_hash_and_timestamp(prev_file) if prev_file else (None, None)
         try:
             logger.info("=== INICIO DE CICLO COMPLETO DE SCRAPING ===")
             cycle_start = time.time()
@@ -272,6 +292,13 @@ def run_bolsa_bot(app=None, *, non_interactive=None, keep_open=True):
             latest_json = get_latest_json_file()  # Busca el archivo generado por el bot
 
             if latest_json and os.path.getmtime(latest_json) > cycle_start:
+                new_hash, new_ts = get_json_hash_and_timestamp(latest_json)
+                logger.info(f"Timestamp del JSON recibido: {new_ts}")
+                if prev_hash and new_hash == prev_hash:
+                    logger.warning("response.text() no cambió entre ejecuciones. Reintentando en 10s...")
+                    time.sleep(10)
+                    prev_hash = new_hash
+                    return run_bolsa_bot(app=app, non_interactive=non_interactive, keep_open=keep_open)
                 logger.info(
                     f"bolsa_santiago_bot.py ejecutado, datos actualizados en: {latest_json}"
                 )

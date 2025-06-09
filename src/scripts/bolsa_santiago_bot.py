@@ -115,6 +115,18 @@ def ensure_timestamp_current(logger_to_configure):
         configure_run_specific_logging(logger_to_configure)
 
 
+def extract_json_timestamp(data_obj):
+    """Intenta extraer un valor de timestamp del JSON retornado por la API."""
+    if isinstance(data_obj, dict):
+        for k, v in data_obj.items():
+            if not isinstance(k, str):
+                continue
+            lk = k.lower()
+            if any(t in lk for t in ["time", "fecha", "stamp"]):
+                return str(v)
+    return None
+
+
 def handle_console_message(msg, logger_param):
     text = msg.text
     if "Failed to load resource" in text and (
@@ -131,9 +143,18 @@ def handle_console_message(msg, logger_param):
         logger_param.info(f"JS CONSOLE ({msg.type}): {text}")
 
 
-def fetch_premium_data(context, logger_param, output_path):
-    """Attempt to fetch premium stock data directly using the authenticated context."""
+def fetch_premium_data(context, logger_param, output_path, *, cache_bust=None):
+    """Attempt to fetch premium stock data directly using the authenticated context.
+
+    Returns
+    -------
+    tuple(bool, dict|None, str|None)
+        Indica si la solicitud fue exitosa, el JSON recibido y un timestamp si
+        se pudo extraer.
+    """
     url = "https://www.bolsadesantiago.com/api/Cuenta_Premium/getPremiumAccionesPrecios"
+    if cache_bust is not None:
+        url += f"?cb={cache_bust}"
     try:
         cookies = context.cookies()
         csrf = None
@@ -145,23 +166,33 @@ def fetch_premium_data(context, logger_param, output_path):
         if csrf:
             headers["X-CSRFToken"] = csrf
 
-        resp = context.request.post(url, headers=headers, data="{}")
+        payload = {} if cache_bust is None else {"cb": cache_bust}
+        resp = context.request.post(url, headers=headers, data=json.dumps(payload))
         logger_param.info(f"Solicitud directa a API Premium, status {resp.status}")
 
         if resp.status == 200:
             data_json = resp.json()
+            ts = extract_json_timestamp(data_json)
+            if ts:
+                logger_param.info(f"Timestamp del JSON recibido: {ts}")
             with open(output_path, "w", encoding="utf-8") as f_out:
                 json.dump(data_json, f_out, indent=2, ensure_ascii=False)
             logger_param.info(f"Datos premium guardados en: {output_path}")
-            return True
+            return True, data_json, ts
         logger_param.warning(f"No se pudo obtener datos premium. Código {resp.status}")
     except Exception as f_err:
         logger_param.warning(f"Error al obtener datos premium vía API: {f_err}")
-    return False
+    return False, None, None
 
 
 def capture_premium_data_via_network(page, logger_param, output_path):
-    """Capture the premium stock JSON by waiting for the XHR response."""
+    """Capture the premium stock JSON by waiting for the XHR response.
+
+    Returns
+    -------
+    tuple(bool, dict|None, str|None)
+        Indica si se capturó, los datos obtenidos y un timestamp extraído.
+    """
     patterns = [
         "api/Cuenta_Premium/getPremiumAccionesPrecios",
         "api/RV_ResumenMercado/getAccionesPrecios",
@@ -173,19 +204,22 @@ def capture_premium_data_via_network(page, logger_param, output_path):
             timeout=20000,
         )
         data_json = response.json()
+        ts = extract_json_timestamp(data_json)
+        if ts:
+            logger_param.info(f"Timestamp del JSON recibido: {ts}")
         with open(output_path, "w", encoding="utf-8") as f_out:
             json.dump(data_json, f_out, indent=2, ensure_ascii=False)
         logger_param.info(
             f"Datos premium capturados desde XHR en: {output_path} ({response.url})"
         )
-        return True
+        return True, data_json, ts
     except PlaywrightTimeoutError:
         logger_param.warning(
             "No se capturó respuesta de la API de precios en el tiempo esperado"
         )
     except Exception as err:
         logger_param.warning(f"Error al capturar datos premium por XHR: {err}")
-    return False
+    return False, None, None
 
 
 def run_automation(
@@ -392,7 +426,9 @@ def run_automation(
             logger_param.info(
                 "Paso 9c: Capturando respuesta de la API de precios mediante wait_for_response..."
             )
-            captured = capture_premium_data_via_network(
+            captured_json = None
+            captured_ts = None
+            captured, captured_json, captured_ts = capture_premium_data_via_network(
                 page, logger_param, current_output_acciones_data_filename
             )
 
@@ -404,8 +440,11 @@ def run_automation(
                 "Paso 10b: Intentando obtener datos premium directamente desde la API..."
             )
             if not captured:
-                fetch_premium_data(
-                    context, logger_param, current_output_acciones_data_filename
+                captured, captured_json, captured_ts = fetch_premium_data(
+                    context,
+                    logger_param,
+                    current_output_acciones_data_filename,
+                    cache_bust=random.randint(0, 1000000),
                 )
 
         if is_mis_conexiones_page:
