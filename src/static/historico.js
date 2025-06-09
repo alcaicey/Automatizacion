@@ -1,6 +1,7 @@
 // CRUD operations for stock_prices
 
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('historico.js DOMContentLoaded');
     loadPrices();
 
     const form = document.getElementById('priceForm');
@@ -31,10 +32,12 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function loadPrices() {
+    console.log('Loading prices...');
     const tbody = document.querySelector('#pricesTable tbody');
     tbody.innerHTML = '';
     const res = await fetch('/api/prices?limit=100');
     const data = await res.json();
+    console.log('Prices loaded', data.length);
     data.forEach(p => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -49,9 +52,11 @@ async function loadPrices() {
             </td>`;
         tbody.appendChild(tr);
     });
+    console.log('Rendered', data.length, 'rows');
 }
 
 async function editPrice(id) {
+    console.log('Editing price', id);
     const res = await fetch(`/api/prices/${id}`);
     const data = await res.json();
     const form = document.getElementById('priceForm');
@@ -63,6 +68,7 @@ async function editPrice(id) {
 }
 
 async function deletePrice(id) {
+    console.log('Deleting price', id);
     await fetch(`/api/prices/${id}`, { method: 'DELETE' });
     loadPrices();
 }

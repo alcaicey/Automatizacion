@@ -1,4 +1,5 @@
 // Funcionalidad principal de la aplicación
+console.log('app.js loaded');
 
 // Variables globales
 let autoUpdateTimer = null;
@@ -164,6 +165,7 @@ async function saveColumnPreferences() {
 // Función para obtener y mostrar los datos de acciones
 async function fetchAndDisplayStocks() {
     try {
+        console.log('Fetching stock data...');
         toggleLoading(true, 'Cargando datos de acciones...');
 
         const allStocks = allStocksCheck.checked;
@@ -188,6 +190,7 @@ async function fetchAndDisplayStocks() {
         // Realizar la petición
         const response = await fetch(url);
         const data = await response.json();
+        console.log('Datos recibidos:', data);
         
         if (data.error) {
             updateStatus(`Error: ${data.error}`, true);
@@ -197,6 +200,7 @@ async function fetchAndDisplayStocks() {
         
         // Actualizar la tabla con los datos
         updateStocksTable(data);
+        console.log('Tabla actualizada');
         
         // Actualizar información de última actualización
         updateLastUpdateTime(data.timestamp);
@@ -214,6 +218,7 @@ async function fetchAndDisplayStocks() {
 
 // Función para actualizar la tabla de acciones
 function updateStocksTable(data) {
+    console.log('Rendering table with', data.data ? data.data.length : 0, 'rows');
     if (dataTable) {
         dataTable.destroy();
         dataTable = null;
@@ -291,10 +296,12 @@ function updateStocksTable(data) {
         fixedHeight: true,
         perPageSelect: false,
     });
+    console.log('DataTable inicializado');
 }
 
 // Función para actualizar manualmente los datos
 async function updateStocksData() {
+    console.log('updateStocksData triggered');
     if (isUpdating) {
         updateStatus('Ya hay una actualización en curso, por favor espere...', true);
         return;
@@ -325,6 +332,7 @@ async function updateStocksData() {
         setTimeout(async () => {
             try {
                 await fetchAndDisplayStocks();
+                console.log('Datos actualizados, tabla refrescada');
                 updateStatus('Datos actualizados correctamente');
             } catch (error) {
                 console.error('Error al actualizar datos:', error);
@@ -559,6 +567,7 @@ async function loadStockCodes() {
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM fully loaded, initializing app');
     // Obtener referencias a los elementos del DOM
     stockFilterForm = document.getElementById('stockFilterForm');
     stockCodeInputs = document.querySelectorAll('.stock-code');
@@ -585,7 +594,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     // Conectar con el servidor vía WebSocket
     const socket = io();
+    socket.on('connect', () => {
+        console.log('WebSocket connected');
+    });
     socket.on('new_data', () => {
+        console.log('Evento new_data recibido');
         fetchAndDisplayStocks();
     });
     // Cargar códigos guardados
