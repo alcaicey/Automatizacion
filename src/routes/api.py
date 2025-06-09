@@ -54,6 +54,7 @@ def store_frontend_log():
     return jsonify({"success": True})
 
 
+
 @api_bp.route('/stocks', methods=['GET'])
 def get_stocks():
     """
