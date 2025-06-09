@@ -160,6 +160,34 @@ def fetch_premium_data(context, logger_param, output_path):
     return False
 
 
+def capture_premium_data_via_network(page, logger_param, output_path):
+    """Capture the premium stock JSON by waiting for the XHR response."""
+    patterns = [
+        "api/Cuenta_Premium/getPremiumAccionesPrecios",
+        "api/RV_ResumenMercado/getAccionesPrecios",
+    ]
+    try:
+        response = page.wait_for_response(
+            lambda resp: any(p in resp.url for p in patterns)
+            and resp.status == 200,
+            timeout=20000,
+        )
+        data_json = response.json()
+        with open(output_path, "w", encoding="utf-8") as f_out:
+            json.dump(data_json, f_out, indent=2, ensure_ascii=False)
+        logger_param.info(
+            f"Datos premium capturados desde XHR en: {output_path} ({response.url})"
+        )
+        return True
+    except PlaywrightTimeoutError:
+        logger_param.warning(
+            "No se capturó respuesta de la API de precios en el tiempo esperado"
+        )
+    except Exception as err:
+        logger_param.warning(f"Error al capturar datos premium por XHR: {err}")
+    return False
+
+
 def run_automation(
     logger_param, attempt=1, max_attempts=2, *, non_interactive=None, keep_open=True
 ):
@@ -362,15 +390,23 @@ def run_automation(
             time.sleep(10)
 
             logger_param.info(
+                "Paso 9c: Capturando respuesta de la API de precios mediante wait_for_response..."
+            )
+            captured = capture_premium_data_via_network(
+                page, logger_param, current_output_acciones_data_filename
+            )
+
+            logger_param.info(
                 "Paso 10: El script ha completado la navegación y espera. Los datos de la API deberían estar en el HAR."
             )
 
             logger_param.info(
                 "Paso 10b: Intentando obtener datos premium directamente desde la API..."
             )
-            fetch_premium_data(
-                context, logger_param, current_output_acciones_data_filename
-            )
+            if not captured:
+                fetch_premium_data(
+                    context, logger_param, current_output_acciones_data_filename
+                )
 
         if is_mis_conexiones_page:
             logger_param.info(
