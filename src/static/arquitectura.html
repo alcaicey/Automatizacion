@@ -96,6 +96,63 @@
         <div class="ms-2">
             <p class="mb-1">El flujo contempla validaciones de credenciales, posibles fallos de red y la repetición del scraping en caso de error. Tras validar los datos, se almacenan en caché y se publican.</p>
         </div>
+        <!-- Diagramas de eventos para carga, filtrado y actualización -->
+        <h2 class="h5 mt-4">Eventos en la Interfaz</h2>
+        <div id="eventDiagram" class="mermaid">
+            %%{init: {'theme':'base','themeVariables':{'primaryColor':'#f8d7da','primaryBorderColor':'#f1aeb5','lineColor':'#dc3545','fontFamily':'Inter'}} }%%
+            flowchart TD
+                subgraph "Carga inicial"
+                    A["Usuario abre localhost:5000"] --> B["Carga HTML principal (app.js)"]
+                    B --> C[/api/session-time]
+                    C --> D[/api/stocks?code=...]
+                    D --> E["Renderizar tabla"]
+                    E --> F["Mostrar timestamp"]
+                end
+                subgraph "Botón Filtrar"
+                    G["Ingresar códigos"] --> H["Click en Filtrar"]
+                    H --> I["GET /api/stocks?code=CENCOSUD&..."]
+                    I --> J["Actualizar tabla"]
+                    J --> K["Mensaje de éxito"]
+                end
+                subgraph "Botón Actualizar"
+                    L["Click en Actualizar"] --> M["POST /api/update"]
+                    M --> N["Activar ScrapingAgent"]
+                    N --> O["Abrir navegador (Playwright)"]
+                    O --> P["Generar network_summary y acciones-precios-plus"]
+                    P --> Q["Filtrar resultados válidos"]
+                    Q --> R["Persistir JSON"]
+                    R --> S["Actualizar tabla (si corresponde)"]
+                end
+        </div>
+        <div class="text-end my-2">
+            <button class="btn btn-outline-secondary btn-sm" onclick="exportDiagram('eventDiagram')">Exportar imagen</button>
+        </div>
+        <div class="ms-2">
+            <p class="mb-1">Cada subgrafo describe el flujo que sigue la aplicación ante una acción del usuario.</p>
+        </div>
+        <!-- Diagrama de dependencias y posibles fallos -->
+        <h2 class="h5 mt-4">Mapa de Dependencias y Errores</h2>
+        <div id="errorDiagram" class="mermaid">
+            %%{init: {'theme':'base','themeVariables':{'primaryColor':'#d1dfe4','primaryBorderColor':'#a0b3bc','lineColor':'#0dcaf0','fontFamily':'Inter'}} }%%
+            graph LR
+                Front[Frontend] --> API[/API Flask/]
+                API --> Service[ServiceAgent]
+                Service --> Scrape[ScrapingAgent]
+                Scrape --> Parse[HARParserAgent]
+                Service --> DB[(Base de datos)]
+                Service --> Sync[RealTimeSyncAgent]
+                Sync --> Front
+                Scrape -.-> Captcha((Captcha/Timeout))
+                Parse -.-> HarErr((HAR inválido))
+                DB -.-> DBErr((Fallo BD))
+                Sync -.-> WsErr((Error WebSocket))
+        </div>
+        <div class="text-end my-2">
+            <button class="btn btn-outline-secondary btn-sm" onclick="exportDiagram('errorDiagram')">Exportar imagen</button>
+        </div>
+        <div class="ms-2">
+            <p class="mb-1">El mapa destaca los puntos donde podrían surgir errores comunes para facilitar la depuración.</p>
+        </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/theme.js"></script>
