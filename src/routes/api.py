@@ -46,12 +46,15 @@ def store_frontend_log():
     stack = data.get('stack', '')
     action = data.get('action', 'unknown')
 
+    if not message:
+        return jsonify({"error": "message required"}), 400
+
     log_parts = [f"[{action}] {message}"]
     if stack:
         log_parts.append(stack)
     client_logger.info(' | '.join(log_parts))
 
-    return jsonify({"success": True})
+    return jsonify({"success": True}), 201
 
 
 
