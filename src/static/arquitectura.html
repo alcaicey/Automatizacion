@@ -3,10 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Análisis</title>
+    <title>Arquitectura</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/styles.css">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true });
+    </script>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
@@ -27,14 +31,32 @@
         </div>
     </nav>
     <div class="container py-4">
-        <h1 class="mb-4">Análisis</h1>
-        <p>Próximamente encontrarás herramientas avanzadas para analizar los datos históricos. Algunas ideas en desarrollo incluyen:</p>
-        <ul>
-            <li>Gráficos comparativos de rendimiento</li>
-            <li>Alertas personalizadas de precios</li>
-            <li>Proyecciones de tendencias</li>
-            <li>Integración de indicadores técnicos</li>
-        </ul>
+        <h1 class="mb-4">Arquitectura de la Aplicación</h1>
+        <h2 class="h5">Diagrama de Arquitectura</h2>
+        <div class="mermaid">
+            graph LR
+                ServiceAgent --> ScrapingAgent
+                ScrapingAgent --> HARParserAgent
+                HARParserAgent --> SessionAgent
+                ScrapingAgent --> HARFile[HAR File]
+                HARParserAgent --> Data[Datos JSON]
+                Data --> ServiceAgent
+                ServiceAgent --> RealTimeSyncAgent
+                RealTimeSyncAgent --> Frontend[Web Frontend]
+        </div>
+        <h2 class="h5 mt-4">Flujo de Recolección de Datos</h2>
+        <div class="mermaid">
+            flowchart TD
+                A[Iniciar recolección] --> B{Login correcto?}
+                B -- Sí --> C[Ejecución del scraping]
+                C --> D{Respuesta válida?}
+                D -- Sí --> E[Guardar y notificar]
+                E --> F(Fin éxito)
+                B -- No --> G[Error de autenticación]
+                G --> H(Fin error)
+                D -- No --> I[Error de red]
+                I --> H
+        </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/theme.js"></script>
