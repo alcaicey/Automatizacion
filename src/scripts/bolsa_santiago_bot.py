@@ -1,4 +1,8 @@
-from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError, Error as PlaywrightError
+from playwright.sync_api import (
+    sync_playwright,
+    TimeoutError as PlaywrightTimeoutError,
+    Error as PlaywrightError,
+)
 import time
 import json
 import logging
@@ -49,41 +53,52 @@ logger_instance_global = logging.getLogger(__name__)
 # --- CONFIGURACIÓN ---
 # La mayoría de parámetros estáticos se obtienen desde src.config
 
+
 def validate_credentials():
     """Comprueba que las credenciales estén definidas en el entorno."""
     if not USERNAME or not PASSWORD:
-        raise ValueError(
-            "Missing credentials: set BOLSA_USERNAME and BOLSA_PASSWORD"
-        )
+        raise ValueError("Missing credentials: set BOLSA_USERNAME and BOLSA_PASSWORD")
+
 
 # --- FIN DE LA CONFIGURACIÓN ---
 
+
 def configure_run_specific_logging(logger_to_configure):
     global LOG_FILENAME, OUTPUT_ACCIONES_DATA_FILENAME, ANALYZED_SUMMARY_FILENAME, TIMESTAMP_NOW
-    
+
     for handler in list(logger_to_configure.handlers):
         logger_to_configure.removeHandler(handler)
         handler.close()
 
-    TIMESTAMP_NOW = datetime.now().strftime('%Y%m%d_%H%M%S')
+    TIMESTAMP_NOW = datetime.now().strftime("%Y%m%d_%H%M%S")
     LOG_FILENAME = os.path.join(LOGS_DIR, f"bolsa_bot_log_{TIMESTAMP_NOW}.txt")
-    OUTPUT_ACCIONES_DATA_FILENAME = os.path.join(LOGS_DIR, f"acciones-precios-plus_{TIMESTAMP_NOW}.json")
-    ANALYZED_SUMMARY_FILENAME = os.path.join(LOGS_DIR, f"network_summary_{TIMESTAMP_NOW}.json")
+    OUTPUT_ACCIONES_DATA_FILENAME = os.path.join(
+        LOGS_DIR, f"acciones-precios-plus_{TIMESTAMP_NOW}.json"
+    )
+    ANALYZED_SUMMARY_FILENAME = os.path.join(
+        LOGS_DIR, f"network_summary_{TIMESTAMP_NOW}.json"
+    )
 
     # Borrar captura HAR previa para iniciar una nueva
     if os.path.exists(HAR_FILENAME):
         os.remove(HAR_FILENAME)
 
     logger_to_configure.setLevel(logging.INFO)
-    file_handler = logging.FileHandler(LOG_FILENAME, encoding='utf-8')
-    file_handler.setFormatter(logging.Formatter('[%(levelname)s] %(asctime)s - %(message)s'))
+    file_handler = logging.FileHandler(LOG_FILENAME, encoding="utf-8")
+    file_handler.setFormatter(
+        logging.Formatter("[%(levelname)s] %(asctime)s - %(message)s")
+    )
     stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(logging.Formatter('[%(levelname)s] %(asctime)s - %(message)s'))
-    
+    stream_handler.setFormatter(
+        logging.Formatter("[%(levelname)s] %(asctime)s - %(message)s")
+    )
+
     if not logger_to_configure.handlers:
         logger_to_configure.addHandler(file_handler)
         logger_to_configure.addHandler(stream_handler)
-    logger_to_configure.info(f"Logging configurado. Log: {LOG_FILENAME}, HAR: {HAR_FILENAME}, Datos: {OUTPUT_ACCIONES_DATA_FILENAME}")
+    logger_to_configure.info(
+        f"Logging configurado. Log: {LOG_FILENAME}, HAR: {HAR_FILENAME}, Datos: {OUTPUT_ACCIONES_DATA_FILENAME}"
+    )
 
 
 def ensure_timestamp_current(logger_to_configure):
@@ -92,7 +107,7 @@ def ensure_timestamp_current(logger_to_configure):
     try:
         if not TIMESTAMP_NOW:
             raise ValueError("Timestamp vacío")
-        ts_dt = datetime.strptime(TIMESTAMP_NOW, '%Y%m%d_%H%M%S')
+        ts_dt = datetime.strptime(TIMESTAMP_NOW, "%Y%m%d_%H%M%S")
         if abs((datetime.now() - ts_dt).total_seconds()) > 3600:
             raise ValueError("Timestamp desfasado")
     except Exception:
@@ -101,8 +116,13 @@ def ensure_timestamp_current(logger_to_configure):
 
 def handle_console_message(msg, logger_param):
     text = msg.text
-    if "Failed to load resource" in text and \
-       ("doubleclick.net" in text or "google-analytics.com" in text or "validate.perfdrive.com" in text or "googlesyndication.com" in text or "cdn.ampproject.org" in text):
+    if "Failed to load resource" in text and (
+        "doubleclick.net" in text
+        or "google-analytics.com" in text
+        or "validate.perfdrive.com" in text
+        or "googlesyndication.com" in text
+        or "cdn.ampproject.org" in text
+    ):
         logger_param.debug(f"JS CONSOLE (Filtered Error/CSP): {text}")
     elif "Slow network is detected" in text:
         logger_param.debug(f"JS CONSOLE (Performance): {text}")
@@ -110,7 +130,38 @@ def handle_console_message(msg, logger_param):
         logger_param.info(f"JS CONSOLE ({msg.type}): {text}")
 
 
-def run_automation(logger_param, attempt=1, max_attempts=2, *, non_interactive=None, keep_open=True):
+def fetch_premium_data(context, logger_param, output_path):
+    """Attempt to fetch premium stock data directly using the authenticated context."""
+    url = "https://www.bolsadesantiago.com/api/Cuenta_Premium/getPremiumAccionesPrecios"
+    try:
+        cookies = context.cookies()
+        csrf = None
+        for c in cookies:
+            if "csrf" in c.get("name", "").lower():
+                csrf = c.get("value")
+                break
+        headers = {"Content-Type": "application/json"}
+        if csrf:
+            headers["X-CSRFToken"] = csrf
+
+        resp = context.request.post(url, headers=headers, data="{}")
+        logger_param.info(f"Solicitud directa a API Premium, status {resp.status}")
+
+        if resp.status == 200:
+            data_json = resp.json()
+            with open(output_path, "w", encoding="utf-8") as f_out:
+                json.dump(data_json, f_out, indent=2, ensure_ascii=False)
+            logger_param.info(f"Datos premium guardados en: {output_path}")
+            return True
+        logger_param.warning(f"No se pudo obtener datos premium. Código {resp.status}")
+    except Exception as f_err:
+        logger_param.warning(f"Error al obtener datos premium vía API: {f_err}")
+    return False
+
+
+def run_automation(
+    logger_param, attempt=1, max_attempts=2, *, non_interactive=None, keep_open=True
+):
     if non_interactive is None:
         non_interactive = NON_INTERACTIVE or os.getenv("BOLSA_NON_INTERACTIVE") == "1"
 
@@ -123,7 +174,9 @@ def run_automation(logger_param, attempt=1, max_attempts=2, *, non_interactive=N
     logger_param.info(f"--- Iniciando Intento de Automatización #{attempt} ---")
 
     if attempt > max_attempts:
-        logger_param.error(f"Se alcanzó el número máximo de reintentos ({max_attempts}). Abortando.")
+        logger_param.error(
+            f"Se alcanzó el número máximo de reintentos ({max_attempts}). Abortando."
+        )
         return
 
     p_instance = None
@@ -135,7 +188,9 @@ def run_automation(logger_param, attempt=1, max_attempts=2, *, non_interactive=N
 
     try:
         p_instance = sync_playwright().start()
-        browser = p_instance.chromium.launch(headless=False, slow_mo=250, args=["--start-maximized"])
+        browser = p_instance.chromium.launch(
+            headless=False, slow_mo=250, args=["--start-maximized"]
+        )
         context = browser.new_context(
             user_agent=DEFAULT_USER_AGENT,
             no_viewport=True,
@@ -143,17 +198,23 @@ def run_automation(logger_param, attempt=1, max_attempts=2, *, non_interactive=N
             record_har_mode="full",
         )
         logger_param.info(f"Grabando tráfico de red en: {current_har_filename}")
-        
+
         page = context.new_page()
         page.on("console", lambda msg: handle_console_message(msg, logger_param))
 
-        logger_param.info(f"Paso 1: Navegando a la página que requiere login: {INITIAL_PAGE_URL}")
+        logger_param.info(
+            f"Paso 1: Navegando a la página que requiere login: {INITIAL_PAGE_URL}"
+        )
         page.goto(INITIAL_PAGE_URL, timeout=60000)
         logger_param.info(f"Paso 1: URL actual después de goto inicial: {page.url}")
 
-        logger_param.info("Paso 2: Esperando por la página de login de SSO (si fuimos redirigidos)...")
+        logger_param.info(
+            "Paso 2: Esperando por la página de login de SSO (si fuimos redirigidos)..."
+        )
         if "sso.bolsadesantiago.com" not in page.url:
-            page.wait_for_url(lambda url: "sso.bolsadesantiago.com" in url, timeout=30000)
+            page.wait_for_url(
+                lambda url: "sso.bolsadesantiago.com" in url, timeout=30000
+            )
             logger_param.info(f"Paso 2: Redirigido a SSO. URL actual: {page.url}")
         page.wait_for_selector(USERNAME_SELECTOR, state="visible", timeout=45000)
         logger_param.info("Paso 2: Página de login de SSO cargada.")
@@ -186,80 +247,138 @@ def run_automation(logger_param, attempt=1, max_attempts=2, *, non_interactive=N
             time.sleep(10)
             logger_param.info("Continuando después de la espera por CAPTCHA")
 
-        logger_param.info("Paso 5: Esperando redirección post-login a www.bolsadesantiago.com...")
+        logger_param.info(
+            "Paso 5: Esperando redirección post-login a www.bolsadesantiago.com..."
+        )
         try:
             page.wait_for_url(
-                lambda url: "www.bolsadesantiago.com" in url and "sso.bolsadesantiago.com" not in url,
-                timeout=60000
+                lambda url: "www.bolsadesantiago.com" in url
+                and "sso.bolsadesantiago.com" not in url,
+                timeout=60000,
             )
-            logger_param.info(f"Paso 5: Redirección a www.bolsadesantiago.com exitosa. URL actual: {page.url}")
+            logger_param.info(
+                f"Paso 5: Redirección a www.bolsadesantiago.com exitosa. URL actual: {page.url}"
+            )
         except PlaywrightTimeoutError:
-            logger_param.error(f"Paso 5: Timeout esperando redirección. URL actual: {page.url if page else 'N/A'}")
+            logger_param.error(
+                f"Paso 5: Timeout esperando redirección. URL actual: {page.url if page else 'N/A'}"
+            )
             if page and not page.is_closed():
-                page.screenshot(path=os.path.join(LOGS_DIR, f"timeout_post_login_redirect_{TIMESTAMP_NOW}.png"))
+                page.screenshot(
+                    path=os.path.join(
+                        LOGS_DIR, f"timeout_post_login_redirect_{TIMESTAMP_NOW}.png"
+                    )
+                )
             raise
 
         time.sleep(3)
-        logger_param.info("Paso 7: Verificando si estamos en la página 'MIS CONEXIONES'...")
+        logger_param.info(
+            "Paso 7: Verificando si estamos en la página 'MIS CONEXIONES'..."
+        )
         try:
             if page.locator(MIS_CONEXIONES_TITLE_SELECTOR).is_visible(timeout=7000):
                 is_mis_conexiones_page = True
-                logger_param.warning("Paso 7: Detectada página 'MIS CONEXIONES'. Límite de sesiones alcanzado.")
+                logger_param.warning(
+                    "Paso 7: Detectada página 'MIS CONEXIONES'. Límite de sesiones alcanzado."
+                )
                 cerrar_todas_button = page.locator(CERRAR_TODAS_SESIONES_SELECTOR)
                 if cerrar_todas_button.is_visible(timeout=5000):
-                    logger_param.info("Paso 7: Intentando hacer clic en 'Cerrar sesión en todos los dispositivos'...")
+                    logger_param.info(
+                        "Paso 7: Intentando hacer clic en 'Cerrar sesión en todos los dispositivos'..."
+                    )
                     cerrar_todas_button.click()
-                    logger_param.info("Paso 7: Clic en 'Cerrar todas las sesiones' realizado. Esperando...")
-                    page.wait_for_load_state("networkidle", timeout=20000) 
-                    time.sleep(5) 
-                    logger_param.info(f"Paso 7: Página actualizada después de cerrar sesiones. URL actual: {page.url}")
-                    logger_param.info("Paso 7: Sesiones cerradas. Reiniciando el proceso de automatización...")
+                    logger_param.info(
+                        "Paso 7: Clic en 'Cerrar todas las sesiones' realizado. Esperando..."
+                    )
+                    page.wait_for_load_state("networkidle", timeout=20000)
+                    time.sleep(5)
+                    logger_param.info(
+                        f"Paso 7: Página actualizada después de cerrar sesiones. URL actual: {page.url}"
+                    )
+                    logger_param.info(
+                        "Paso 7: Sesiones cerradas. Reiniciando el proceso de automatización..."
+                    )
                     logger_param.info(
                         "El navegador permanecerá abierto; cierre manualmente si es necesario."
                     )
-                    time.sleep(random.uniform(3,7))
+                    time.sleep(random.uniform(3, 7))
                     configure_run_specific_logging(logger_param)
                     return run_automation(logger_param, attempt + 1, max_attempts)
                 else:
-                    logger_param.error("Paso 7: Botón 'Cerrar sesión en todos los dispositivos' no encontrado.")
+                    logger_param.error(
+                        "Paso 7: Botón 'Cerrar sesión en todos los dispositivos' no encontrado."
+                    )
             else:
-                logger_param.info("Paso 7: No se detectó la página 'MIS CONEXIONES' (título no visible), continuando...")
+                logger_param.info(
+                    "Paso 7: No se detectó la página 'MIS CONEXIONES' (título no visible), continuando..."
+                )
         except PlaywrightTimeoutError:
-            logger_param.info("Paso 7: Página 'MIS CONEXIONES' no apareció en el tiempo esperado, continuando...")
-        except Exception as pe_err: 
-             logger_param.warning(f"Paso 7: Error al verificar página 'MIS CONEXIONES': {pe_err}. Asumiendo que no es la página de error.")
+            logger_param.info(
+                "Paso 7: Página 'MIS CONEXIONES' no apareció en el tiempo esperado, continuando..."
+            )
+        except Exception as pe_err:
+            logger_param.warning(
+                f"Paso 7: Error al verificar página 'MIS CONEXIONES': {pe_err}. Asumiendo que no es la página de error."
+            )
 
         if not is_mis_conexiones_page:
-            logger_param.info(f"Paso 8: Navegando a la página de destino para datos: {TARGET_DATA_PAGE_URL}")
+            logger_param.info(
+                f"Paso 8: Navegando a la página de destino para datos: {TARGET_DATA_PAGE_URL}"
+            )
             if TARGET_DATA_PAGE_URL not in page.url:
-                page.goto(TARGET_DATA_PAGE_URL, timeout=60000, wait_until="domcontentloaded")
+                page.goto(
+                    TARGET_DATA_PAGE_URL, timeout=60000, wait_until="domcontentloaded"
+                )
             else:
                 page.wait_for_load_state("domcontentloaded", timeout=45000)
-            logger_param.info(f"Paso 8: Navegación inicial a {page.url} (DOM cargado) completada.")
+            logger_param.info(
+                f"Paso 8: Navegación inicial a {page.url} (DOM cargado) completada."
+            )
 
-            logger_param.info(f"Paso 9: Forzando recarga de la página actual ({page.url}) para asegurar carga de datos premium...")
+            logger_param.info(
+                f"Paso 9: Forzando recarga de la página actual ({page.url}) para asegurar carga de datos premium..."
+            )
             page.reload(wait_until="networkidle", timeout=60000)
             logger_param.info(f"Paso 9: Página recargada ({page.url}) y red en reposo.")
-            
-            if TARGET_DATA_PAGE_URL not in page.url: # Doble check
-                logger_param.error(f"Paso 9: Después de recargar, la URL es {page.url}, NO la esperada {TARGET_DATA_PAGE_URL}.")
-            
-            logger_param.info("Paso 9b: Esperando 10 segundos adicionales para asegurar que todos los datos se carguen por XHR/WebSocket...")
-            time.sleep(10) 
 
-            logger_param.info("Paso 10: El script ha completado la navegación y espera. Los datos de la API deberían estar en el HAR.")
-        
+            if TARGET_DATA_PAGE_URL not in page.url:  # Doble check
+                logger_param.error(
+                    f"Paso 9: Después de recargar, la URL es {page.url}, NO la esperada {TARGET_DATA_PAGE_URL}."
+                )
+
+            logger_param.info(
+                "Paso 9b: Esperando 10 segundos adicionales para asegurar que todos los datos se carguen por XHR/WebSocket..."
+            )
+            time.sleep(10)
+
+            logger_param.info(
+                "Paso 10: El script ha completado la navegación y espera. Los datos de la API deberían estar en el HAR."
+            )
+
+            logger_param.info(
+                "Paso 10b: Intentando obtener datos premium directamente desde la API..."
+            )
+            fetch_premium_data(
+                context, logger_param, current_output_acciones_data_filename
+            )
+
         if is_mis_conexiones_page:
-            logger_param.info("Flujo principal detenido debido a la página 'MIS CONEXIONES'.")
+            logger_param.info(
+                "Flujo principal detenido debido a la página 'MIS CONEXIONES'."
+            )
 
     except PlaywrightTimeoutError as pte:
         logger_param.error(f"ERROR DE TIMEOUT: {pte}")
         if page and not page.is_closed():
-            page.screenshot(path=os.path.join(LOGS_DIR, f"timeout_error_{TIMESTAMP_NOW}.png"))
+            page.screenshot(
+                path=os.path.join(LOGS_DIR, f"timeout_error_{TIMESTAMP_NOW}.png")
+            )
     except Exception as e:
         logger_param.exception("ERROR GENERAL:")
         if page and not page.is_closed():
-            page.screenshot(path=os.path.join(LOGS_DIR, f"general_error_{TIMESTAMP_NOW}.png"))
+            page.screenshot(
+                path=os.path.join(LOGS_DIR, f"general_error_{TIMESTAMP_NOW}.png")
+            )
     finally:
         logger_param.info("Bloque Finally: Preparando análisis HAR y finalización...")
 
@@ -270,7 +389,9 @@ def run_automation(logger_param, attempt=1, max_attempts=2, *, non_interactive=N
                 storage_state = context.storage_state()
                 context.close()
             except Exception as close_err:
-                logger_param.warning(f"No se pudo cerrar el contexto del navegador: {close_err}")
+                logger_param.warning(
+                    f"No se pudo cerrar el contexto del navegador: {close_err}"
+                )
 
         effective_har_filename = HAR_FILENAME
         effective_output_acciones_data_filename = OUTPUT_ACCIONES_DATA_FILENAME
@@ -283,10 +404,12 @@ def run_automation(logger_param, attempt=1, max_attempts=2, *, non_interactive=N
                 URLS_TO_INSPECT_IN_HAR_FOR_CONTEXT,
                 effective_output_acciones_data_filename,
                 effective_analyzed_summary_filename,
-                logger_param
+                logger_param,
             )
         else:
-            logger_param.error(f"El archivo HAR {effective_har_filename} no fue creado o no se encontró, no se puede analizar.")
+            logger_param.error(
+                f"El archivo HAR {effective_har_filename} no fue creado o no se encontró, no se puede analizar."
+            )
 
         logger_param.info("Proceso del script realmente finalizado.")
         if keep_open and (not is_mis_conexiones_page or attempt >= max_attempts):
@@ -321,7 +444,13 @@ def run_automation(logger_param, attempt=1, max_attempts=2, *, non_interactive=N
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Bolsa Santiago bot")
-    parser.add_argument("--no-keep-open", dest="keep_open", action="store_false", help="Cerrar el navegador automáticamente al finalizar", default=True)
+    parser.add_argument(
+        "--no-keep-open",
+        dest="keep_open",
+        action="store_false",
+        help="Cerrar el navegador automáticamente al finalizar",
+        default=True,
+    )
     parser.add_argument(
         "--non-interactive",
         action="store_true",
@@ -335,7 +464,11 @@ def main(argv=None):
 
     validate_credentials()
     configure_run_specific_logging(logger_instance_global)
-    run_automation(logger_instance_global, non_interactive=NON_INTERACTIVE, keep_open=args.keep_open)
+    run_automation(
+        logger_instance_global,
+        non_interactive=NON_INTERACTIVE,
+        keep_open=args.keep_open,
+    )
 
 
 if __name__ == "__main__":
