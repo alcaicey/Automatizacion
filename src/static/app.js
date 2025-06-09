@@ -65,6 +65,20 @@ const ALL_COLUMNS = [
     { key: 'VALORES_EXTRANJEROS', label: 'Valores Extr.' },
 ];
 
+// Cuando los datos provienen de la base de datos usan
+// nombres de propiedad en inglés. Este mapa permite
+// traducirlos a las claves históricas utilizadas por la tabla.
+const ALT_FIELD_MAP = {
+    'NEMO': 'symbol',
+    'PRECIO_CIERRE': 'price',
+    'VARIACION': 'variation',
+    'ISIN': 'isin',
+    'PRECIO_COMPRA': 'bid',
+    'PRECIO_VENTA': 'ask',
+    'MONTO': 'amount',
+    'UN_TRANSADAS': 'volume',
+};
+
 // Función para mostrar/ocultar el overlay de carga
 function toggleLoading(show, message = '') {
     if (show) {
@@ -235,17 +249,7 @@ function updateStocksTable(data) {
             cols.forEach(key => {
                 let value = stock[key];
                 if (value === undefined) {
-                    const altMap = {
-                        'NEMO': 'symbol',
-                        'PRECIO_CIERRE': 'price',
-                        'VARIACION': 'variation',
-                        'ISIN': 'isin',
-                        'PRECIO_COMPRA': 'bid',
-                        'PRECIO_VENTA': 'ask',
-                        'MONTO': 'amount',
-                        'UN_TRANSADAS': 'volume'
-                    };
-                    const altKey = altMap[key];
+                    const altKey = ALT_FIELD_MAP[key];
                     if (altKey) {
                         value = stock[altKey];
                     }
