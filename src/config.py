@@ -10,6 +10,9 @@ SCRIPTS_DIR = os.environ.get('BOLSA_SCRIPTS_DIR', os.path.join(PROJECT_SRC_DIR, 
 LOGS_DIR = os.environ.get('BOLSA_LOGS_DIR', os.path.join(PROJECT_SRC_DIR, 'logs_bolsa'))
 os.makedirs(LOGS_DIR, exist_ok=True)
 
+# Archivo donde se guarda el estado de la sesión de Playwright
+STORAGE_STATE_PATH = os.path.join(LOGS_DIR, 'playwright_state.json')
+
 # Credenciales de acceso
 # Por defecto se utilizan cadenas vacías. Es obligatorio definirlas mediante las
 # variables de entorno ``BOLSA_USERNAME`` y ``BOLSA_PASSWORD`` antes de ejecutar

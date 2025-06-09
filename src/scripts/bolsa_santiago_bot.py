@@ -24,6 +24,7 @@ from src.config import (
     URLS_TO_INSPECT_IN_HAR_FOR_CONTEXT,
     MIS_CONEXIONES_TITLE_SELECTOR,
     CERRAR_TODAS_SESIONES_SELECTOR,
+    STORAGE_STATE_PATH,
 )
 
 # Importar la función de análisis ubicada en src.scripts
@@ -184,6 +185,14 @@ def run_automation(
     context = None
     page = None
     storage_state = None
+    storage_state_path = STORAGE_STATE_PATH
+    storage_to_load = None
+    if os.path.exists(storage_state_path):
+        try:
+            storage_to_load = storage_state_path
+            logger_param.info(f"Cargando estado de sesión desde {storage_state_path}")
+        except Exception as e:
+            logger_param.warning(f"No se pudo cargar storage state: {e}")
     is_mis_conexiones_page = False
 
     try:
@@ -196,6 +205,7 @@ def run_automation(
             no_viewport=True,
             record_har_path=current_har_filename,
             record_har_mode="full",
+            storage_state=storage_to_load,
         )
         logger_param.info(f"Grabando tráfico de red en: {current_har_filename}")
 
@@ -383,10 +393,10 @@ def run_automation(
         logger_param.info("Bloque Finally: Preparando análisis HAR y finalización...")
 
         # Guardar el estado de la sesión antes de cerrar el contexto
-        storage_state = None
         if context is not None:
             try:
-                storage_state = context.storage_state()
+                context.storage_state(path=storage_state_path)
+                logger_param.info(f"Estado de sesión guardado en {storage_state_path}")
                 context.close()
             except Exception as close_err:
                 logger_param.warning(
@@ -418,7 +428,7 @@ def run_automation(
                     keep_context = browser.new_context(
                         user_agent=DEFAULT_USER_AGENT,
                         no_viewport=True,
-                        storage_state=storage_state or {},
+                        storage_state=storage_state_path if os.path.exists(storage_state_path) else {},
                     )
                     keep_page = keep_context.new_page()
                     keep_page.goto(TARGET_DATA_PAGE_URL, timeout=60000)
