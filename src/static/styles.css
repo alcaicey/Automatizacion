@@ -2,7 +2,8 @@
 
 /* Estilos generales */
 body {
-    background-color: #f8f9fa;
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
 }
 
 /* Estilos para la tabla */
