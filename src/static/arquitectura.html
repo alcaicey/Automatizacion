@@ -36,8 +36,24 @@
     </nav>
     <div class="container py-4">
         <h1 class="mb-4">⚙️ Arquitectura de la Aplicación</h1>
-        <h2 class="h5">Diagrama de Arquitectura</h2>
-        <div id="archDiagram" class="mermaid">
+        <ul class="nav nav-tabs" id="diagramTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="tab-arch" data-bs-toggle="tab" data-bs-target="#pane-arch" type="button" role="tab" aria-controls="pane-arch" aria-selected="true">Arquitectura</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-flow" data-bs-toggle="tab" data-bs-target="#pane-flow" type="button" role="tab" aria-controls="pane-flow" aria-selected="false">Flujo</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-event" data-bs-toggle="tab" data-bs-target="#pane-event" type="button" role="tab" aria-controls="pane-event" aria-selected="false">Eventos</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-error" data-bs-toggle="tab" data-bs-target="#pane-error" type="button" role="tab" aria-controls="pane-error" aria-selected="false">Dependencias</button>
+            </li>
+        </ul>
+        <div class="tab-content pt-3">
+            <div class="tab-pane fade show active" id="pane-arch" role="tabpanel" aria-labelledby="tab-arch">
+                <h2 class="h5">Diagrama de Arquitectura</h2>
+                <div id="archDiagram" class="mermaid">
             %%{init: {'theme':'base','themeVariables':{'primaryColor':'#d1e7dd','primaryBorderColor':'#93c5b3','lineColor':'#198754','fontFamily':'Inter'}} }%%
             graph LR
                 ServiceAgent["🧠 ServiceAgent"] --> ScrapingAgent["🌐 ScrapingAgent"]
@@ -55,20 +71,22 @@
                 click SessionAgent noop "Mantiene viva la autenticación"
                 click RealTimeSyncAgent noop "Envía datos al frontend en tiempo real"
                 click Frontend noop "Interfaz web para los usuarios"
-        </div>
-        <div class="text-end my-2">
-            <button class="btn btn-outline-secondary btn-sm" onclick="exportDiagram('archDiagram')">Exportar imagen</button>
-        </div>
-        <div class="ms-2">
-            <p class="mb-1"><strong>ServiceAgent:</strong> orquesta la ejecución periódica del scraping y almacena los resultados.</p>
-            <p class="mb-1"><strong>ScrapingAgent:</strong> captura los datos en crudo desde la página web en tiempo real.</p>
-            <p class="mb-1"><strong>HARParserAgent:</strong> procesa el archivo HAR generado y extrae la respuesta JSON relevante.</p>
-            <p class="mb-1"><strong>SessionAgent:</strong> conserva el estado de autenticación y lo renueva cuando expira.</p>
-            <p class="mb-1"><strong>RealTimeSyncAgent:</strong> envía por WebSocket las actualizaciones al <em>frontend</em>.</p>
-            <p class="mb-1"><strong>Frontend:</strong> interfaz de usuario que presenta los datos procesados.</p>
-        </div>
-        <h2 class="h5 mt-4">Flujo de Recolección de Datos</h2>
-        <div id="flowDiagram" class="mermaid">
+                </div>
+                <div class="text-end my-2">
+                    <button class="btn btn-outline-secondary btn-sm" onclick="exportDiagram('archDiagram')">Exportar imagen</button>
+                </div>
+                <div class="ms-2">
+                    <p class="mb-1"><strong>ServiceAgent:</strong> orquesta la ejecución periódica del scraping y almacena los resultados.</p>
+                    <p class="mb-1"><strong>ScrapingAgent:</strong> captura los datos en crudo desde la página web en tiempo real.</p>
+                    <p class="mb-1"><strong>HARParserAgent:</strong> procesa el archivo HAR generado y extrae la respuesta JSON relevante.</p>
+                    <p class="mb-1"><strong>SessionAgent:</strong> conserva el estado de autenticación y lo renueva cuando expira.</p>
+                    <p class="mb-1"><strong>RealTimeSyncAgent:</strong> envía por WebSocket las actualizaciones al <em>frontend</em>.</p>
+                    <p class="mb-1"><strong>Frontend:</strong> interfaz de usuario que presenta los datos procesados.</p>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="pane-flow" role="tabpanel" aria-labelledby="tab-flow">
+                <h2 class="h5">Flujo de Recolección de Datos</h2>
+                <div id="flowDiagram" class="mermaid">
             %%{init: {'theme':'base','themeVariables':{'primaryColor':'#e2eafc','primaryBorderColor':'#a7bff6','lineColor':'#0d6efd','fontFamily':'Inter'}} }%%
             flowchart TD
                 Start([Iniciar recolección]) --> Login{¿Login correcto?}
@@ -89,16 +107,17 @@
                 click Validate noop "Comprueba que los datos tengan formato esperado"
                 click Cache noop "Guarda una copia temporal para reutilizar"
                 click Notify noop "Almacena en BD y avisa al frontend"
-        </div>
-        <div class="text-end my-2">
-            <button class="btn btn-outline-secondary btn-sm" onclick="exportDiagram('flowDiagram')">Exportar imagen</button>
-        </div>
-        <div class="ms-2">
-            <p class="mb-1">El flujo contempla validaciones de credenciales, posibles fallos de red y la repetición del scraping en caso de error. Tras validar los datos, se almacenan en caché y se publican.</p>
-        </div>
-        <!-- Diagramas de eventos para carga, filtrado y actualización -->
-        <h2 class="h5 mt-4">Eventos en la Interfaz</h2>
-        <div id="eventDiagram" class="mermaid">
+                </div>
+                <div class="text-end my-2">
+                    <button class="btn btn-outline-secondary btn-sm" onclick="exportDiagram('flowDiagram')">Exportar imagen</button>
+                </div>
+                <div class="ms-2">
+                    <p class="mb-1">El flujo contempla validaciones de credenciales, posibles fallos de red y la repetición del scraping en caso de error. Tras validar los datos, se almacenan en caché y se publican.</p>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="pane-event" role="tabpanel" aria-labelledby="tab-event">
+                <h2 class="h5">Eventos en la Interfaz</h2>
+                <div id="eventDiagram" class="mermaid">
             %%{init: {'theme':'base','themeVariables':{'primaryColor':'#f8d7da','primaryBorderColor':'#f1aeb5','lineColor':'#dc3545','fontFamily':'Inter'}} }%%
             flowchart TD
                 subgraph "Carga inicial"
@@ -123,16 +142,17 @@
                     Q --> R["Persistir JSON"]
                     R --> S["Actualizar tabla (si corresponde)"]
                 end
-        </div>
-        <div class="text-end my-2">
-            <button class="btn btn-outline-secondary btn-sm" onclick="exportDiagram('eventDiagram')">Exportar imagen</button>
-        </div>
-        <div class="ms-2">
-            <p class="mb-1">Cada subgrafo describe el flujo que sigue la aplicación ante una acción del usuario.</p>
-        </div>
-        <!-- Diagrama de dependencias y posibles fallos -->
-        <h2 class="h5 mt-4">Mapa de Dependencias y Errores</h2>
-        <div id="errorDiagram" class="mermaid">
+                </div>
+                <div class="text-end my-2">
+                    <button class="btn btn-outline-secondary btn-sm" onclick="exportDiagram('eventDiagram')">Exportar imagen</button>
+                </div>
+                <div class="ms-2">
+                    <p class="mb-1">Cada subgrafo describe el flujo que sigue la aplicación ante una acción del usuario.</p>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="pane-error" role="tabpanel" aria-labelledby="tab-error">
+                <h2 class="h5">Mapa de Dependencias y Errores</h2>
+                <div id="errorDiagram" class="mermaid">
             %%{init: {'theme':'base','themeVariables':{'primaryColor':'#d1dfe4','primaryBorderColor':'#a0b3bc','lineColor':'#0dcaf0','fontFamily':'Inter'}} }%%
             graph LR
                 Front[Frontend] --> API[/API Flask/]
@@ -146,13 +166,49 @@
                 Parse -.-> HarErr((HAR inválido))
                 DB -.-> DBErr((Fallo BD))
                 Sync -.-> WsErr((Error WebSocket))
+                </div>
+                <div class="text-end my-2">
+                    <button class="btn btn-outline-secondary btn-sm" onclick="exportDiagram('errorDiagram')">Exportar imagen</button>
+                </div>
+                <div class="ms-2">
+                    <p class="mb-1">El mapa destaca los puntos donde podrían surgir errores comunes para facilitar la depuración.</p>
+                </div>
+            </div>
         </div>
-        <div class="text-end my-2">
-            <button class="btn btn-outline-secondary btn-sm" onclick="exportDiagram('errorDiagram')">Exportar imagen</button>
-        </div>
-        <div class="ms-2">
-            <p class="mb-1">El mapa destaca los puntos donde podrían surgir errores comunes para facilitar la depuración.</p>
-        </div>
+        <h2 class="h5 mt-4">Estructura de Archivos</h2>
+        <pre class="bg-body-tertiary p-2 rounded small">
+.
+├── README.md
+├── docker-compose.yml
+├── requirements.txt
+├── src
+│   ├── config.py
+│   ├── extensions.py
+│   ├── main.py
+│   ├── models/
+│   ├── routes/
+│   ├── scripts/
+│   └── static/
+└── tests/
+        </pre>
+        <table class="table table-sm">
+            <thead>
+                <tr><th>Archivo/Carpeta</th><th>Descripción</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><code>src/main.py</code></td><td>Punto de entrada de la aplicación Flask.</td></tr>
+                <tr><td><code>src/config.py</code></td><td>Define rutas y variables globales.</td></tr>
+                <tr><td><code>src/extensions.py</code></td><td>Inicializa la base de datos y Socket.IO.</td></tr>
+                <tr><td><code>src/models/</code></td><td>Modelos SQLAlchemy para usuarios y precios.</td></tr>
+                <tr><td><code>src/routes/api.py</code></td><td>Endpoints REST para datos de acciones.</td></tr>
+                <tr><td><code>src/routes/user.py</code></td><td>Operaciones CRUD de usuarios.</td></tr>
+                <tr><td><code>src/scripts/bolsa_service.py</code></td><td>Orquestador del scraping y almacenamiento.</td></tr>
+                <tr><td><code>src/scripts/bolsa_santiago_bot.py</code></td><td>Bot de Playwright que captura datos.</td></tr>
+                <tr><td><code>src/scripts/har_analyzer.py</code></td><td>Extrae información útil del archivo HAR.</td></tr>
+                <tr><td><code>src/static/</code></td><td>HTML, CSS y JavaScript del frontend.</td></tr>
+                <tr><td><code>tests/</code></td><td>Conjunto de pruebas automatizadas con pytest.</td></tr>
+            </tbody>
+        </table>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/theme.js"></script>
