@@ -47,6 +47,9 @@
                 <button class="nav-link" id="tab-event" data-bs-toggle="tab" data-bs-target="#pane-event" type="button" role="tab" aria-controls="pane-event" aria-selected="false">Eventos</button>
             </li>
             <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-process" data-bs-toggle="tab" data-bs-target="#pane-process" type="button" role="tab" aria-controls="pane-process" aria-selected="false">Procesamiento</button>
+            </li>
+            <li class="nav-item" role="presentation">
                 <button class="nav-link" id="tab-error" data-bs-toggle="tab" data-bs-target="#pane-error" type="button" role="tab" aria-controls="pane-error" aria-selected="false">Dependencias</button>
             </li>
         </ul>
@@ -122,29 +125,27 @@
             %%{init: {'theme':'base','themeVariables':{'primaryColor':'#f8d7da','primaryBorderColor':'#f1aeb5','lineColor':'#dc3545','fontFamily':'Inter'}} }%%
             flowchart TD
                 %% Flujo 1: carga inicial de la página
-                subgraph "Carga inicial"
-                    A1["1. Abrir localhost:5000"] --> A2["2. Cargar HTML principal (app.js)"]
-                    A2 --> A3["3. GET /api/session-time"]
-                    A3 --> A4["4. GET /api/stocks?code=..."]
-                    A4 --> A5["5. Renderizar tabla"]
-                    A5 --> A6["6. Mostrar timestamp"]
+                subgraph "Carga inicial de la página"
+                    A1["1. Abrir index.html"] --> A2["2. Cargar app.js"]
+                    A2 --> A3["3. GET /api/stocks"]
+                    A3 --> A4["4. Renderizar tabla"]
+                    A4 --> A5["5. Cargar preferencias"]
+                    A5 --> A6["6. Validar sesión vía WebSocket"]
                 end
-                %% Flujo 2: uso del botón Filtrar
+                %% Flujo 2: acción del botón Filtrar
                 subgraph "Botón Filtrar"
-                    B1["1. Ingresar códigos"] --> B2["2. Clic en Filtrar"]
-                    B2 --> B3["3. GET /api/stocks?code=CENCOSUD&..."]
+                    B1["1. Clic en Filtrar"] --> B2["2. GET /api/stocks?code=XXX"]
+                    B2 --> B3["3. Respuesta JSON"]
                     B3 --> B4["4. Actualizar tabla"]
-                    B4 --> B5["5. Mensaje de éxito"]
                 end
-                %% Flujo 3: uso del botón Actualizar
+                %% Flujo 3: acción del botón Actualizar
                 subgraph "Botón Actualizar"
                     C1["1. Clic en Actualizar"] --> C2["2. POST /api/update"]
-                    C2 --> C3["3. Activar ScrapingAgent"]
-                    C3 --> C4["4. Abrir navegador (Playwright)"]
-                    C4 --> C5["5. Generar network_summary y acciones-precios-plus"]
-                    C5 --> C6["6. Filtrar resultados válidos"]
-                    C6 --> C7["7. Persistir JSON"]
-                    C7 --> C8["8. Actualizar tabla (si corresponde)"]
+                    C2 --> C3["3. Invocar bolsa_santiago_bot.py"]
+                    C3 --> C4["4. Ejecutar scraping"]
+                    C4 --> C5["5. Procesar HAR"]
+                    C5 --> C6["6. Guardar JSON"]
+                    C6 --> C7["7. Emitir cambios al frontend"]
                 end
                 </div>
                 <!-- Fin diagrama eventos; añadir nuevos flujos siguiendo la estructura -->
@@ -153,6 +154,39 @@
                 </div>
                 <div class="ms-2">
                     <p class="mb-1">Cada subgrafo describe el flujo que sigue la aplicación ante una acción del usuario.</p>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="pane-process" role="tabpanel" aria-labelledby="tab-process">
+                <h2 class="h5">Flujo de Procesamiento Detallado</h2>
+                <div id="processDiagram" class="mermaid">
+            %%{init: {'theme':'base','themeVariables':{'primaryColor':'#fff3cd','primaryBorderColor':'#ffe69c','lineColor':'#fd7e14','fontFamily':'Inter'}} }%%
+            flowchart LR
+                subgraph "Rutas Flask"
+                    RouteStocks[/GET /api/stocks/] -->|"routes/api.py"| StocksHandler
+                    RouteUpdate[/POST /api/update/] -->|"routes/api.py"| UpdateHandler
+                    RouteSession[/GET /api/session-time/] -->|"routes/api.py"| SessionHandler
+                end
+                subgraph Backend
+                    UpdateHandler --> Service["bolsa_service.py"]
+                    Service --> Bot["bolsa_santiago_bot.py"]
+                    Bot --> HarFile[HAR]
+                    HarFile --> Parser["har_analyzer.py"]
+                    Parser --> CleanJSON["JSON limpio"]
+                    CleanJSON --> Service
+                    StocksHandler --> DB[(SQLite)]
+                    Service --> DB
+                    Service -- "socketio.emit" --> WS[WebSocket]
+                    WS --> Front[Frontend]
+                end
+                DB -.-> OldTime((Timestamp desactualizado))
+                Parser -.-> Empty((Datos vacíos))
+                StocksHandler -.-> WrongSym((Símbolos filtrados incorrectamente))
+            </div>
+                <div class="text-end my-2">
+                    <button class="btn btn-outline-secondary btn-sm" onclick="exportDiagram('processDiagram')">Exportar imagen</button>
+                </div>
+                <div class="ms-2">
+                    <p class="mb-1">El diagrama muestra cómo los datos fluyen desde el scraping hasta la emisión por WebSocket e indica los puntos donde suelen detectarse errores.</p>
                 </div>
             </div>
             <div class="tab-pane fade" id="pane-error" role="tabpanel" aria-labelledby="tab-error">
