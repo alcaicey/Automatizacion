@@ -141,7 +141,12 @@ def fetch_premium_data(context, logger_param, output_path):
             if "csrf" in c.get("name", "").lower():
                 csrf = c.get("value")
                 break
-        headers = {"Content-Type": "application/json"}
+        headers = {
+            "Content-Type": "application/json",
+            # Asegurar que la API no devuelva una respuesta cacheada
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache",
+        }
         if csrf:
             headers["X-CSRFToken"] = csrf
 
