@@ -93,6 +93,7 @@ def update_stocks():
             non_interactive = data["non_interactive"]
         else:
             non_interactive = None
+        force_update = bool(data.get("force_update")) if isinstance(data, dict) else False
 
         if is_bot_running():
             logger.info("Bot en ejecución, enviando ENTER para refrescar datos")
@@ -112,9 +113,12 @@ def update_stocks():
                     bolsa_service.bot_running = False
                 import threading
                 app = current_app._get_current_object()
+                thread_kwargs = {"app": app, "non_interactive": non_interactive}
+                if force_update:
+                    thread_kwargs["force_update"] = True
                 update_thread = threading.Thread(
                     target=run_bolsa_bot,
-                    kwargs={"app": app, "non_interactive": non_interactive},
+                    kwargs=thread_kwargs,
                 )
                 update_thread.daemon = True
                 update_thread.start()
@@ -127,9 +131,12 @@ def update_stocks():
         # Iniciar la actualización en un hilo separado para no bloquear la respuesta
         import threading
         app = current_app._get_current_object()
+        thread_kwargs = {"app": app, "non_interactive": non_interactive}
+        if force_update:
+            thread_kwargs["force_update"] = True
         update_thread = threading.Thread(
             target=run_bolsa_bot,
-            kwargs={"app": app, "non_interactive": non_interactive},
+            kwargs=thread_kwargs,
         )
         update_thread.daemon = True
         update_thread.start()

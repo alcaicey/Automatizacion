@@ -113,16 +113,32 @@ def extract_timestamp_from_filename(filename):
 
 
 def get_json_hash_and_timestamp(path):
-    """Devuelve hash md5 y timestamp extraído del JSON."""
+    """Return md5 hash and a timestamp extracted from the JSON file.
+
+    If the JSON does not contain a recognisable timestamp, the file modification
+    time will be used instead.  The timestamp string is returned in ISO format so
+    callers can log or compare it easily.
+    """
     try:
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
+
         ts = None
         if isinstance(data, dict):
             for k, v in data.items():
                 if isinstance(k, str) and any(t in k.lower() for t in ["time", "fecha", "stamp"]):
                     ts = str(v)
                     break
+
+        if ts:
+            try:
+                datetime.fromisoformat(ts)
+            except Exception:
+                ts = None
+
+        if not ts:
+            ts = datetime.fromtimestamp(os.path.getmtime(path)).isoformat()
+
         hash_val = hashlib.md5(json.dumps(data, sort_keys=True).encode("utf-8")).hexdigest()
         return hash_val, ts
     except Exception:
@@ -144,9 +160,37 @@ def store_prices_in_db(json_path, app=None):
                 for item in rows:
                     if not isinstance(item, dict):
                         continue
+
                     symbol = item.get("NEMO") or item.get("symbol")
-                    price = float(item.get("PRECIO_CIERRE") or item.get("price") or 0)
-                    variation = float(item.get("VARIACION") or item.get("variation") or 0)
+                    if not symbol:
+                        for k, v in item.items():
+                            if isinstance(k, str) and re.search(r"(nemo|symbol)", k, re.IGNORECASE):
+                                if isinstance(v, str):
+                                    symbol = v.strip()
+                                    break
+
+                    if not symbol:
+                        logger.warning(
+                            "Elemento de acción con formato inesperado o sin 'NEMO/symbol': %s",
+                            str(item)[:100],
+                        )
+                        continue
+
+                    price = item.get("PRECIO_CIERRE") or item.get("price")
+                    if price is None:
+                        for k, v in item.items():
+                            if isinstance(k, str) and re.search(r"(precio|price)", k, re.IGNORECASE):
+                                price = v
+                                break
+                    price = float(price or 0)
+
+                    variation = item.get("VARIACION") or item.get("variation")
+                    if variation is None:
+                        for k, v in item.items():
+                            if isinstance(k, str) and re.search(r"(var|variation)", k, re.IGNORECASE):
+                                variation = v
+                                break
+                    variation = float(variation or 0)
                     values = {
                         "symbol": symbol,
                         "price": price,
@@ -218,7 +262,7 @@ def get_session_remaining_seconds():
         logger.exception(f"Error al obtener los segundos restantes de la sesión: {e}")
         return None
 
-def run_bolsa_bot(app=None, *, non_interactive=None, keep_open=True):
+def run_bolsa_bot(app=None, *, non_interactive=None, keep_open=True, force_update=False):
     """Ejecuta ``bolsa_santiago_bot.py`` y devuelve la ruta al JSON generado.
 
     Parameters
@@ -234,6 +278,9 @@ def run_bolsa_bot(app=None, *, non_interactive=None, keep_open=True):
     keep_open : bool, optional
         Si es True (por defecto), el script mantiene el navegador abierto al finalizar.
         Cuando es False, el navegador se cierra inmediatamente.
+    force_update : bool, optional
+        Si es ``True`` se omite la comparación de hash del archivo previo y se
+        fuerza el guardado de los datos aunque no haya cambios visibles.
     """
     global bot_running
     ctx = app.app_context() if app else nullcontext()
@@ -246,7 +293,8 @@ def run_bolsa_bot(app=None, *, non_interactive=None, keep_open=True):
                 return None
             bot_running = True
         prev_file = get_latest_json_file()
-        prev_hash, _ = get_json_hash_and_timestamp(prev_file) if prev_file else (None, None)
+        prev_hash, prev_ts = get_json_hash_and_timestamp(prev_file) if prev_file else (None, None)
+        logger.info(f"Hash previo: {prev_hash}, timestamp previo: {prev_ts}")
         try:
             logger.info("=== INICIO DE CICLO COMPLETO DE SCRAPING ===")
             cycle_start = time.time()
@@ -293,12 +341,15 @@ def run_bolsa_bot(app=None, *, non_interactive=None, keep_open=True):
 
             if latest_json and os.path.getmtime(latest_json) > cycle_start:
                 new_hash, new_ts = get_json_hash_and_timestamp(latest_json)
-                logger.info(f"Timestamp del JSON recibido: {new_ts}")
-                if prev_hash and new_hash == prev_hash:
-                    logger.warning("response.text() no cambió entre ejecuciones. Reintentando en 10s...")
-                    time.sleep(10)
-                    prev_hash = new_hash
-                    return run_bolsa_bot(app=app, non_interactive=non_interactive, keep_open=keep_open)
+                logger.info(f"Hash nuevo: {new_hash}, timestamp del JSON: {new_ts}")
+                if prev_hash and new_hash == prev_hash and not force_update:
+                    logger.warning("response.text() no cambió entre ejecuciones."
+                                   " Los datos parecen ser los mismos.")
+                    socketio.emit(
+                        'no_new_data',
+                        {'timestamp': datetime.now().strftime("%d/%m/%Y %H:%M:%S")},
+                    )
+                    return None
                 logger.info(
                     f"bolsa_santiago_bot.py ejecutado, datos actualizados en: {latest_json}"
                 )
