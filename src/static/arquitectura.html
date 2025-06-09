@@ -117,32 +117,37 @@
             </div>
             <div class="tab-pane fade" id="pane-event" role="tabpanel" aria-labelledby="tab-event">
                 <h2 class="h5">Eventos en la Interfaz</h2>
+                <!-- Diagrama de eventos de la interfaz -->
                 <div id="eventDiagram" class="mermaid">
             %%{init: {'theme':'base','themeVariables':{'primaryColor':'#f8d7da','primaryBorderColor':'#f1aeb5','lineColor':'#dc3545','fontFamily':'Inter'}} }%%
             flowchart TD
+                %% Flujo 1: carga inicial de la página
                 subgraph "Carga inicial"
-                    A["Usuario abre localhost:5000"] --> B["Carga HTML principal (app.js)"]
-                    B --> C[/api/session-time]
-                    C --> D[/api/stocks?code=...]
-                    D --> E["Renderizar tabla"]
-                    E --> F["Mostrar timestamp"]
+                    A1["1. Abrir localhost:5000"] --> A2["2. Cargar HTML principal (app.js)"]
+                    A2 --> A3["3. GET /api/session-time"]
+                    A3 --> A4["4. GET /api/stocks?code=..."]
+                    A4 --> A5["5. Renderizar tabla"]
+                    A5 --> A6["6. Mostrar timestamp"]
                 end
+                %% Flujo 2: uso del botón Filtrar
                 subgraph "Botón Filtrar"
-                    G["Ingresar códigos"] --> H["Click en Filtrar"]
-                    H --> I["GET /api/stocks?code=CENCOSUD&..."]
-                    I --> J["Actualizar tabla"]
-                    J --> K["Mensaje de éxito"]
+                    B1["1. Ingresar códigos"] --> B2["2. Clic en Filtrar"]
+                    B2 --> B3["3. GET /api/stocks?code=CENCOSUD&..."]
+                    B3 --> B4["4. Actualizar tabla"]
+                    B4 --> B5["5. Mensaje de éxito"]
                 end
+                %% Flujo 3: uso del botón Actualizar
                 subgraph "Botón Actualizar"
-                    L["Click en Actualizar"] --> M["POST /api/update"]
-                    M --> N["Activar ScrapingAgent"]
-                    N --> O["Abrir navegador (Playwright)"]
-                    O --> P["Generar network_summary y acciones-precios-plus"]
-                    P --> Q["Filtrar resultados válidos"]
-                    Q --> R["Persistir JSON"]
-                    R --> S["Actualizar tabla (si corresponde)"]
+                    C1["1. Clic en Actualizar"] --> C2["2. POST /api/update"]
+                    C2 --> C3["3. Activar ScrapingAgent"]
+                    C3 --> C4["4. Abrir navegador (Playwright)"]
+                    C4 --> C5["5. Generar network_summary y acciones-precios-plus"]
+                    C5 --> C6["6. Filtrar resultados válidos"]
+                    C6 --> C7["7. Persistir JSON"]
+                    C7 --> C8["8. Actualizar tabla (si corresponde)"]
                 end
                 </div>
+                <!-- Fin diagrama eventos; añadir nuevos flujos siguiendo la estructura -->
                 <div class="text-end my-2">
                     <button class="btn btn-outline-secondary btn-sm" onclick="exportDiagram('eventDiagram')">Exportar imagen</button>
                 </div>
@@ -152,21 +157,27 @@
             </div>
             <div class="tab-pane fade" id="pane-error" role="tabpanel" aria-labelledby="tab-error">
                 <h2 class="h5">Mapa de Dependencias y Errores</h2>
+                <!-- Relación entre agentes y fallos esperados -->
                 <div id="errorDiagram" class="mermaid">
             %%{init: {'theme':'base','themeVariables':{'primaryColor':'#d1dfe4','primaryBorderColor':'#a0b3bc','lineColor':'#0dcaf0','fontFamily':'Inter'}} }%%
             graph LR
-                Front[Frontend] --> API[/API Flask/]
-                API --> Service[ServiceAgent]
-                Service --> Scrape[ScrapingAgent]
-                Scrape --> Parse[HARParserAgent]
-                Service --> DB[(Base de datos)]
-                Service --> Sync[RealTimeSyncAgent]
-                Sync --> Front
-                Scrape -.-> Captcha((Captcha/Timeout))
-                Parse -.-> HarErr((HAR inválido))
-                DB -.-> DBErr((Fallo BD))
-                Sync -.-> WsErr((Error WebSocket))
+                subgraph "Cadena principal"
+                    Front[Frontend] --> API[/API Flask/]
+                    API --> Service[ServiceAgent]
+                    Service --> Scrape[ScrapingAgent]
+                    Scrape --> Parse[HARParserAgent]
+                    Service --> DB[(Base de datos)]
+                    Service --> Sync[RealTimeSyncAgent]
+                    Sync --> Front
+                end
+                subgraph "Errores esperados"
+                    Scrape -.-> Captcha((Captcha o Timeout))
+                    Parse -.-> HarErr((HAR inválido))
+                    DB -.-> DBErr((Fallo BD))
+                    Sync -.-> WsErr((Error WebSocket))
+                end
                 </div>
+                <!-- Fin diagrama dependencias; añadir nuevos módulos aquí -->
                 <div class="text-end my-2">
                     <button class="btn btn-outline-secondary btn-sm" onclick="exportDiagram('errorDiagram')">Exportar imagen</button>
                 </div>
