@@ -126,10 +126,13 @@ def store_prices_in_db(json_path, app=None):
                 for item in rows:
                     if not isinstance(item, dict):
                         continue
+                    symbol = item.get("NEMO") or item.get("symbol")
+                    price = float(item.get("PRECIO_CIERRE") or item.get("price") or 0)
+                    variation = float(item.get("VARIACION") or item.get("variation") or 0)
                     values = {
-                        "symbol": item.get("NEMO"),
-                        "price": float(item.get("PRECIO_CIERRE", 0) or 0),
-                        "variation": float(item.get("VARIACION", 0) or 0),
+                        "symbol": symbol,
+                        "price": price,
+                        "variation": variation,
                         "timestamp": ts,
                     }
 
@@ -375,11 +378,14 @@ def filter_stocks(stock_codes):
         
         filtered_stocks = []
         for stock in stocks_list:
-            if isinstance(stock, dict) and "NEMO" in stock and isinstance(stock["NEMO"], str):
-                if stock["NEMO"].upper() in stock_codes_upper:
-                    filtered_stocks.append(stock)
+            nemo = stock.get("NEMO") or stock.get("symbol") if isinstance(stock, dict) else None
+            if isinstance(nemo, str) and nemo.upper() in stock_codes_upper:
+                filtered_stocks.append(stock)
             else:
-                logger.warning(f"Elemento de acción con formato inesperado o sin 'NEMO': {str(stock)[:100]}")
+                logger.warning(
+                    "Elemento de acción con formato inesperado o sin 'NEMO/symbol': %s",
+                    str(stock)[:100],
+                )
         
         logger.info(f"Filtradas {len(filtered_stocks)} acciones de {len(stocks_list)} originales.")
         return {
