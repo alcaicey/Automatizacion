@@ -233,28 +233,46 @@ function updateStocksTable(data) {
         stocks.forEach(stock => {
             const row = document.createElement('tr');
             cols.forEach(key => {
+                let value = stock[key];
+                if (value === undefined) {
+                    const altMap = {
+                        'NEMO': 'symbol',
+                        'PRECIO_CIERRE': 'price',
+                        'VARIACION': 'variation',
+                        'ISIN': 'isin',
+                        'PRECIO_COMPRA': 'bid',
+                        'PRECIO_VENTA': 'ask',
+                        'MONTO': 'amount',
+                        'UN_TRANSADAS': 'volume'
+                    };
+                    const altKey = altMap[key];
+                    if (altKey) {
+                        value = stock[altKey];
+                    }
+                }
+
                 let html = '--';
                 if (key === 'NEMO') {
-                    html = `<strong>${stock.NEMO || '--'}</strong>`;
+                    html = `<strong>${value || '--'}</strong>`;
                 } else if (key === 'PRECIO_CIERRE') {
-                    html = formatNumber(stock.PRECIO_CIERRE || 0);
+                    html = formatNumber(value || 0);
                 } else if (key === 'VARIACION') {
-                    const val = parseFloat(stock.VARIACION || 0);
+                    const val = parseFloat(value || 0);
                     const isPos = val > 0;
                     const isNeg = val < 0;
                     const cls = isPos ? 'variation-positive' : (isNeg ? 'variation-negative' : '');
                     const icon = isPos ? 'fa-arrow-up arrow-up' : (isNeg ? 'fa-arrow-down arrow-down' : '');
-                    html = `<span class="${cls}">${icon ? `<i class="fas ${icon} me-1"></i>` : ''}${formatNumber(stock.VARIACION || 0)} (${formatNumber(val,2)}%)</span>`;
+                    html = `<span class="${cls}">${icon ? `<i class="fas ${icon} me-1"></i>` : ''}${formatNumber(value || 0)} (${formatNumber(val,2)}%)</span>`;
                 } else if (key === 'PRECIO_COMPRA') {
-                    html = formatNumber(stock.PRECIO_COMPRA || 0);
+                    html = formatNumber(value || 0);
                 } else if (key === 'PRECIO_VENTA') {
-                    html = formatNumber(stock.PRECIO_VENTA || 0);
+                    html = formatNumber(value || 0);
                 } else if (key === 'MONTO') {
-                    html = formatNumber(stock.MONTO || 0, 0);
+                    html = formatNumber(value || 0, 0);
                 } else if (key === 'UN_TRANSADAS') {
-                    html = formatNumber(stock.UN_TRANSADAS || 0, 0);
+                    html = formatNumber(value || 0, 0);
                 } else {
-                    html = stock[key] ?? '--';
+                    html = value ?? '--';
                 }
                 const td = document.createElement('td');
                 td.innerHTML = html;
