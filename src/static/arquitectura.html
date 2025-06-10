@@ -92,18 +92,17 @@
                 <div id="flowDiagram" class="mermaid">
             %%{init: {'theme':'base','themeVariables':{'primaryColor':'#e2eafc','primaryBorderColor':'#a7bff6','lineColor':'#0d6efd','fontFamily':'Inter'}} }%%
             flowchart TD
-                Btn["Clic en Actualizar"] --> Check{¿Navegador activo?}
-                Check -- Sí --> Reload[Recargar página]
-                Check -- No --> StartBot[Iniciar bot y login]
-                Reload --> Fetch[Obtener JSON]
-                StartBot --> Fetch
-                Fetch --> Diff{¿Cambios reales?}
-                Diff -- Sí --> Save[Guardar en DB]
-                Save --> Emit[Emitir <code>new_data</code>]
-                Emit --> Done(Fin)
-                Diff -- No --> Done
-                click StartBot noop "Se abre el navegador si estaba cerrado"
-                click Save noop "Actualiza tabla y timestamp"
+                Start[Inicio] --> Cred[Verifica credenciales]
+                Cred --> Net{¿Red disponible?}
+                Net --|Sí|--> Scrape[Ejecuta scraping]
+                Net --|No|--> NetErr[Error de red]
+                Scrape --> Cache[Guarda en caché]
+                Cache --> Publish[Publica en servidor]
+                Publish --> Done(Fin)
+                NetErr --> Retry[Reintento]
+                Retry --> Net
+                click Publish noop "Publica los datos en el servidor"
+                click Retry noop "Vuelve a comprobar la red"
                 </div>
                 <div class="text-end my-2">
                     <button class="btn btn-outline-secondary btn-sm" onclick="exportDiagram('flowDiagram')">Exportar imagen</button>
