@@ -51,6 +51,12 @@ DEFAULT_USER_AGENT = (
 logger_instance_global = logging.getLogger(__name__)
 # --- Fin Configuración de Logging ---
 
+# Objetos reutilizables de Playwright
+_p_instance = None
+_browser = None
+_context = None
+_page = None
+
 # --- CONFIGURACIÓN ---
 # La mayoría de parámetros estáticos se obtienen desde src.config
 
@@ -113,6 +119,44 @@ def ensure_timestamp_current(logger_to_configure):
             raise ValueError("Timestamp desfasado")
     except Exception:
         configure_run_specific_logging(logger_to_configure)
+
+
+def get_active_page():
+    """Devuelve la página activa de Playwright si existe y no está cerrada."""
+    global _page
+    if _page and not _page.is_closed():
+        return _page
+    return None
+
+
+def refresh_active_page(logger_param):
+    """Recarga la página existente para obtener datos frescos."""
+    page = get_active_page()
+    if not page:
+        logger_param.warning("No existe una página activa para refrescar")
+        return False, None
+
+    ensure_timestamp_current(logger_param)
+    output_path = OUTPUT_ACCIONES_DATA_FILENAME
+    try:
+        page.reload(wait_until="networkidle", timeout=60000)
+        logger_param.info(f"Página recargada: {page.url}")
+        time.sleep(5)
+        captured, data_json, _ = capture_premium_data_via_network(
+            page, logger_param, output_path
+        )
+        if not captured:
+            captured, data_json, _ = fetch_premium_data(
+                page.context,
+                logger_param,
+                output_path,
+                cache_bust=random.randint(0, 1000000),
+            )
+        if captured:
+            return True, output_path
+    except Exception as exc:
+        logger_param.exception(f"Error al refrescar la página existente: {exc}")
+    return False, None
 
 
 def extract_json_timestamp(data_obj):
@@ -513,23 +557,17 @@ def run_automation(
                     keep_page = keep_context.new_page()
                     keep_page.goto(TARGET_DATA_PAGE_URL, timeout=60000)
                     logger_param.info(
-                        "Contexto adicional abierto para inspección manual. El script no cerrará el navegador."
+                        "Contexto adicional abierto para reutilización"
                     )
+                    global _p_instance, _browser, _context, _page
+                    _p_instance = p_instance
+                    _browser = browser
+                    _context = keep_context
+                    _page = keep_page
                 except Exception as reopen_err:
                     logger_param.warning(
-                        f"No se pudo abrir un contexto de inspección: {reopen_err}"
+                        f"No se pudo abrir un contexto de reutilización: {reopen_err}"
                     )
-
-            logger_param.info(
-                "El script permanecerá en ejecución. Cierre el navegador manualmente cuando termine."
-            )
-            try:
-                while True:
-                    time.sleep(60)
-            except KeyboardInterrupt:
-                logger_param.info(
-                    "Interrupción recibida. Finalizando script y navegador..."
-                )
 
 
 def main(argv=None):

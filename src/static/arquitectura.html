@@ -88,28 +88,22 @@
                 </div>
             </div>
             <div class="tab-pane fade" id="pane-flow" role="tabpanel" aria-labelledby="tab-flow">
-                <h2 class="h5">Flujo de Recolección de Datos</h2>
+                <h2 class="h5">Flujo de Actualización Manual</h2>
                 <div id="flowDiagram" class="mermaid">
             %%{init: {'theme':'base','themeVariables':{'primaryColor':'#e2eafc','primaryBorderColor':'#a7bff6','lineColor':'#0d6efd','fontFamily':'Inter'}} }%%
             flowchart TD
-                Start([Iniciar recolección]) --> Login{¿Login correcto?}
-                Login -- Sí --> Scrape["🌐 Ejecución del scraping"]
-                Login -- No --> LoginError[Credenciales inválidas]
-                LoginError --> EndAuth(Fin error)
-                Scrape --> Response{¿Respuesta válida?}
-                Response -- Sí --> Validate["🔄 Validar datos"]
-                Validate --> Cache[Almacenar en caché]
-                Cache --> Notify["🧠 Guardar y notificar"]
-                Notify --> EndSuccess(Fin éxito)
-                Response -- No --> Retry{¿Reintentar?}
-                Retry -- Sí --> Scrape
-                Retry -- No --> NetError[Error de red]
-                NetError --> EndNet(Fin error)
-                click Login noop "Verifica si la sesión sigue activa o es necesario autenticarse"
-                click Scrape noop "Obtiene las páginas y genera el HAR"
-                click Validate noop "Comprueba que los datos tengan formato esperado"
-                click Cache noop "Guarda una copia temporal para reutilizar"
-                click Notify noop "Almacena en BD y avisa al frontend"
+                Btn["Clic en Actualizar"] --> Check{¿Navegador activo?}
+                Check -- Sí --> Reload[Recargar página]
+                Check -- No --> StartBot[Iniciar bot y login]
+                Reload --> Fetch[Obtener JSON]
+                StartBot --> Fetch
+                Fetch --> Diff{¿Cambios reales?}
+                Diff -- Sí --> Save[Guardar en DB]
+                Save --> Emit[Emitir <code>new_data</code>]
+                Emit --> Done(Fin)
+                Diff -- No --> Done
+                click StartBot noop "Se abre el navegador si estaba cerrado"
+                click Save noop "Actualiza tabla y timestamp"
                 </div>
                 <div class="text-end my-2">
                     <button class="btn btn-outline-secondary btn-sm" onclick="exportDiagram('flowDiagram')">Exportar imagen</button>
@@ -123,30 +117,22 @@
                 <!-- Diagrama de eventos de la interfaz -->
                 <div id="eventDiagram" class="mermaid">
             %%{init: {'theme':'base','themeVariables':{'primaryColor':'#f8d7da','primaryBorderColor':'#f1aeb5','lineColor':'#dc3545','fontFamily':'Inter'}} }%%
-            flowchart TD
-                %% Flujo 1: carga inicial de la página
-                subgraph "Carga inicial de la página"
-                    A1["1. Abrir index.html"] --> A2["2. Cargar app.js"]
-                    A2 --> A3["3. GET /api/stocks"]
-                    A3 --> A4["4. Renderizar tabla"]
-                    A4 --> A5["5. Cargar preferencias"]
-                    A5 --> A6["6. Validar sesión vía WebSocket"]
-                end
-                %% Flujo 2: acción del botón Filtrar
-                subgraph "Botón Filtrar"
-                    B1["1. Clic en Filtrar"] --> B2["2. GET /api/stocks?code=XXX"]
-                    B2 --> B3["3. Respuesta JSON"]
-                    B3 --> B4["4. Actualizar tabla"]
-                end
-                %% Flujo 3: acción del botón Actualizar
-                subgraph "Botón Actualizar"
-                    C1["1. Clic en Actualizar"] --> C2["2. POST /api/update"]
-                    C2 --> C3["3. Invocar bolsa_santiago_bot.py"]
-                    C3 --> C4["4. Ejecutar scraping"]
-                    C4 --> C5["5. Procesar HAR"]
-                    C5 --> C6["6. Guardar JSON"]
-                    C6 --> C7["7. Emitir cambios al frontend"]
-                end
+            sequenceDiagram
+                participant U as Usuario
+                participant F as Frontend
+                participant S as Servidor
+                participant W as WebSocket
+                U->>F: Clic en "Actualizar"
+                F->>S: POST /api/stocks/update
+                S-->>F: {success:true}
+                S-->>W: emit <code>new_data</code>
+                W-->>F: evento <code>new_data</code>
+                F->>F: Refrescar tabla
+                U->>F: Clic en "Filtrar"
+                F->>S: GET /api/stocks?code=XXX
+                S-->>F: JSON filtrado
+                F->>F: Actualizar tabla
+                Note over F,W: WebSocket permanece conectado
                 </div>
                 <!-- Fin diagrama eventos; añadir nuevos flujos siguiendo la estructura -->
                 <div class="text-end my-2">
@@ -205,10 +191,12 @@
                     Sync --> Front
                 end
                 subgraph "Errores esperados"
-                    Scrape -.-> Captcha((Captcha o Timeout))
+                    Scrape -.-> Captcha((Captcha/Timeout))
                     Parse -.-> HarErr((HAR inválido))
-                    DB -.-> DBErr((Fallo BD))
-                    Sync -.-> WsErr((Error WebSocket))
+                    DB -.-> DBErr((Fallo DB))
+                    Sync -.-> WsErr((WebSocket sin sincronía))
+                    Service -.-> CookieErr((Cookies expiradas))
+                    Service -.-> ApiDown((API caída))
                 end
                 </div>
                 <!-- Fin diagrama dependencias; añadir nuevos módulos aquí -->
