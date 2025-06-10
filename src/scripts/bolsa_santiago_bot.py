@@ -10,7 +10,10 @@ from datetime import datetime
 import os
 import random
 import argparse
-import pygetwindow as gw
+try:
+    import pygetwindow as gw
+except Exception:  # noqa: BLE001
+    gw = None
 
 from src.config import (
     LOGS_DIR,
@@ -63,6 +66,8 @@ _page = None
 
 def is_santiagox_window_open():
     """Check if a window titled 'SANTIAGOX' is already open."""
+    if not gw:
+        return False
     try:
         return any("SANTIAGOX" in w.title.upper() for w in gw.getWindowsWithTitle(""))
     except Exception:
