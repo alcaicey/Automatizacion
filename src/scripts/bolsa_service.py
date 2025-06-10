@@ -60,25 +60,39 @@ def is_bot_running():
         return bot_running
 
 def send_enter_key_to_browser(app=None, wait_seconds=5):
-    """Refresca la página activa enviando ``Ctrl+L`` y ``Enter``.
+    """Intenta refrescar la página abierta usando Playwright.
 
-    Si ``app`` se proporciona, se registrará si ``last_update`` cambia
-    después del intento de recarga.
+    Si no hay una página activa disponible se recurre al envío de
+    ``Ctrl+L`` y ``Enter`` mediante ``pyautogui`` como último recurso.
     """
     if app is None:
         try:
             app = current_app._get_current_object()
         except Exception:
             app = None
+
+    from src.scripts import bolsa_santiago_bot as bot
+
+    page = bot.get_active_page()
+    if page:
+        logger.info("Reutilizando navegador existente con Playwright")
+        success, _ = bot.refresh_active_page(bot.logger_instance_global)
+        if success:
+            logger.info("Actualización realizada vía Playwright")
+        else:
+            logger.warning("No se capturó JSON al refrescar con Playwright")
+        return success
+
     if os.getenv("BOLSA_NON_INTERACTIVE") == "1":
-        logger.info("Entorno no interactivo detectado: se omite pyautogui")
+        logger.info("Entorno no interactivo detectado y no hay página activa")
         return False
+
     prev_ts = get_last_update_timestamp(app)
     try:
         import pyautogui
         pyautogui.hotkey('ctrl', 'l')
         pyautogui.press('enter')
-        logger.info("ENTER enviado al navegador en ejecución")
+        logger.info("ENTER enviado al navegador externo")
         if wait_seconds:
             time.sleep(wait_seconds)
         new_ts = get_last_update_timestamp(app)
@@ -88,7 +102,7 @@ def send_enter_key_to_browser(app=None, wait_seconds=5):
             logger.warning("last_update no cambió tras refrescar la página")
         return True
     except Exception as e:
-        logger.exception(f"No se pudo enviar ENTER al navegador: {e}")
+        logger.exception(f"No se pudo enviar ENTER al navegador externo: {e}")
         return False
 
 def get_latest_json_file():
