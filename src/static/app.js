@@ -76,8 +76,11 @@ const ALT_FIELD_MAP = {
     'ISIN': 'isin',
     'PRECIO_COMPRA': 'bid',
     'PRECIO_VENTA': 'ask',
-    'MONTO': 'amount',
-    'UN_TRANSADAS': 'volume',
+    'MONTO': 'MONTO_MILES',
+    'UN_TRANSADAS': 'UN_TRANSDAS',
+    'MONEDA': 'currency',
+    'BONO_VERDE': 'PREMIO_BONO_VERDE',
+    'VALORES_EXTRANJEROS': 'valores_extr'
 };
 
 // Función para mostrar/ocultar el overlay de carga

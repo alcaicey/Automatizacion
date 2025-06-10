@@ -22,8 +22,8 @@ from src.routes.user import user_bp
 
 # Crear la aplicación Flask
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = SQLALCHEMY_DATABASE_URI
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = SQLALCHEMY_TRACK_MODIFICATIONS
+app.config["SQLALCHEMY_DATABASE_URI"] = SQLALCHEMY_DATABASE_URI
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = SQLALCHEMY_TRACK_MODIFICATIONS
 CORS(app)  # Habilitar CORS para todas las rutas
 db.init_app(app)
 socketio.init_app(app, cors_allowed_origins="*")
@@ -35,6 +35,7 @@ def _cleanup_resources():
     try:
         from src.scripts.bolsa_service import stop_periodic_updates
         import logging
+
         logging.getLogger("src.scripts.bolsa_service").disabled = True
         stop_periodic_updates()
         logging.getLogger("src.scripts.bolsa_service").disabled = False
@@ -43,6 +44,7 @@ def _cleanup_resources():
 
     try:
         from src.scripts.bolsa_santiago_bot import close_playwright_resources
+
         close_playwright_resources()
     except Exception as exc:
         print(f"Error al cerrar Playwright: {exc}")
@@ -51,7 +53,12 @@ def _cleanup_resources():
 def _signal_handler(signum, frame):
     print(f"Señal {signum} recibida. Cerrando aplicación de forma limpia...")
     _cleanup_resources()
-    socketio.stop()
+    try:
+        socketio.stop()
+    except Exception as exc:
+        print(f"Error al detener SocketIO: {exc}")
+    finally:
+        os._exit(0)
 
 
 atexit.register(_cleanup_resources)
@@ -66,9 +73,10 @@ def load_saved_credentials():
         os.environ.setdefault("BOLSA_USERNAME", cred.username)
         os.environ.setdefault("BOLSA_PASSWORD", cred.password)
 
+
 # Registrar blueprints
-app.register_blueprint(api_bp, url_prefix='/api')
-app.register_blueprint(user_bp, url_prefix='/api')
+app.register_blueprint(api_bp, url_prefix="/api")
+app.register_blueprint(user_bp, url_prefix="/api")
 
 
 # Preguntar por la configuración de ejecución interactiva del bot
@@ -78,10 +86,14 @@ def _prompt_non_interactive():
         return
 
     try:
-        resp = input(
-            "\u00bfEjecutar bolsa_santiago_bot.py sin confirmaci\u00f3n de usuario? "
-            "[s/N]: "
-        ).strip().lower()
+        resp = (
+            input(
+                "\u00bfEjecutar bolsa_santiago_bot.py sin confirmaci\u00f3n de usuario? "
+                "[s/N]: "
+            )
+            .strip()
+            .lower()
+        )
     except EOFError:
         resp = ""
 
@@ -90,16 +102,17 @@ def _prompt_non_interactive():
     else:
         os.environ["BOLSA_NON_INTERACTIVE"] = "0"
 
+
 # Ruta principal que sirve el frontend
-@app.route('/', defaults={'path': ''})
-@app.route('/<path:path>')
+@app.route("/", defaults={"path": ""})
+@app.route("/<path:path>")
 def serve(path):
     if path and os.path.exists(os.path.join(app.static_folder, path)):
         return send_from_directory(app.static_folder, path)
-    return send_from_directory(app.static_folder, 'index.html')
+    return send_from_directory(app.static_folder, "index.html")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Crear directorios necesarios si no existen
     os.makedirs(os.path.join(BASE_DIR, "logs"), exist_ok=True)
     os.makedirs(os.path.join(BASE_DIR, "data"), exist_ok=True)
@@ -112,6 +125,6 @@ if __name__ == '__main__':
         db.create_all()
         load_saved_credentials()
     try:
-        socketio.run(app, host='0.0.0.0', port=5000, debug=True)
+        socketio.run(app, host="0.0.0.0", port=5000, debug=True)
     except KeyboardInterrupt:
         _signal_handler(signal.SIGINT, None)
