@@ -568,6 +568,19 @@ def run_automation(
                     logger_param.warning(
                         f"No se pudo abrir un contexto de reutilización: {reopen_err}"
                     )
+                else:
+                    if not non_interactive:
+                        logger_param.info(
+                            "Navegador listo. Presione ENTER para refrescar o Ctrl+C para salir."
+                        )
+                        while True:
+                            try:
+                                input()
+                                keep_page.reload(wait_until="networkidle", timeout=60000)
+                            except EOFError:
+                                time.sleep(60)
+                            except KeyboardInterrupt:
+                                break
 
 
 def main(argv=None):

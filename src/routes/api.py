@@ -25,6 +25,7 @@ from src.models import db
 from src.models.credentials import Credential
 from src.models.column_preference import ColumnPreference
 from src.models.stock_filter import StockFilter
+from src import history_view
 
 client_logger = logging.getLogger('client_errors')
 if not client_logger.handlers:
@@ -414,3 +415,17 @@ def delete_price(symbol, ts):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 400
+
+
+@api_bp.route('/history', methods=['GET'])
+def history_list():
+    """Return list of historical data loads."""
+    data = history_view.load_history()
+    return jsonify(data)
+
+
+@api_bp.route('/history/compare', methods=['GET'])
+def history_compare():
+    """Return comparison between the last two data loads."""
+    data = history_view.compare_latest()
+    return jsonify(data)

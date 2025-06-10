@@ -3,91 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Histórico de Precios</title>
+    <title>Histórico de Cargas</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.5/css/dataTables.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.bootstrap5.min.css">
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="/index.html">Bolsa App</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item"><a class="nav-link" href="/index.html">Inicio</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/historico.html">Histórico</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/analisis.html">Análisis</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/arquitectura.html">Arquitectura</a></li>
-                </ul>
-                <button id="themeToggle" class="btn btn-outline-light ms-lg-3" type="button" aria-label="Toggle theme"></button>
-            </div>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/index.html">Bolsa App</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item"><a class="nav-link" href="/index.html">Inicio</a></li>
+                <li class="nav-item"><a class="nav-link" href="/historico.html">Histórico</a></li>
+                <li class="nav-item"><a class="nav-link" href="/analisis.html">Análisis</a></li>
+                <li class="nav-item"><a class="nav-link" href="/arquitectura.html">Arquitectura</a></li>
+            </ul>
+            <button id="themeToggle" class="btn btn-outline-light ms-lg-3" type="button" aria-label="Toggle theme"></button>
         </div>
-    </nav>
+    </div>
+</nav>
 <div class="container py-4">
-    <h1 class="mb-4">Histórico de Precios</h1>
-
-    <form id="priceForm" class="row g-3 mb-4">
-        <div class="col-md-3">
-            <input name="symbol" class="form-control" placeholder="Símbolo" required>
-        </div>
-        <div class="col-md-2">
-            <input name="price" type="number" step="0.01" class="form-control" placeholder="Precio" required>
-        </div>
-        <div class="col-md-2">
-            <input name="variation" type="number" step="0.01" class="form-control" placeholder="Variación">
-        </div>
-        <div class="col-md-3">
-            <input name="timestamp" type="datetime-local" class="form-control" required>
-        </div>
-        <div class="col-md-2">
-            <button type="submit" class="btn btn-primary w-100">Guardar</button>
-        </div>
-    </form>
-
-    <table id="pricesTable" class="table table-striped">
+    <h1 class="mb-4">Histórico de Cargas</h1>
+    <table id="historyTable" class="table table-striped" style="width:100%">
         <thead class="table-dark">
             <tr>
-                <th>ID</th>
-                <th>Símbolo</th>
-                <th>Precio</th>
-                <th>Variación</th>
                 <th>Fecha</th>
-                <th>Acciones</th>
+                <th>Total</th>
+                <th>Cambios</th>
+                <th>Nuevas</th>
+                <th>Eliminadas</th>
+                <th>Estado</th>
             </tr>
         </thead>
         <tbody></tbody>
     </table>
 
-    <h2 class="mt-5">Ejemplo de visualización</h2>
-    <table class="table table-bordered">
+    <h2 class="mt-5">Comparación Última Carga</h2>
+    <div class="mb-3">
+        <div class="form-check form-check-inline">
+            <input class="form-check-input filter-checkbox" type="checkbox" id="filterChanges" checked>
+            <label class="form-check-label" for="filterChanges">Cambios</label>
+        </div>
+        <div class="form-check form-check-inline">
+            <input class="form-check-input filter-checkbox" type="checkbox" id="filterNew" checked>
+            <label class="form-check-label" for="filterNew">Nuevas</label>
+        </div>
+        <div class="form-check form-check-inline">
+            <input class="form-check-input filter-checkbox" type="checkbox" id="filterRemoved" checked>
+            <label class="form-check-label" for="filterRemoved">Eliminadas</label>
+        </div>
+        <div class="form-check form-check-inline">
+            <input class="form-check-input filter-checkbox" type="checkbox" id="filterErrors" checked>
+            <label class="form-check-label" for="filterErrors">Errores</label>
+        </div>
+        <div class="form-check form-check-inline">
+            <input class="form-check-input filter-checkbox" type="checkbox" id="filterUnchanged">
+            <label class="form-check-label" for="filterUnchanged">Sin cambios</label>
+        </div>
+    </div>
+    <table id="comparisonTable" class="table table-bordered" style="width:100%">
         <thead class="table-light">
             <tr>
                 <th>Símbolo</th>
-                <th>Precio</th>
+                <th>Precio Anterior</th>
+                <th>Precio Nuevo</th>
                 <th>Variación</th>
-                <th>Fecha</th>
+                <th>Tipo</th>
             </tr>
         </thead>
-        <tbody>
-            <tr>
-                <td>COPEC</td>
-                <td>1234.56</td>
-                <td class="text-success">+1.2%</td>
-                <td>2025-06-01 12:00</td>
-            </tr>
-            <tr>
-                <td>FALABELLA</td>
-                <td>987.65</td>
-                <td class="text-danger">-0.8%</td>
-                <td>2025-06-01 12:00</td>
-            </tr>
-        </tbody>
+        <tbody></tbody>
     </table>
 </div>
-
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.5/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.bootstrap5.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.0/jszip.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="/theme.js"></script>
 <script src="/historico.js"></script>
