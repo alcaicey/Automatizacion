@@ -1,0 +1,7 @@
+[
+  {"symbol": "AAA", "price": 1.0, "variation": 0.1, "timestamp": "2025-06-08T12:00:00"},
+  {"symbol": "BBB", "price": 2.0, "variation": -0.2, "timestamp": "2025-06-08T12:00:00"},
+  {"symbol": "CCC", "price": 3.0, "variation": 0.0, "timestamp": "2025-06-08T12:00:00"},
+  {"symbol": "DDD", "price": 4.0, "variation": 0.3, "timestamp": "2025-06-08T12:00:00"},
+  {"symbol": "EEE", "price": 5.0, "variation": 0.0, "timestamp": "2025-06-08T12:00:00"}
+]
