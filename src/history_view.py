@@ -6,6 +6,8 @@ from datetime import datetime
 
 from src.config import LOGS_DIR
 from src.scripts.bolsa_service import extract_timestamp_from_filename
+from src.models import db
+from src.models.stock_price import StockPrice
 
 
 def _parse_file(path: str) -> Dict[str, Any]:
@@ -60,9 +62,77 @@ def _parse_file(path: str) -> Dict[str, Any]:
     return {'items': items, 'map': mapping, 'errors': errors, 'timestamp': ts_str}
 
 
+def _history_from_db() -> List[Dict[str, Any]]:
+    """Build history summaries using database records."""
+    timestamps = (
+        db.session.query(StockPrice.timestamp)
+        .distinct()
+        .order_by(StockPrice.timestamp)
+        .all()
+    )
+    if not timestamps:
+        return []
+
+    history: List[Dict[str, Any]] = []
+    prev_symbols: set[str] = set()
+    prev_map: Dict[str, Any] | None = None
+
+    for ts_obj in timestamps:
+        ts = ts_obj[0]
+        rows = StockPrice.query.filter_by(timestamp=ts).all()
+        curr_map = {r.symbol: r.to_dict() for r in rows}
+        symbols = set(curr_map)
+        new_syms = symbols - prev_symbols if prev_symbols else set()
+        removed_syms = prev_symbols - symbols if prev_symbols else set()
+        changes = []
+        if prev_map:
+            for sym in symbols & prev_symbols:
+                curr = curr_map[sym]
+                prev = prev_map[sym]
+                if (
+                    curr["price"] != prev["price"]
+                    or curr["variation"] != prev["variation"]
+                ):
+                    changes.append(sym)
+
+        status = "OK"
+        if not new_syms and not removed_syms and not changes:
+            status = "sin cambios"
+
+        history.append(
+            {
+                "file": ts.isoformat(),
+                "timestamp": ts.strftime("%d/%m/%Y %H:%M:%S"),
+                "total": len(symbols),
+                "changes": len(changes),
+                "new": len(new_syms),
+                "removed": len(removed_syms),
+                "error_count": 0,
+                "status": status,
+            }
+        )
+
+        prev_symbols = symbols
+        prev_map = curr_map
+
+    history.sort(
+        key=lambda x: datetime.strptime(x["timestamp"], "%d/%m/%Y %H:%M:%S"),
+        reverse=True,
+    )
+    return history
+
+
 def load_history(logs_dir: str | None = None) -> List[Dict[str, Any]]:
     """Return list of historical load summaries sorted by date descending."""
-    logs_dir = logs_dir or LOGS_DIR
+    if logs_dir is None:
+        try:
+            db_history = _history_from_db()
+            if db_history:
+                return db_history
+        except Exception:
+            pass
+        logs_dir = LOGS_DIR
+
     pattern = os.path.join(logs_dir, 'acciones-precios-plus_*.json')
     files = sorted(glob.glob(pattern))
     history: List[Dict[str, Any]] = []
@@ -103,7 +173,17 @@ def load_history(logs_dir: str | None = None) -> List[Dict[str, Any]]:
 
 def compare_latest(logs_dir: str | None = None) -> Dict[str, Any]:
     """Return comparison details between the last and previous loads."""
-    logs_dir = logs_dir or LOGS_DIR
+    if logs_dir is None:
+        try:
+            from src.scripts.bolsa_service import compare_last_two_db_entries
+
+            data = compare_last_two_db_entries()
+            if data:
+                return data
+        except Exception:
+            pass
+        logs_dir = LOGS_DIR
+
     pattern = os.path.join(logs_dir, 'acciones-precios-plus_*.json')
     files = sorted(glob.glob(pattern))
     if len(files) < 2:
