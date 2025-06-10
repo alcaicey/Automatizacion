@@ -438,6 +438,7 @@ def run_automation(
     browser = None
     context = None
     page = None
+    mantener_navegador_abierto = True
     storage_state = None
     storage_state_path = STORAGE_STATE_PATH
     storage_to_load = None
@@ -682,12 +683,14 @@ def run_automation(
 
     except PlaywrightTimeoutError as pte:
         logger_param.error(f"ERROR DE TIMEOUT: {pte}")
+        mantener_navegador_abierto = False
         if page and not page.is_closed():
             page.screenshot(
                 path=os.path.join(LOGS_DIR, f"timeout_error_{TIMESTAMP_NOW}.png")
             )
     except Exception as e:
         logger_param.exception("ERROR GENERAL:")
+        mantener_navegador_abierto = False
         if page and not page.is_closed():
             page.screenshot(
                 path=os.path.join(LOGS_DIR, f"general_error_{TIMESTAMP_NOW}.png")
@@ -750,7 +753,7 @@ def run_automation(
                 keep_open=keep_open,
             )
 
-        if keep_open and (not is_mis_conexiones_page or attempt >= max_attempts) and not force_reauth:
+        if mantener_navegador_abierto and keep_open and (not is_mis_conexiones_page or attempt >= max_attempts) and not force_reauth:
             if browser is not None:
                 try:
                     keep_context = browser.new_context(
@@ -777,7 +780,7 @@ def run_automation(
                 else:
                     if not non_interactive:
                         logger_param.info(
-                            "Navegador listo. Presione ENTER para refrescar o Ctrl+C para salir."
+                            "Proceso finalizado. El navegador permanecerá abierto para interacción manual. Presione ENTER en la pestaña si desea actualizar los datos."
                         )
                         while True:
                             try:
@@ -789,6 +792,25 @@ def run_automation(
                                 time.sleep(60)
                             except KeyboardInterrupt:
                                 break
+        else:
+            mantener_navegador_abierto = False
+
+        if not mantener_navegador_abierto:
+            if context is not None:
+                try:
+                    context.close()
+                except Exception:
+                    pass
+            if browser is not None:
+                try:
+                    browser.close()
+                except Exception:
+                    pass
+            if p_instance is not None:
+                try:
+                    p_instance.stop()
+                except Exception:
+                    pass
 
 
 def main(argv=None):
