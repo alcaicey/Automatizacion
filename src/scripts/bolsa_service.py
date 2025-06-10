@@ -288,32 +288,14 @@ def get_session_remaining_seconds():
         return None
 
 def run_bolsa_bot(app=None, *, non_interactive=None, keep_open=True, force_update=False):
-    """Ejecuta ``bolsa_santiago_bot.py`` y devuelve la ruta al JSON generado.
-
-    Parameters
-    ----------
-    app : Flask, optional
-        Aplicación a cuyo contexto se asociará la ejecución.
-    non_interactive : bool or None, optional
-        Si es ``True`` se define la variable de entorno ``BOLSA_NON_INTERACTIVE``
-        para que el bot no solicite confirmaciones manuales. Si es ``False`` se
-        elimina dicha variable para permitir interacción (por ejemplo para
-        resolver un CAPTCHA). Cuando es ``None`` (valor por defecto) se respeta
-        el valor actual de la variable de entorno y no se modifica.
-    keep_open : bool, optional
-        Si es True (por defecto), el script mantiene el navegador abierto al finalizar.
-        Cuando es False, el navegador se cierra inmediatamente.
-    force_update : bool, optional
-        Si es ``True`` se omite la comparación de hash del archivo previo y se
-        fuerza el guardado de los datos aunque no haya cambios visibles.
-    """
+    """Ejecuta el bot reutilizando el navegador si es posible."""
     global bot_running
     ctx = app.app_context() if app else nullcontext()
     with ctx:
         with bot_lock:
             if bot_running:
                 logger.info(
-                    "La automatización ya está en ejecución. No se iniciará una nueva instancia."
+                    "La automatizacion ya está en ejecución. No se iniciará una nueva instancia."
                 )
                 return None
             bot_running = True
@@ -325,90 +307,51 @@ def run_bolsa_bot(app=None, *, non_interactive=None, keep_open=True, force_updat
         logger.info(f"Hash previo: {prev_hash}, timestamp previo: {prev_ts}")
         try:
             logger.info("=== INICIO DE CICLO COMPLETO DE SCRAPING ===")
-            cycle_start = time.time()
-            logger.info("Iniciando ejecución de bolsa_santiago_bot.py para obtener datos frescos...")
-            module_path = "src.scripts.bolsa_santiago_bot"
+            from src.scripts import bolsa_santiago_bot as bot
 
-            # Ejecutar el script como módulo desde la raíz del proyecto para asegurar que
-            # las importaciones relativas funcionen correctamente
-            logger.info(
-                f"Ejecutando: python -m {module_path} en el directorio {BASE_DIR}")
-            if non_interactive is None:
-                non_interactive = os.getenv("BOLSA_NON_INTERACTIVE") == "1"
+            if non_interactive is not None:
+                if non_interactive:
+                    os.environ["BOLSA_NON_INTERACTIVE"] = "1"
+                else:
+                    os.environ.pop("BOLSA_NON_INTERACTIVE", None)
 
-            env = os.environ.copy()
-            if non_interactive:
-                env["BOLSA_NON_INTERACTIVE"] = "1"
+            if bot.get_active_page():
+                logger.info("Recargando navegador existente via Playwright")
+                bot.configure_run_specific_logging(bot.logger_instance_global)
+                success, json_path = bot.refresh_active_page(bot.logger_instance_global)
             else:
-                env.pop("BOLSA_NON_INTERACTIVE", None)
-
-            cmd = [sys.executable, "-m", module_path]
-            if not keep_open:
-                cmd.append("--no-keep-open")
-            process = subprocess.run(
-                cmd,
-                capture_output=True,  # Captura stdout y stderr
-                text=True,
-                cwd=BASE_DIR,  # Directorio de trabajo para el script
-                env=env,
-                check=False  # No lanzar excepción si el script falla, lo manejamos con returncode
-            )
-        
-            if process.stdout:
-                logger.info(f"Salida de bolsa_santiago_bot.py:\n{process.stdout[-1000:]}")  # Últimos 1000 caracteres
-            if process.stderr:
-                logger.error(f"Errores de bolsa_santiago_bot.py:\n{process.stderr}")
-
-            if process.returncode != 0:
-                logger.error(
-                    f"bolsa_santiago_bot.py terminó con código de error: {process.returncode}"
+                bot.validate_credentials()
+                bot.configure_run_specific_logging(bot.logger_instance_global)
+                bot.run_automation(
+                    bot.logger_instance_global,
+                    non_interactive=os.getenv("BOLSA_NON_INTERACTIVE") == "1",
+                    keep_open=True,
                 )
+                success, json_path = bot.refresh_active_page(bot.logger_instance_global)
+
+            if not success or not json_path:
+                logger.error("No se pudo obtener datos frescos")
                 return None
 
-            latest_json = get_latest_json_file()  # Busca el archivo generado por el bot
-
-            if latest_json and os.path.getmtime(latest_json) > cycle_start:
-                new_hash, new_ts = get_json_hash_and_timestamp(latest_json)
-                logger.info(f"Hash nuevo: {new_hash}, timestamp del JSON: {new_ts}")
-                if prev_hash and new_hash == prev_hash and not force_update:
-                    logger.warning("response.text() no cambió entre ejecuciones."
-                                   " Los datos parecen ser los mismos.")
-                    socketio.emit(
-                        'no_new_data',
-                        {'timestamp': datetime.now().strftime("%d/%m/%Y %H:%M:%S")},
-                    )
-                    return None
-                logger.info(
-                    f"bolsa_santiago_bot.py ejecutado, datos actualizados en: {latest_json}"
-                )
-                prev_lu = get_last_update_timestamp(app)
-                store_prices_in_db(latest_json, app=app)
-                new_lu = get_last_update_timestamp(app)
-                if new_lu and prev_lu != new_lu:
-                    logger.info(f"last_update modificado: {prev_lu} -> {new_lu}")
-                else:
-                    logger.warning("last_update no cambió tras almacenar datos")
-                return latest_json
-            elif latest_json:
-                old_name = f"{latest_json}.old"
-                prev_lu = get_last_update_timestamp(app)
-                store_prices_in_db(latest_json, app=app)
-                new_lu = get_last_update_timestamp(app)
-                if new_lu and prev_lu != new_lu:
-                    logger.info(f"last_update modificado: {prev_lu} -> {new_lu}")
-                else:
-                    logger.warning("last_update no cambió tras almacenar datos")
-                os.rename(latest_json, old_name)
+            new_hash, new_ts = get_json_hash_and_timestamp(json_path)
+            logger.info(f"Hash nuevo: {new_hash}, timestamp del JSON: {new_ts}")
+            if prev_hash and new_hash == prev_hash and not force_update:
                 logger.warning(
-                    f"No se generaron datos nuevos. Archivo antiguo renombrado a: {old_name}"
+                    "response.text() no cambió entre ejecuciones. Los datos parecen ser los mismos."
+                )
+                socketio.emit(
+                    'no_new_data',
+                    {'timestamp': datetime.now().strftime("%d/%m/%Y %H:%M:%S")},
                 )
                 return None
+            prev_lu = get_last_update_timestamp(app)
+            store_prices_in_db(json_path, app=app)
+            new_lu = get_last_update_timestamp(app)
+            if new_lu and prev_lu != new_lu:
+                logger.info(f"last_update modificado: {prev_lu} -> {new_lu}")
             else:
-                logger.error(
-                    "bolsa_santiago_bot.py ejecutado, pero no se encontró el archivo JSON de datos esperado."
-                )
-                return None
-
+                logger.warning("last_update no cambió tras almacenar datos")
+            return json_path
         except Exception as e:
             logger.exception(f"Error en run_bolsa_bot: {e}")
             return None
