@@ -16,9 +16,9 @@ def _parse_file(path: str) -> Dict[str, Any]:
     rows = raw.get('listaResult') if isinstance(raw, dict) else raw
     if not isinstance(rows, list):
         rows = []
-    items = []
-    errors = []
-    mapping = {}
+    items: list[dict[str, Any]] = []
+    errors: list[dict[str, Any]] = []
+    mapping: dict[str, dict[str, Any]] = {}
     for item in rows:
         if not isinstance(item, dict):
             continue
@@ -38,6 +38,15 @@ def _parse_file(path: str) -> Dict[str, Any]:
             variation = float(variation)
         except (TypeError, ValueError):
             variation = 0.0
+        errs = []
+        if not symbol:
+            errs.append('symbol')
+        if ts in (None, ''):
+            errs.append('timestamp')
+        if errs:
+            errors.append({'symbol': symbol, 'errors': errs})
+            # Skip invalid records entirely
+            continue
         entry = {
             'symbol': symbol,
             'price': price,
@@ -46,15 +55,6 @@ def _parse_file(path: str) -> Dict[str, Any]:
         }
         items.append(entry)
         mapping[symbol] = entry
-        errs = []
-        if not symbol:
-            errs.append('symbol')
-        if ts in (None, ''):
-            errs.append('timestamp')
-        if price == 0.0:
-            errs.append('price')
-        if errs:
-            errors.append({'symbol': symbol, 'errors': errs})
 
     ts_str = extract_timestamp_from_filename(path)
     return {'items': items, 'map': mapping, 'errors': errors, 'timestamp': ts_str}
@@ -115,13 +115,21 @@ def compare_latest(logs_dir: str | None = None) -> Dict[str, Any]:
     curr_symbols = set(curr_data['map'])
     new_syms = curr_symbols - prev_symbols
     removed_syms = prev_symbols - curr_symbols
-    changes = []
-    unchanged = []
+    changes: list[dict[str, Any]] = []
+    unchanged: list[dict[str, Any]] = []
     for sym in curr_symbols & prev_symbols:
         curr = curr_data['map'][sym]
         prev = prev_data['map'][sym]
-        if curr['price'] != prev['price'] or curr['variation'] != prev['variation']:
-            changes.append({'symbol': sym, 'old': prev, 'new': curr})
+        if curr['price'] != prev['price']:
+            diff = curr['price'] - prev['price']
+            pct = (diff / prev['price'] * 100) if prev['price'] else 0.0
+            changes.append({
+                'symbol': sym,
+                'old': prev,
+                'new': curr,
+                'abs_diff': diff,
+                'pct_diff': pct,
+            })
         else:
             unchanged.append(curr)
     return {
@@ -134,4 +142,6 @@ def compare_latest(logs_dir: str | None = None) -> Dict[str, Any]:
         'changes': changes,
         'unchanged': unchanged,
         'errors': curr_data['errors'] + prev_data['errors'],
+        'total_compared': len(curr_symbols | prev_symbols),
+        'change_count': len(changes),
     }
