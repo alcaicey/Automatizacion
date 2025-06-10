@@ -10,6 +10,7 @@ from datetime import datetime
 import os
 import random
 import argparse
+import pygetwindow as gw
 
 from src.config import (
     LOGS_DIR,
@@ -58,6 +59,14 @@ _p_instance = None
 _browser = None
 _context = None
 _page = None
+
+
+def is_santiagox_window_open():
+    """Check if a window titled 'SANTIAGOX' is already open."""
+    try:
+        return any("SANTIAGOX" in w.title.upper() for w in gw.getWindowsWithTitle(""))
+    except Exception:
+        return False
 
 
 def update_credentials_from_env():
@@ -214,8 +223,6 @@ def refresh_active_page(logger_param):
             if captured.get("ok"):
                 break
             time.sleep(0.5)
-        new_page.off("response", handle_response)
-
         new_context.storage_state(path=STORAGE_STATE_PATH)
         new_context.close()
 
@@ -355,18 +362,39 @@ def capture_premium_data_via_network(page, logger_param, output_path):
         "api/RV_ResumenMercado/getAccionesPrecios",
     ]
     try:
-        response = page.wait_for_response(
-            lambda resp: any(p in resp.url for p in patterns) and resp.status == 200,
-            timeout=20000,
-        )
-        data_json = response.json()
+        if hasattr(page, "wait_for_response"):
+            response = page.wait_for_response(
+                lambda resp: any(p in resp.url for p in patterns) and resp.status == 200,
+                timeout=20000,
+            )
+            data_json = response.json()
+        else:
+            captured = {}
+
+            def handle(resp):
+                if any(p in resp.url for p in patterns) and resp.status == 200 and not captured:
+                    try:
+                        data = resp.json()
+                        if len(data.get("data", data.get("listaResult", []))) >= MIN_EXPECTED_RESULTS:
+                            captured["data"] = data
+                    except Exception as e:
+                        logger_param.warning(f"Error al procesar respuesta JSON: {e}")
+
+            page.on("response", handle)
+            deadline = time.time() + 20
+            while time.time() < deadline and "data" not in captured:
+                time.sleep(0.5)
+            data_json = captured.get("data")
+            if not data_json:
+                raise PlaywrightTimeoutError("Timeout waiting for premium response")
+
         ts = extract_json_timestamp(data_json)
         if ts:
             logger_param.info(f"Timestamp del JSON recibido: {ts}")
         with open(output_path, "w", encoding="utf-8") as f_out:
             json.dump(data_json, f_out, indent=2, ensure_ascii=False)
         logger_param.info(
-            f"Datos premium capturados desde XHR en: {output_path} ({response.url})"
+            f"Datos premium capturados desde XHR en: {output_path}"
         )
         return True, data_json, ts
     except PlaywrightTimeoutError:
@@ -393,6 +421,12 @@ def run_automation(
     current_analyzed_summary_filename = ANALYZED_SUMMARY_FILENAME
 
     logger_param.info(f"--- Iniciando Intento de Automatización #{attempt} ---")
+
+    if is_santiagox_window_open():
+        logger_param.warning(
+            "Ya hay una ventana abierta con el título 'SANTIAGOX'. Abortando ejecución para evitar conflicto."
+        )
+        return
 
     if attempt > max_attempts:
         logger_param.error(
@@ -452,9 +486,14 @@ def run_automation(
             try:
                 if hasattr(page, "wait_for_response"):
                     page.wait_for_response(
-                        lambda resp: "getPremiumAccionesPrecios" in resp.url
-                        and resp.status == 200,
+                        lambda resp: "getPremiumAccionesPrecios" in resp.url and resp.status == 200,
                         timeout=30000,
+                    )
+                else:
+                    capture_premium_data_via_network(
+                        page,
+                        logger_param,
+                        current_output_acciones_data_filename,
                     )
             except PlaywrightTimeoutError:
                 logger_param.warning(
