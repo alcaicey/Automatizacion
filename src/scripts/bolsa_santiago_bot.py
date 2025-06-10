@@ -652,3 +652,34 @@ def main(argv=None):
 
 if __name__ == "__main__":
     main()
+
+
+def close_playwright_resources():
+    """Cierra navegador, contexto y página si están activos."""
+    global _p_instance, _browser, _context, _page
+    # Se usa print para evitar errores de logging al final del programa
+    try:
+        if _page and not _page.is_closed():
+            _page.close()
+            print("Página de Playwright cerrada")
+    except Exception as e:
+        print(f"No se pudo cerrar la página: {e}")
+    try:
+        if _context:
+            _context.close()
+            print("Contexto de Playwright cerrado")
+    except Exception as e:
+        print(f"No se pudo cerrar el contexto: {e}")
+    try:
+        if _browser:
+            _browser.close()
+            print("Navegador de Playwright cerrado")
+    except Exception as e:
+        print(f"No se pudo cerrar el navegador: {e}")
+    try:
+        if _p_instance:
+            _p_instance.stop()
+            print("Instancia de Playwright detenida")
+    except Exception as e:
+        print(f"No se pudo detener Playwright: {e}")
+    _p_instance = _browser = _context = _page = None

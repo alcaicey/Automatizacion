@@ -1,5 +1,7 @@
 import os
 import sys
+import signal
+import atexit
 
 # Add project root to Python path for absolute imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
@@ -25,6 +27,36 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = SQLALCHEMY_TRACK_MODIFICATIONS
 CORS(app)  # Habilitar CORS para todas las rutas
 db.init_app(app)
 socketio.init_app(app, cors_allowed_origins="*")
+
+
+# --- Manejo de cierre limpio -------------------------------------------------
+def _cleanup_resources():
+    """Libera hilos y cierra Playwright al terminar la aplicación."""
+    try:
+        from src.scripts.bolsa_service import stop_periodic_updates
+        import logging
+        logging.getLogger("src.scripts.bolsa_service").disabled = True
+        stop_periodic_updates()
+        logging.getLogger("src.scripts.bolsa_service").disabled = False
+    except Exception as exc:
+        print(f"Error al detener actualizaciones periódicas: {exc}")
+
+    try:
+        from src.scripts.bolsa_santiago_bot import close_playwright_resources
+        close_playwright_resources()
+    except Exception as exc:
+        print(f"Error al cerrar Playwright: {exc}")
+
+
+def _signal_handler(signum, frame):
+    print(f"Señal {signum} recibida. Cerrando aplicación de forma limpia...")
+    _cleanup_resources()
+    socketio.stop()
+
+
+atexit.register(_cleanup_resources)
+for sig in (signal.SIGINT, signal.SIGTERM):
+    signal.signal(sig, _signal_handler)
 
 
 def load_saved_credentials():
@@ -79,4 +111,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
         load_saved_credentials()
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True)
+    try:
+        socketio.run(app, host='0.0.0.0', port=5000, debug=True)
+    except KeyboardInterrupt:
+        _signal_handler(signal.SIGINT, None)
