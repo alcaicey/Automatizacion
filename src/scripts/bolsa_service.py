@@ -320,7 +320,10 @@ def run_bolsa_bot(app=None, *, non_interactive=None, keep_open=True, force_updat
                 bot.configure_run_specific_logging(bot.logger_instance_global)
                 success, json_path = bot.refresh_active_page(bot.logger_instance_global)
             else:
-                bot.validate_credentials()
+                try:
+                    bot.validate_credentials()
+                except Exception as cred_err:
+                    logger.warning(f"Credenciales no configuradas: {cred_err}")
                 bot.configure_run_specific_logging(bot.logger_instance_global)
                 bot.run_automation(
                     bot.logger_instance_global,
@@ -331,6 +334,10 @@ def run_bolsa_bot(app=None, *, non_interactive=None, keep_open=True, force_updat
 
             if not success or not json_path:
                 logger.error("No se pudo obtener datos frescos")
+                fallback = prev_file or get_latest_json_file()
+                if fallback and os.path.exists(fallback):
+                    store_prices_in_db(fallback, app=app)
+                    return fallback
                 return None
 
             new_hash, new_ts = get_json_hash_and_timestamp(json_path)
