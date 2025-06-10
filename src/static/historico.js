@@ -17,11 +17,13 @@ function loadHistory() {
             $('#historyTable').DataTable({
                 data: data,
                 columns: [
+                    { data: 'file' },
                     { data: 'timestamp' },
                     { data: 'total' },
                     { data: 'changes' },
                     { data: 'new' },
                     { data: 'removed' },
+                    { data: 'error_count' },
                     { data: 'status' }
                 ],
                 order: [[0, 'desc']],
@@ -46,7 +48,8 @@ function renderComparison(data) {
             new_price: c.new.price,
             variation: c.new.variation,
             type: 'cambio',
-            delta: c.new.price - c.old.price
+            delta: c.abs_diff,
+            pct: c.pct_diff
         });
     });
     (data.new || []).forEach(n => {
@@ -108,6 +111,8 @@ function renderComparison(data) {
             { data: 'old_price' },
             { data: 'new_price' },
             { data: 'variation' },
+            { data: 'delta' },
+            { data: 'pct' },
             { data: 'type' }
         ],
         dom: 'Bfrtip',

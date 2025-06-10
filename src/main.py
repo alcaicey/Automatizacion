@@ -55,6 +55,8 @@ def _signal_handler(signum, frame):
     _cleanup_resources()
     try:
         socketio.stop()
+    except BrokenPipeError:
+        pass
     except Exception as exc:
         print(f"Error al detener SocketIO: {exc}")
     finally:
@@ -125,6 +127,12 @@ if __name__ == "__main__":
         db.create_all()
         load_saved_credentials()
     try:
-        socketio.run(app, host="0.0.0.0", port=5000, debug=True)
+        socketio.run(
+            app,
+            host="0.0.0.0",
+            port=5000,
+            debug=False,
+            use_reloader=False,
+        )
     except KeyboardInterrupt:
         _signal_handler(signal.SIGINT, None)

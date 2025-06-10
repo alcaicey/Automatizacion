@@ -640,7 +640,7 @@ def compare_last_two_db_entries():
             else:
                 unchanged.append(curr.to_dict())
 
-        return {
+        result = {
             "current_timestamp": ts_curr.strftime("%d/%m/%Y %H:%M:%S"),
             "previous_timestamp": ts_prev.strftime("%d/%m/%Y %H:%M:%S"),
             "current_file": ts_curr.isoformat(),
@@ -653,6 +653,20 @@ def compare_last_two_db_entries():
             "total_compared": len(curr_map.keys() | prev_map.keys()),
             "change_count": len(changes),
         }
+
+        if changes:
+            diff_file = os.path.join(
+                LOGS_DIR,
+                f"diff_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+            )
+            try:
+                with open(diff_file, "w", encoding="utf-8") as f:
+                    json.dump(changes, f, indent=2, ensure_ascii=False)
+                result["diff_file"] = diff_file
+            except Exception as write_exc:
+                logger.warning(f"No se pudo escribir diff_file: {write_exc}")
+
+        return result
     except Exception as exc:
         logger.exception(f"Error al comparar registros históricos: {exc}")
         return {}

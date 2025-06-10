@@ -130,14 +130,18 @@ def get_active_page():
 
 
 def refresh_active_page(logger_param):
-    """Refresca la página abierta enviando ``Enter`` y captura el JSON."""
+    global _context, _page, _browser
+    """Refresca la página abierta simulando ``Enter`` y genera un nuevo HAR."""
     page = get_active_page()
-    if not page:
+    browser = _browser
+    if not page or not browser:
         logger_param.warning("No existe una página activa para refrescar")
         return False, None
 
     ensure_timestamp_current(logger_param)
     output_path = OUTPUT_ACCIONES_DATA_FILENAME
+    har_path = HAR_FILENAME
+    summary_path = ANALYZED_SUMMARY_FILENAME
     patterns = [
         "api/Cuenta_Premium/getPremiumAccionesPrecios",
         "api/RV_ResumenMercado/getAccionesPrecios",
@@ -162,31 +166,66 @@ def refresh_active_page(logger_param):
                 logger_param.warning(f"Error al procesar respuesta JSON: {e}")
 
     try:
-        page.on("response", handle_response)
-        page.keyboard.press("Control+L")
-        page.keyboard.press("Enter")
-        page.wait_for_load_state("networkidle", timeout=60000)
+        # Cerrar contexto previo y abrir uno nuevo para grabar el HAR
+        try:
+            if _context:
+                _context.close()
+        except Exception:
+            pass
+
+        new_context = browser.new_context(
+            user_agent=DEFAULT_USER_AGENT,
+            no_viewport=True,
+            record_har_path=har_path,
+            record_har_mode="full",
+            storage_state=STORAGE_STATE_PATH if os.path.exists(STORAGE_STATE_PATH) else {},
+        )
+        new_page = new_context.new_page()
+        new_page.on("console", lambda msg: handle_console_message(msg, logger_param))
+        new_page.on("response", handle_response)
+        new_page.goto(page.url or TARGET_DATA_PAGE_URL, timeout=60000)
+
+        new_page.keyboard.press("Control+L")
+        new_page.keyboard.press("Enter")
+        new_page.wait_for_load_state("networkidle", timeout=60000)
 
         deadline = time.time() + 20
         while time.time() < deadline:
             if captured.get("ok"):
                 break
             time.sleep(0.5)
-        page.off("response", handle_response)
+        new_page.off("response", handle_response)
+
+        new_context.storage_state(path=STORAGE_STATE_PATH)
+        new_context.close()
+
+        if os.path.exists(har_path):
+            analyze_har_and_extract_data(
+                har_path,
+                API_PRIMARY_DATA_PATTERNS,
+                URLS_TO_INSPECT_IN_HAR_FOR_CONTEXT,
+                output_path,
+                summary_path,
+                logger_param,
+            )
+
+        # Abrir un nuevo contexto para mantener el navegador listo
+        keep_context = browser.new_context(
+            user_agent=DEFAULT_USER_AGENT,
+            no_viewport=True,
+            storage_state=STORAGE_STATE_PATH if os.path.exists(STORAGE_STATE_PATH) else {},
+        )
+        keep_page = keep_context.new_page()
+        keep_page.goto(TARGET_DATA_PAGE_URL, timeout=60000)
+        _context = keep_context
+        _page = keep_page
 
         if captured.get("ok"):
             return True, output_path
 
         logger_param.warning("No se capturó JSON de precios tras refrescar con Enter")
 
-        # Intento de respaldo usando solicitud directa
-        captured_ok, _, _ = fetch_premium_data(
-            page.context,
-            logger_param,
-            output_path,
-            cache_bust=random.randint(0, 1000000),
-        )
-        return (captured_ok, output_path if captured_ok else None)
+        return False, None
     except Exception as exc:
         logger_param.exception(f"Error al refrescar la página existente: {exc}")
         return False, None
