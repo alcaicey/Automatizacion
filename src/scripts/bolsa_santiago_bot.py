@@ -420,177 +420,197 @@ def run_automation(
         page.goto(INITIAL_PAGE_URL, timeout=60000)
         logger_param.info(f"Paso 1: URL actual después de goto inicial: {page.url}")
 
-        logger_param.info(
-            "Paso 2: Esperando por la página de login de SSO (si fuimos redirigidos)..."
-        )
-        if "sso.bolsadesantiago.com" not in page.url:
-            page.wait_for_url(
-                lambda url: "sso.bolsadesantiago.com" in url, timeout=30000
-            )
-            logger_param.info(f"Paso 2: Redirigido a SSO. URL actual: {page.url}")
-        page.wait_for_selector(USERNAME_SELECTOR, state="visible", timeout=45000)
-        logger_param.info("Paso 2: Página de login de SSO cargada.")
-
-        logger_param.info(f"Paso 3: Ingresando usuario: {USERNAME}")
-        page.fill(USERNAME_SELECTOR, USERNAME)
-        logger_param.info("Paso 3: Ingresando contraseña...")
-        page.fill(PASSWORD_SELECTOR, PASSWORD)
-        logger_param.info("Paso 3: Credenciales ingresadas.")
-
-        logger_param.info("Paso 4: Haciendo clic en el botón de Iniciar Sesión...")
-        page.click(LOGIN_BUTTON_SELECTOR)
-
-        logger_param.info("Paso 4b: Comprobando indicios de CAPTCHA tras el login...")
-        page_content = ""
-        try:
-            page_content = page.content()
-        except PlaywrightError as err:
-            logger_param.debug(f"No se pudo obtener el contenido de la página: {err}")
-        indicators = ["radware", "captcha"]
-        captcha_detected = any(ind in page.url.lower() for ind in indicators)
-        if not captcha_detected and page_content:
-            lower_content = page_content.lower()
-            captcha_detected = any(ind in lower_content for ind in indicators)
-
-        if captcha_detected:
-            logger_param.warning(
-                "Posible CAPTCHA detectado. Esperando 10 segundos para que el usuario realice la acción..."
-            )
-            time.sleep(10)
-            logger_param.info("Continuando después de la espera por CAPTCHA")
-
-        logger_param.info(
-            "Paso 5: Esperando redirección post-login a www.bolsadesantiago.com..."
-        )
-        try:
-            page.wait_for_url(
-                lambda url: "www.bolsadesantiago.com" in url
-                and "sso.bolsadesantiago.com" not in url,
-                timeout=60000,
-            )
+        logged_in_via_cookies = "sso.bolsadesantiago.com" not in page.url
+        if logged_in_via_cookies:
             logger_param.info(
-                f"Paso 5: Redirección a www.bolsadesantiago.com exitosa. URL actual: {page.url}"
+                "Sesión detectada mediante cookies. Omitiendo login SSO."
             )
-        except PlaywrightTimeoutError:
-            logger_param.error(
-                f"Paso 5: Timeout esperando redirección. URL actual: {page.url if page else 'N/A'}"
-            )
-            if page and not page.is_closed():
-                page.screenshot(
-                    path=os.path.join(
-                        LOGS_DIR, f"timeout_post_login_redirect_{TIMESTAMP_NOW}.png"
-                    )
+            try:
+                page.wait_for_event("websocket", timeout=10000)
+            except PlaywrightTimeoutError:
+                logger_param.warning("El WebSocket no apareció en el tiempo esperado")
+            try:
+                page.wait_for_response(
+                    lambda resp: "getPremiumAccionesPrecios" in resp.url
+                    and resp.status == 200,
+                    timeout=30000,
                 )
-            raise
-
-        time.sleep(3)
-        logger_param.info(
-            "Paso 7: Verificando si estamos en la página 'MIS CONEXIONES'..."
-        )
-        try:
-            if page.locator(MIS_CONEXIONES_TITLE_SELECTOR).is_visible(timeout=7000):
-                is_mis_conexiones_page = True
+            except PlaywrightTimeoutError:
                 logger_param.warning(
-                    "Paso 7: Detectada página 'MIS CONEXIONES'. Límite de sesiones alcanzado."
+                    "No se recibió respuesta de la API de precios en el tiempo esperado"
                 )
-                cerrar_todas_button = page.locator(CERRAR_TODAS_SESIONES_SELECTOR)
-                if cerrar_todas_button.is_visible(timeout=5000):
-                    logger_param.info(
-                        "Paso 7: Intentando hacer clic en 'Cerrar sesión en todos los dispositivos'..."
-                    )
-                    cerrar_todas_button.click()
-                    logger_param.info(
-                        "Paso 7: Clic en 'Cerrar todas las sesiones' realizado. Esperando..."
-                    )
-                    page.wait_for_load_state("networkidle", timeout=20000)
-                    time.sleep(5)
-                    logger_param.info(
-                        f"Paso 7: Página actualizada después de cerrar sesiones. URL actual: {page.url}"
-                    )
-                    logger_param.info(
-                        "Paso 7: Sesiones cerradas. Reiniciando el proceso de automatización..."
-                    )
-                    logger_param.info(
-                        "El navegador permanecerá abierto; cierre manualmente si es necesario."
-                    )
-                    time.sleep(random.uniform(3, 7))
-                    configure_run_specific_logging(logger_param)
-                    return run_automation(logger_param, attempt + 1, max_attempts)
-                else:
-                    logger_param.error(
-                        "Paso 7: Botón 'Cerrar sesión en todos los dispositivos' no encontrado."
-                    )
-            else:
+        else:
+            logger_param.info(
+                "Paso 2: Esperando por la página de login de SSO (si fuimos redirigidos)..."
+            )
+            if "sso.bolsadesantiago.com" not in page.url:
+                page.wait_for_url(
+                    lambda url: "sso.bolsadesantiago.com" in url, timeout=30000
+                )
+                logger_param.info(f"Paso 2: Redirigido a SSO. URL actual: {page.url}")
+            page.wait_for_selector(USERNAME_SELECTOR, state="visible", timeout=45000)
+            logger_param.info("Paso 2: Página de login de SSO cargada.")
+
+            logger_param.info(f"Paso 3: Ingresando usuario: {USERNAME}")
+            page.fill(USERNAME_SELECTOR, USERNAME)
+            logger_param.info("Paso 3: Ingresando contraseña...")
+            page.fill(PASSWORD_SELECTOR, PASSWORD)
+            logger_param.info("Paso 3: Credenciales ingresadas.")
+
+            logger_param.info("Paso 4: Haciendo clic en el botón de Iniciar Sesión...")
+            page.click(LOGIN_BUTTON_SELECTOR)
+
+            logger_param.info("Paso 4b: Comprobando indicios de CAPTCHA tras el login...")
+            page_content = ""
+            try:
+                page_content = page.content()
+            except PlaywrightError as err:
+                logger_param.debug(f"No se pudo obtener el contenido de la página: {err}")
+            indicators = ["radware", "captcha"]
+            captcha_detected = any(ind in page.url.lower() for ind in indicators)
+            if not captcha_detected and page_content:
+                lower_content = page_content.lower()
+                captcha_detected = any(ind in lower_content for ind in indicators)
+
+            if captcha_detected:
+                logger_param.warning(
+                    "Posible CAPTCHA detectado. Esperando 10 segundos para que el usuario realice la acción..."
+                )
+                time.sleep(10)
+                logger_param.info("Continuando después de la espera por CAPTCHA")
+
+            logger_param.info(
+                "Paso 5: Esperando redirección post-login a www.bolsadesantiago.com..."
+            )
+            try:
+                page.wait_for_url(
+                    lambda url: "www.bolsadesantiago.com" in url
+                    and "sso.bolsadesantiago.com" not in url,
+                    timeout=60000,
+                )
                 logger_param.info(
-                    "Paso 7: No se detectó la página 'MIS CONEXIONES' (título no visible), continuando..."
+                    f"Paso 5: Redirección a www.bolsadesantiago.com exitosa. URL actual: {page.url}"
                 )
-        except PlaywrightTimeoutError:
-            logger_param.info(
-                "Paso 7: Página 'MIS CONEXIONES' no apareció en el tiempo esperado, continuando..."
-            )
-        except Exception as pe_err:
-            logger_param.warning(
-                f"Paso 7: Error al verificar página 'MIS CONEXIONES': {pe_err}. Asumiendo que no es la página de error."
-            )
-
-        if not is_mis_conexiones_page:
-            logger_param.info(
-                f"Paso 8: Navegando a la página de destino para datos: {TARGET_DATA_PAGE_URL}"
-            )
-            if TARGET_DATA_PAGE_URL not in page.url:
-                page.goto(
-                    TARGET_DATA_PAGE_URL, timeout=60000, wait_until="domcontentloaded"
-                )
-            else:
-                page.wait_for_load_state("domcontentloaded", timeout=45000)
-            logger_param.info(
-                f"Paso 8: Navegación inicial a {page.url} (DOM cargado) completada."
-            )
-
-            logger_param.info(
-                f"Paso 9: Forzando recarga de la página actual ({page.url}) para asegurar carga de datos premium..."
-            )
-            page.reload(wait_until="networkidle", timeout=60000)
-            logger_param.info(f"Paso 9: Página recargada ({page.url}) y red en reposo.")
-
-            if TARGET_DATA_PAGE_URL not in page.url:  # Doble check
+            except PlaywrightTimeoutError:
                 logger_param.error(
-                    f"Paso 9: Después de recargar, la URL es {page.url}, NO la esperada {TARGET_DATA_PAGE_URL}."
+                    f"Paso 5: Timeout esperando redirección. URL actual: {page.url if page else 'N/A'}"
+                )
+                if page and not page.is_closed():
+                    page.screenshot(
+                        path=os.path.join(
+                            LOGS_DIR, f"timeout_post_login_redirect_{TIMESTAMP_NOW}.png"
+                        )
+                    )
+                raise
+
+            time.sleep(3)
+            logger_param.info(
+                "Paso 7: Verificando si estamos en la página 'MIS CONEXIONES'..."
+            )
+            try:
+                if page.locator(MIS_CONEXIONES_TITLE_SELECTOR).is_visible(timeout=7000):
+                    is_mis_conexiones_page = True
+                    logger_param.warning(
+                        "Paso 7: Detectada página 'MIS CONEXIONES'. Límite de sesiones alcanzado."
+                    )
+                    cerrar_todas_button = page.locator(CERRAR_TODAS_SESIONES_SELECTOR)
+                    if cerrar_todas_button.is_visible(timeout=5000):
+                        logger_param.info(
+                            "Paso 7: Intentando hacer clic en 'Cerrar sesión en todos los dispositivos'..."
+                        )
+                        cerrar_todas_button.click()
+                        logger_param.info(
+                            "Paso 7: Clic en 'Cerrar todas las sesiones' realizado. Esperando..."
+                        )
+                        page.wait_for_load_state("networkidle", timeout=20000)
+                        time.sleep(5)
+                        logger_param.info(
+                            f"Paso 7: Página actualizada después de cerrar sesiones. URL actual: {page.url}"
+                        )
+                        logger_param.info(
+                            "Paso 7: Sesiones cerradas. Reiniciando el proceso de automatización..."
+                        )
+                        logger_param.info(
+                            "El navegador permanecerá abierto; cierre manualmente si es necesario."
+                        )
+                        time.sleep(random.uniform(3, 7))
+                        configure_run_specific_logging(logger_param)
+                        return run_automation(logger_param, attempt + 1, max_attempts)
+                    else:
+                        logger_param.error(
+                            "Paso 7: Botón 'Cerrar sesión en todos los dispositivos' no encontrado."
+                        )
+                else:
+                    logger_param.info(
+                        "Paso 7: No se detectó la página 'MIS CONEXIONES' (título no visible), continuando..."
+                    )
+            except PlaywrightTimeoutError:
+                logger_param.info(
+                    "Paso 7: Página 'MIS CONEXIONES' no apareció en el tiempo esperado, continuando..."
+                )
+            except Exception as pe_err:
+                logger_param.warning(
+                    f"Paso 7: Error al verificar página 'MIS CONEXIONES': {pe_err}. Asumiendo que no es la página de error."
                 )
 
-            logger_param.info(
-                "Paso 9b: Esperando 10 segundos adicionales para asegurar que todos los datos se carguen por XHR/WebSocket..."
-            )
-            time.sleep(10)
-
-            logger_param.info(
-                "Paso 9c: Capturando respuesta de la API de precios mediante wait_for_response..."
-            )
-            captured_json = None
-            captured_ts = None
-            captured, captured_json, captured_ts = capture_premium_data_via_network(
-                page, logger_param, current_output_acciones_data_filename
-            )
-
-            logger_param.info(
-                "Paso 10: El script ha completado la navegación y espera. Los datos de la API deberían estar en el HAR."
-            )
-
-            logger_param.info(
-                "Paso 10b: Intentando obtener datos premium directamente desde la API..."
-            )
-            if not captured:
-                captured, captured_json, captured_ts = fetch_premium_data(
-                    context,
-                    logger_param,
-                    current_output_acciones_data_filename,
-                    cache_bust=random.randint(0, 1000000),
+            if not is_mis_conexiones_page:
+                logger_param.info(
+                    f"Paso 8: Navegando a la página de destino para datos: {TARGET_DATA_PAGE_URL}"
+                )
+                if TARGET_DATA_PAGE_URL not in page.url:
+                    page.goto(
+                        TARGET_DATA_PAGE_URL, timeout=60000, wait_until="domcontentloaded"
+                    )
+                else:
+                    page.wait_for_load_state("domcontentloaded", timeout=45000)
+                logger_param.info(
+                    f"Paso 8: Navegación inicial a {page.url} (DOM cargado) completada."
                 )
 
-        if is_mis_conexiones_page:
-            logger_param.info(
-                "Flujo principal detenido debido a la página 'MIS CONEXIONES'."
-            )
+                logger_param.info(
+                    f"Paso 9: Forzando recarga de la página actual ({page.url}) para asegurar carga de datos premium..."
+                )
+                page.reload(wait_until="networkidle", timeout=60000)
+                logger_param.info(f"Paso 9: Página recargada ({page.url}) y red en reposo.")
+
+                if TARGET_DATA_PAGE_URL not in page.url:  # Doble check
+                    logger_param.error(
+                        f"Paso 9: Después de recargar, la URL es {page.url}, NO la esperada {TARGET_DATA_PAGE_URL}."
+                    )
+
+                logger_param.info(
+                    "Paso 9b: Esperando 10 segundos adicionales para asegurar que todos los datos se carguen por XHR/WebSocket..."
+                )
+                time.sleep(10)
+
+                logger_param.info(
+                    "Paso 9c: Capturando respuesta de la API de precios mediante wait_for_response..."
+                )
+                captured_json = None
+                captured_ts = None
+                captured, captured_json, captured_ts = capture_premium_data_via_network(
+                    page, logger_param, current_output_acciones_data_filename
+                )
+
+                logger_param.info(
+                    "Paso 10: El script ha completado la navegación y espera. Los datos de la API deberían estar en el HAR."
+                )
+
+                logger_param.info(
+                    "Paso 10b: Intentando obtener datos premium directamente desde la API..."
+                )
+                if not captured:
+                    captured, captured_json, captured_ts = fetch_premium_data(
+                        context,
+                        logger_param,
+                        current_output_acciones_data_filename,
+                        cache_bust=random.randint(0, 1000000),
+                    )
+
+            if is_mis_conexiones_page:
+                logger_param.info(
+                    "Flujo principal detenido debido a la página 'MIS CONEXIONES'."
+                )
 
     except PlaywrightTimeoutError as pte:
         logger_param.error(f"ERROR DE TIMEOUT: {pte}")
