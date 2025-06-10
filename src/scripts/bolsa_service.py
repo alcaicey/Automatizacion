@@ -11,6 +11,7 @@ import random  # Asegurarse de que random esté importado
 import sys
 import hashlib
 from contextlib import nullcontext
+from typing import Any, Dict, List
 from flask import current_app
 
 from src.extensions import socketio
@@ -235,6 +236,42 @@ def get_json_hash_and_timestamp(path):
         return None, None
 
 
+def _build_price_summary(rows: List[Dict[str, Any]], ts: datetime) -> str:
+    """Return a human friendly log line summarising captured prices."""
+    if not rows:
+        return "0 acciones capturadas"
+
+    parsed: List[tuple[str, float]] = []
+    top_symbol = ""
+    top_var = 0.0
+    for item in rows:
+        if not isinstance(item, dict):
+            continue
+        symbol = item.get("NEMO") or item.get("symbol") or ""
+        if not symbol:
+            for k, v in item.items():
+                if isinstance(k, str) and re.search(r"(nemo|symbol)", k, re.IGNORECASE):
+                    if isinstance(v, str):
+                        symbol = v.strip()
+                        break
+        try:
+            variation = float(item.get("VARIACION") or item.get("variation") or 0)
+        except (TypeError, ValueError):
+            variation = 0.0
+        parsed.append((symbol, variation))
+        if not top_symbol or abs(variation) > abs(top_var):
+            top_symbol = symbol
+            top_var = variation
+
+    sample = ", ".join(f"{s} {v:+.1f}%" for s, v in parsed[:2])
+    summary = (
+        f"{len(parsed)} acciones capturadas. {sample}. "
+        f"TOP mover: {top_symbol} {top_var:+.1f}%"
+    )
+    ts_str = ts.strftime("%Y-%m-%d %H:%M")
+    return f"{ts_str} - {summary}"
+
+
 def store_prices_in_db(json_path, app=None):
     """Guarda los precios de acciones en la base de datos y emite notificación."""
     ctx = app.app_context() if app else nullcontext()
@@ -318,6 +355,7 @@ def store_prices_in_db(json_path, app=None):
 
                 db.session.commit()
                 socketio.emit("new_data")
+                logger.info(_build_price_summary(rows, ts))
         except Exception as e:
             logger.exception(f"Error al guardar datos en DB: {e}")
 
@@ -390,6 +428,10 @@ def run_bolsa_bot(
         )
         logger.info(f"Hash previo: {prev_hash}, timestamp previo: {prev_ts}")
         try:
+            start_ts = datetime.now()
+            logger.info(
+                f"Iniciando scraping a las {start_ts.strftime('%Y-%m-%d %H:%M')}"
+            )
             logger.info("=== INICIO DE CICLO COMPLETO DE SCRAPING ===")
             from src.scripts import bolsa_santiago_bot as bot
 
