@@ -10,7 +10,10 @@ from datetime import datetime
 import os
 import random
 import argparse
-import pygetwindow as gw
+try:
+    import pygetwindow as gw
+except Exception:  # pragma: no cover - optional dependency may fail on some OS
+    gw = None
 
 from src.config import (
     LOGS_DIR,
@@ -63,6 +66,8 @@ _page = None
 
 def is_santiagox_window_open():
     """Check if a window titled 'SANTIAGOX' is already open."""
+    if gw is None:
+        return False
     try:
         return any("SANTIAGOX" in w.title.upper() for w in gw.getWindowsWithTitle(""))
     except Exception:
@@ -271,7 +276,7 @@ def extract_json_timestamp(data_obj):
 
 
 def validate_premium_data(data_obj, logger_param, min_entries=MIN_EXPECTED_RESULTS):
-    """Valida que el JSON de precios contenga al menos ``min_entries`` filas."""
+    """Valida la estructura del JSON de precios antes de procesarlo."""
     if not data_obj:
         logger_param.warning("JSON recibido vacío o None")
         return False
@@ -283,6 +288,19 @@ def validate_premium_data(data_obj, logger_param, min_entries=MIN_EXPECTED_RESUL
             f"Datos premium sospechosos: {row_count} elementos, mínimo esperado {min_entries}"
         )
         return False
+
+    for idx, row in enumerate(rows):
+        if not isinstance(row, dict):
+            logger_param.warning(f"Fila {idx} no es un objeto válido: {row}")
+            return False
+        has_symbol = any(k in row for k in ("symbol", "NEMO"))
+        has_price = any(k in row for k in ("price", "PRECIO_CIERRE"))
+        if not (has_symbol and has_price):
+            logger_param.warning(
+                f"Fila {idx} incompleta. Se requieren campos de símbolo y precio"
+            )
+            return False
+
     return True
 
 
@@ -349,7 +367,7 @@ def fetch_premium_data(context, logger_param, output_path, *, cache_bust=None):
     return False, None, None
 
 
-def capture_premium_data_via_network(page, logger_param, output_path):
+def capture_premium_data_via_network(page, logger_param, output_path, *, max_attempts=3):
     """Capture the premium stock JSON by waiting for the XHR response.
 
     Returns
@@ -361,48 +379,55 @@ def capture_premium_data_via_network(page, logger_param, output_path):
         "api/Cuenta_Premium/getPremiumAccionesPrecios",
         "api/RV_ResumenMercado/getAccionesPrecios",
     ]
-    try:
-        if hasattr(page, "wait_for_response"):
-            response = page.wait_for_response(
-                lambda resp: any(p in resp.url for p in patterns) and resp.status == 200,
-                timeout=20000,
+    for attempt in range(1, max_attempts + 1):
+        try:
+            if hasattr(page, "wait_for_response"):
+                response = page.wait_for_response(
+                    lambda resp: any(p in resp.url for p in patterns) and resp.status == 200,
+                    timeout=20000,
+                )
+                data_json = response.json()
+            else:
+                captured = {}
+
+                def handle(resp):
+                    if any(p in resp.url for p in patterns) and resp.status == 200 and not captured:
+                        try:
+                            data = resp.json()
+                            if len(data.get("data", data.get("listaResult", []))) >= MIN_EXPECTED_RESULTS:
+                                captured["data"] = data
+                        except Exception as e:
+                            logger_param.warning(f"Error al procesar respuesta JSON: {e}")
+
+                page.on("response", handle)
+                deadline = time.time() + 20
+                while time.time() < deadline and "data" not in captured:
+                    time.sleep(0.5)
+                data_json = captured.get("data")
+                if not data_json:
+                    raise PlaywrightTimeoutError("Timeout waiting for premium response")
+
+            ts = extract_json_timestamp(data_json)
+            if ts:
+                logger_param.info(f"Timestamp del JSON recibido: {ts}")
+            with open(output_path, "w", encoding="utf-8") as f_out:
+                json.dump(data_json, f_out, indent=2, ensure_ascii=False)
+            logger_param.info(
+                f"Datos premium capturados desde XHR en: {output_path}"
             )
-            data_json = response.json()
-        else:
-            captured = {}
-
-            def handle(resp):
-                if any(p in resp.url for p in patterns) and resp.status == 200 and not captured:
-                    try:
-                        data = resp.json()
-                        if len(data.get("data", data.get("listaResult", []))) >= MIN_EXPECTED_RESULTS:
-                            captured["data"] = data
-                    except Exception as e:
-                        logger_param.warning(f"Error al procesar respuesta JSON: {e}")
-
-            page.on("response", handle)
-            deadline = time.time() + 20
-            while time.time() < deadline and "data" not in captured:
-                time.sleep(0.5)
-            data_json = captured.get("data")
-            if not data_json:
-                raise PlaywrightTimeoutError("Timeout waiting for premium response")
-
-        ts = extract_json_timestamp(data_json)
-        if ts:
-            logger_param.info(f"Timestamp del JSON recibido: {ts}")
-        with open(output_path, "w", encoding="utf-8") as f_out:
-            json.dump(data_json, f_out, indent=2, ensure_ascii=False)
-        logger_param.info(
-            f"Datos premium capturados desde XHR en: {output_path}"
-        )
-        return True, data_json, ts
-    except PlaywrightTimeoutError:
-        logger_param.warning(
-            "No se capturó respuesta de la API de precios en el tiempo esperado"
-        )
-    except Exception as err:
-        logger_param.warning(f"Error al capturar datos premium por XHR: {err}")
+            return True, data_json, ts
+        except PlaywrightTimeoutError:
+            logger_param.warning(
+                f"No se capturó respuesta de la API de precios en el intento {attempt}/{max_attempts}"
+            )
+            if attempt == max_attempts:
+                break
+        except Exception as err:
+            logger_param.warning(
+                f"Error al capturar datos premium por XHR en intento {attempt}: {err}"
+            )
+            if attempt == max_attempts:
+                break
     return False, None, None
 
 
@@ -484,22 +509,12 @@ def run_automation(
                     page.wait_for_event("websocket", timeout=10000)
             except PlaywrightTimeoutError:
                 logger_param.warning("El WebSocket no apareció en el tiempo esperado")
-            try:
-                if hasattr(page, "wait_for_response"):
-                    page.wait_for_response(
-                        lambda resp: "getPremiumAccionesPrecios" in resp.url and resp.status == 200,
-                        timeout=30000,
-                    )
-                else:
-                    capture_premium_data_via_network(
-                        page,
-                        logger_param,
-                        current_output_acciones_data_filename,
-                    )
-            except PlaywrightTimeoutError:
-                logger_param.warning(
-                    "No se recibió respuesta de la API de precios en el tiempo esperado"
-                )
+            capture_premium_data_via_network(
+                page,
+                logger_param,
+                current_output_acciones_data_filename,
+                max_attempts=max_attempts,
+            )
         else:
             logger_param.info(
                 "Paso 2: Esperando por la página de login de SSO (si fuimos redirigidos)..."
@@ -539,6 +554,7 @@ def run_automation(
                 )
                 time.sleep(10)
                 logger_param.info("Continuando después de la espera por CAPTCHA")
+                force_reauth = True
 
             logger_param.info(
                 "Paso 5: Esperando redirección post-login a www.bolsadesantiago.com..."
@@ -562,6 +578,7 @@ def run_automation(
                             LOGS_DIR, f"timeout_post_login_redirect_{TIMESTAMP_NOW}.png"
                         )
                     )
+                force_reauth = True
                 raise
 
             time.sleep(3)
@@ -650,7 +667,10 @@ def run_automation(
                 captured_json = None
                 captured_ts = None
                 captured, captured_json, captured_ts = capture_premium_data_via_network(
-                    page, logger_param, current_output_acciones_data_filename
+                    page,
+                    logger_param,
+                    current_output_acciones_data_filename,
+                    max_attempts=max_attempts,
                 )
                 valid_data = False
                 if captured:
@@ -684,6 +704,7 @@ def run_automation(
     except PlaywrightTimeoutError as pte:
         logger_param.error(f"ERROR DE TIMEOUT: {pte}")
         mantener_navegador_abierto = False
+        force_reauth = True
         if page and not page.is_closed():
             page.screenshot(
                 path=os.path.join(LOGS_DIR, f"timeout_error_{TIMESTAMP_NOW}.png")
@@ -691,6 +712,7 @@ def run_automation(
     except Exception as e:
         logger_param.exception("ERROR GENERAL:")
         mantener_navegador_abierto = False
+        force_reauth = True
         if page and not page.is_closed():
             page.screenshot(
                 path=os.path.join(LOGS_DIR, f"general_error_{TIMESTAMP_NOW}.png")
