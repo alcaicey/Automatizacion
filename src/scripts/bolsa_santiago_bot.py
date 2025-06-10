@@ -57,12 +57,24 @@ _browser = None
 _context = None
 _page = None
 
+
+def update_credentials_from_env():
+    """Actualizar las credenciales globales a partir de las variables de entorno."""
+    global USERNAME, PASSWORD
+    env_user = os.environ.get("BOLSA_USERNAME")
+    env_pass = os.environ.get("BOLSA_PASSWORD")
+    if env_user:
+        USERNAME = env_user
+    if env_pass:
+        PASSWORD = env_pass
+
 # --- CONFIGURACIÓN ---
 # La mayoría de parámetros estáticos se obtienen desde src.config
 
 
 def validate_credentials():
     """Comprueba que las credenciales estén definidas en el entorno."""
+    update_credentials_from_env()
     if not USERNAME or not PASSWORD:
         raise ValueError("Missing credentials: set BOLSA_USERNAME and BOLSA_PASSWORD")
 
@@ -124,9 +136,15 @@ def ensure_timestamp_current(logger_to_configure):
 def get_active_page():
     """Devuelve la página activa de Playwright si existe y no está cerrada."""
     global _page
-    if _page and not _page.is_closed():
-        return _page
-    return None
+    if not _page:
+        return None
+    try:
+        if _page.is_closed():
+            return None
+        _ = _page.url  # puede lanzar si la referencia está rota
+    except Exception:
+        return None
+    return _page
 
 
 def refresh_active_page(logger_param):
@@ -347,6 +365,8 @@ def run_automation(
 ):
     if non_interactive is None:
         non_interactive = NON_INTERACTIVE or os.getenv("BOLSA_NON_INTERACTIVE") == "1"
+
+    update_credentials_from_env()
 
     ensure_timestamp_current(logger_param)
 
@@ -614,6 +634,11 @@ def run_automation(
         else:
             logger_param.error(
                 f"El archivo HAR {effective_har_filename} no fue creado o no se encontró, no se puede analizar."
+            )
+
+        if not os.path.exists(effective_output_acciones_data_filename):
+            logger_param.warning(
+                "Interseccion completada sin archivo de salida. Revisar posibles errores de red o bloqueo"
             )
 
         logger_param.info("Proceso del script realmente finalizado.")

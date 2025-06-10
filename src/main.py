@@ -50,7 +50,7 @@ def _cleanup_resources():
         print(f"Error al cerrar Playwright: {exc}")
 
 
-def _signal_handler(signum, frame):
+def graceful_shutdown(signum, frame):
     print(f"Señal {signum} recibida. Cerrando aplicación de forma limpia...")
     _cleanup_resources()
     try:
@@ -59,13 +59,12 @@ def _signal_handler(signum, frame):
         pass
     except Exception as exc:
         print(f"Error al detener SocketIO: {exc}")
-    finally:
-        os._exit(0)
+    sys.exit(0)
 
 
 atexit.register(_cleanup_resources)
 for sig in (signal.SIGINT, signal.SIGTERM):
-    signal.signal(sig, _signal_handler)
+    signal.signal(sig, graceful_shutdown)
 
 
 def load_saved_credentials():

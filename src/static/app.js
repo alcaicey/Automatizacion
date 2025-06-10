@@ -47,6 +47,7 @@ let loadingMessage;
 let nextUpdateInfo;
 let sessionCountdown;
 let allStocksCheck;
+let alertContainer;
 
 let sessionCountdownInterval = null;
 let visibleColumns = [];
@@ -98,6 +99,11 @@ function toggleLoading(show, message = '') {
 // Función para actualizar el mensaje de estado
 function updateStatus(message, isError = false) {
     statusMessage.innerHTML = `<i class="fas fa-${isError ? 'exclamation-circle text-danger' : 'info-circle'}"></i> <span>${message}</span>`;
+}
+
+function showAlert(message, type = 'danger') {
+    if (!alertContainer) return;
+    alertContainer.innerHTML = `<div class="alert alert-${type} alert-dismissible fade show" role="alert">${message}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>`;
 }
 
 // Función para actualizar la información de última actualización
@@ -274,7 +280,8 @@ function updateStocksTable(data) {
                     const isNeg = val < 0;
                     const cls = isPos ? 'variation-positive' : (isNeg ? 'variation-negative' : '');
                     const icon = isPos ? 'fa-arrow-up arrow-up' : (isNeg ? 'fa-arrow-down arrow-down' : '');
-                    html = `<span class="${cls}">${icon ? `<i class="fas ${icon} me-1"></i>` : ''}${formatNumber(value || 0)} (${formatNumber(val,2)}%)</span>`;
+                    const sign = isPos ? '+' : '';
+                    html = `<span class="${cls}">${icon ? `<i class="fas ${icon} me-1"></i>` : ''}${sign}${formatNumber(val, 2)}%</span>`;
                 } else if (key === 'PRECIO_COMPRA') {
                     html = formatNumber(value || 0);
                 } else if (key === 'PRECIO_VENTA') {
@@ -320,12 +327,17 @@ async function updateStocksData() {
             method: 'POST'
         });
         const data = await response.json();
-        
+
         if (!data.success) {
             updateStatus(`Error al iniciar actualización: ${data.message}`, true);
+            showAlert(data.message || 'Error al actualizar');
             toggleLoading(false);
             isUpdating = false;
             return;
+        }
+
+        if (data.message && data.message.includes('Bot reiniciado')) {
+            showAlert('Bot reiniciado porque no se detectó navegador');
         }
         
         // Esperar un tiempo para que el script se ejecute (puede tardar hasta 20 segundos)
@@ -588,6 +600,7 @@ document.addEventListener('DOMContentLoaded', () => {
     nextUpdateInfo = document.getElementById('nextUpdateInfo');
     sessionCountdown = document.getElementById('sessionCountdown');
     allStocksCheck = document.getElementById('allStocksCheck');
+    alertContainer = document.getElementById('alertContainer');
     fetch('/api/credentials')
         .then(r => r.json())
         .then(data => {
