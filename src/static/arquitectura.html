@@ -91,19 +91,15 @@
                 <h2 class="h5">Flujo de Actualización Manual</h2>
                 <div id="flowDiagram" class="mermaid">
             %%{init: {'theme':'base','themeVariables':{'primaryColor':'#e2eafc','primaryBorderColor':'#a7bff6','lineColor':'#0d6efd','fontFamily':'Inter'}} }%%
-            flowchart TD
-                Btn["Clic en Actualizar"] --> Check{¿Navegador activo?}
-                Check -- Sí --> Reload[Recargar página]
-                Check -- No --> StartBot[Iniciar bot y login]
-                Reload --> Fetch[Obtener JSON]
-                StartBot --> Fetch
-                Fetch --> Diff{¿Cambios reales?}
-                Diff -- Sí --> Save[Guardar en DB]
-                Save --> Emit[Emitir <code>new_data</code>]
-                Emit --> Done(Fin)
-                Diff -- No --> Done
-                click StartBot noop "Se abre el navegador si estaba cerrado"
-                click Save noop "Actualiza tabla y timestamp"
+            graph TD
+                A[Inicio] --> B[Verifica credenciales]
+                B --> C{¿Red disponible?}
+                C -->|Sí| D[Ejecuta scraping]
+                C -->|No| E[Error de red]
+                D --> F[Guarda en caché]
+                F --> G[Publica en servidor]
+                E --> H[Reintento]
+                H --> C
                 </div>
                 <div class="text-end my-2">
                     <button class="btn btn-outline-secondary btn-sm" onclick="exportDiagram('flowDiagram')">Exportar imagen</button>
