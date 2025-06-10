@@ -26,6 +26,8 @@ from src.models.credentials import Credential
 from src.models.column_preference import ColumnPreference
 from src.models.stock_filter import StockFilter
 from src import history_view
+from src.scripts.compare_prices import compare_prices
+from src.scripts.bolsa_service import get_latest_json_file
 
 client_logger = logging.getLogger("client_errors")
 if not client_logger.handlers:
@@ -486,9 +488,12 @@ def history_list():
 @api_bp.route("/history/compare", methods=["GET"])
 def history_compare():
     """Return comparison between the last two data loads."""
-    from src.scripts.bolsa_service import compare_last_two_db_entries
+    try:
+        from src.scripts.bolsa_service import compare_last_two_db_entries
 
-    data = compare_last_two_db_entries()
-    if not data:
-        data = history_view.compare_latest()
-    return jsonify(data)
+        data = compare_last_two_db_entries()
+        if not data:
+            data = history_view.compare_latest()
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
