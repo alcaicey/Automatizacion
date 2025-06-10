@@ -29,25 +29,26 @@ from src import history_view
 from src.scripts.compare_prices import compare_prices
 from src.scripts.bolsa_service import get_latest_json_file
 
-client_logger = logging.getLogger('client_errors')
+client_logger = logging.getLogger("client_errors")
 if not client_logger.handlers:
-    log_file = os.path.join(LOGS_DIR, 'frontend.log')
-    handler = logging.FileHandler(log_file, encoding='utf-8')
-    handler.setFormatter(logging.Formatter('[%(levelname)s] %(asctime)s - %(message)s'))
+    log_file = os.path.join(LOGS_DIR, "frontend.log")
+    handler = logging.FileHandler(log_file, encoding="utf-8")
+    handler.setFormatter(logging.Formatter("[%(levelname)s] %(asctime)s - %(message)s"))
     client_logger.addHandler(handler)
     client_logger.setLevel(logging.INFO)
 
 # Crear el blueprint
-api_bp = Blueprint('api', __name__)
+api_bp = Blueprint("api", __name__)
+
 
 # Endpoint to receive log messages from the frontend
-@api_bp.route('/logs', methods=['POST'])
+@api_bp.route("/logs", methods=["POST"])
 def store_frontend_log():
     """Persist log messages sent by the client application."""
     data = request.get_json(silent=True) or {}
-    message = data.get('message', '')
-    stack = data.get('stack', '')
-    action = data.get('action', 'unknown')
+    message = data.get("message", "")
+    stack = data.get("stack", "")
+    action = data.get("action", "unknown")
 
     if not message:
         return jsonify({"error": "message required"}), 400
@@ -55,20 +56,19 @@ def store_frontend_log():
     log_parts = [f"[{action}] {message}"]
     if stack:
         log_parts.append(stack)
-    client_logger.info(' | '.join(log_parts))
+    client_logger.info(" | ".join(log_parts))
 
     return jsonify({"success": True}), 201
 
 
-
-@api_bp.route('/stocks', methods=['GET'])
+@api_bp.route("/stocks", methods=["GET"])
 def get_stocks():
     """
     Endpoint para obtener todas las acciones o filtrar por códigos
     """
     try:
         # Obtener códigos de acciones de los parámetros de consulta
-        stock_codes = request.args.getlist('code')
+        stock_codes = request.args.getlist("code")
 
         if stock_codes:
             # Filtrar acciones por códigos
@@ -80,12 +80,18 @@ def get_stocks():
         return jsonify(result)
 
     except Exception as e:
-        return jsonify({
-            "error": str(e),
-            "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-        }), 500
+        return (
+            jsonify(
+                {
+                    "error": str(e),
+                    "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+                }
+            ),
+            500,
+        )
 
-@api_bp.route('/stocks/update', methods=['POST'])
+
+@api_bp.route("/stocks/update", methods=["POST"])
 def update_stocks():
     """
     Endpoint para actualizar manualmente los datos de acciones
@@ -96,18 +102,23 @@ def update_stocks():
             non_interactive = data["non_interactive"]
         else:
             non_interactive = None
-        force_update = bool(data.get("force_update")) if isinstance(data, dict) else False
+        force_update = (
+            bool(data.get("force_update")) if isinstance(data, dict) else False
+        )
 
         if is_bot_running():
             logger.info("Bot en ejecución, enviando ENTER para refrescar datos")
             from src.scripts import bolsa_service
+
             success = bolsa_service.send_enter_key_to_browser()
             if success:
-                return jsonify({
-                    "success": True,
-                    "message": "Bot en ejecución, enviado ENTER para refrescar",
-                    "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-                })
+                return jsonify(
+                    {
+                        "success": True,
+                        "message": "Bot en ejecución, enviado ENTER para refrescar",
+                        "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+                    }
+                )
             else:
                 logger.warning(
                     "No se pudo enviar ENTER. Intentando relanzar la automatización."
@@ -115,6 +126,7 @@ def update_stocks():
                 with bolsa_service.bot_lock:
                     bolsa_service.bot_running = False
                 import threading
+
                 app = current_app._get_current_object()
                 thread_kwargs = {"app": app, "non_interactive": non_interactive}
                 if force_update:
@@ -125,14 +137,17 @@ def update_stocks():
                 )
                 update_thread.daemon = True
                 update_thread.start()
-                return jsonify({
-                    "success": True,
-                    "message": "Bot reiniciado porque no se detectó navegador",
-                    "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-                })
+                return jsonify(
+                    {
+                        "success": True,
+                        "message": "Bot reiniciado porque no se detectó navegador",
+                        "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+                    }
+                )
 
         # Iniciar la actualización en un hilo separado para no bloquear la respuesta
         import threading
+
         app = current_app._get_current_object()
         thread_kwargs = {"app": app, "non_interactive": non_interactive}
         if force_update:
@@ -144,19 +159,27 @@ def update_stocks():
         update_thread.daemon = True
         update_thread.start()
 
-        return jsonify({
-            "success": True,
-            "message": "Proceso de actualización iniciado",
-            "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-        })
+        return jsonify(
+            {
+                "success": True,
+                "message": "Proceso de actualización iniciado",
+                "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+            }
+        )
 
     except Exception as e:
-        return jsonify({
-            "error": str(e),
-            "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-        }), 500
+        return (
+            jsonify(
+                {
+                    "error": str(e),
+                    "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+                }
+            ),
+            500,
+        )
 
-@api_bp.route('/stocks/auto-update', methods=['POST'])
+
+@api_bp.route("/stocks/auto-update", methods=["POST"])
 def set_auto_update():
     """
     Endpoint para configurar la actualización automática
@@ -165,97 +188,125 @@ def set_auto_update():
         data = request.get_json()
 
         if not data or "mode" not in data:
-            return jsonify({
-                "error": "Se requiere el parámetro 'mode'",
-                "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-            }), 400
+            return (
+                jsonify(
+                    {
+                        "error": "Se requiere el parámetro 'mode'",
+                        "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+                    }
+                ),
+                400,
+            )
 
         mode = data["mode"]
 
         if mode == "off":
             # Detener actualizaciones automáticas
             stop_periodic_updates()
-            return jsonify({
-                "success": True,
-                "message": "Actualizaciones automáticas desactivadas",
-                "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-            })
+            return jsonify(
+                {
+                    "success": True,
+                    "message": "Actualizaciones automáticas desactivadas",
+                    "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+                }
+            )
 
         elif mode == "1-3":
             # Actualización cada 1-3 minutos
             app = current_app._get_current_object()
             start_periodic_updates(1, 3, app=app)
-            return jsonify({
-                "success": True,
-                "message": (
-                    "Actualizaciones automáticas configuradas (1-3 minutos)"
-                ),
-                "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-            })
+            return jsonify(
+                {
+                    "success": True,
+                    "message": (
+                        "Actualizaciones automáticas configuradas (1-3 minutos)"
+                    ),
+                    "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+                }
+            )
 
         elif mode == "1-5":
             # Actualización cada 1-5 minutos
             app = current_app._get_current_object()
             start_periodic_updates(1, 5, app=app)
-            return jsonify({
-                "success": True,
-                "message": (
-                    "Actualizaciones automáticas configuradas (1-5 minutos)"
-                ),
-                "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-            })
+            return jsonify(
+                {
+                    "success": True,
+                    "message": (
+                        "Actualizaciones automáticas configuradas (1-5 minutos)"
+                    ),
+                    "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+                }
+            )
 
         else:
-            return jsonify({
-                "error": "Modo no válido. Opciones: 'off', '1-3', '1-5'",
-                "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-            }), 400
+            return (
+                jsonify(
+                    {
+                        "error": "Modo no válido. Opciones: 'off', '1-3', '1-5'",
+                        "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+                    }
+                ),
+                400,
+            )
 
     except Exception as e:
-        return jsonify({
-            "error": str(e),
-            "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-        }), 500
+        return (
+            jsonify(
+                {
+                    "error": str(e),
+                    "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+                }
+            ),
+            500,
+        )
 
 
-@api_bp.route('/session-time', methods=['GET'])
+@api_bp.route("/session-time", methods=["GET"])
 def session_time():
     """Devuelve el tiempo restante de la sesión, si está disponible."""
     try:
         remaining = get_session_remaining_seconds()
-        return jsonify({
-            "remaining_seconds": remaining,
-            "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-        })
+        return jsonify(
+            {
+                "remaining_seconds": remaining,
+                "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+            }
+        )
     except Exception as e:
-        return jsonify({
-            "error": str(e),
-            "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-        }), 500
+        return (
+            jsonify(
+                {
+                    "error": str(e),
+                    "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+                }
+            ),
+            500,
+        )
 
 
-@api_bp.route('/credentials', methods=['GET'])
+@api_bp.route("/credentials", methods=["GET"])
 def credentials_status():
     """Devuelve si existen credenciales almacenadas."""
     cred = Credential.query.first()
-    if cred or (os.getenv('BOLSA_USERNAME') and os.getenv('BOLSA_PASSWORD')):
+    if cred or (os.getenv("BOLSA_USERNAME") and os.getenv("BOLSA_PASSWORD")):
         return jsonify({"has_credentials": True})
     return jsonify({"has_credentials": False})
 
 
-@api_bp.route('/credentials', methods=['POST'])
+@api_bp.route("/credentials", methods=["POST"])
 def set_credentials():
     """Guarda las credenciales y opcionalmente las persiste."""
     data = request.get_json() or {}
-    username = data.get('username')
-    password = data.get('password')
-    remember = bool(data.get('remember'))
+    username = data.get("username")
+    password = data.get("password")
+    remember = bool(data.get("remember"))
 
     if not username or not password:
         return jsonify({"error": "username and password required"}), 400
 
-    os.environ['BOLSA_USERNAME'] = username
-    os.environ['BOLSA_PASSWORD'] = password
+    os.environ["BOLSA_USERNAME"] = username
+    os.environ["BOLSA_PASSWORD"] = password
 
     if remember:
         cred = Credential.query.first()
@@ -273,7 +324,7 @@ def set_credentials():
     return jsonify({"success": True})
 
 
-@api_bp.route('/column-preferences', methods=['GET'])
+@api_bp.route("/column-preferences", methods=["GET"])
 def get_column_preferences():
     """Devuelve la configuración de columnas si existe."""
     pref = ColumnPreference.query.first()
@@ -282,11 +333,11 @@ def get_column_preferences():
     return jsonify({"columns": None})
 
 
-@api_bp.route('/column-preferences', methods=['POST'])
+@api_bp.route("/column-preferences", methods=["POST"])
 def set_column_preferences():
     """Guarda la configuración de columnas."""
     data = request.get_json() or {}
-    cols = data.get('columns')
+    cols = data.get("columns")
     if not isinstance(cols, list):
         return jsonify({"error": "'columns' must be a list"}), 400
     pref = ColumnPreference.query.first()
@@ -302,7 +353,8 @@ def set_column_preferences():
 
 # ----- Filtro de acciones guardado -----
 
-@api_bp.route('/stock-filter', methods=['GET'])
+
+@api_bp.route("/stock-filter", methods=["GET"])
 def get_stock_filter():
     """Devuelve el filtro de acciones almacenado."""
     pref = StockFilter.query.first()
@@ -311,12 +363,12 @@ def get_stock_filter():
     return jsonify({"codes": None, "all": False})
 
 
-@api_bp.route('/stock-filter', methods=['POST'])
+@api_bp.route("/stock-filter", methods=["POST"])
 def set_stock_filter():
     """Guarda el filtro de acciones."""
     data = request.get_json() or {}
-    codes = data.get('codes', [])
-    all_flag = bool(data.get('all', False))
+    codes = data.get("codes", [])
+    all_flag = bool(data.get("all", False))
     codes_json = json.dumps(codes)
     pref = StockFilter.query.first()
     if pref:
@@ -328,14 +380,15 @@ def set_stock_filter():
     db.session.commit()
     return jsonify({"success": True})
 
-  
+
 # ----- CRUD de precios almacenados -----
 
-@api_bp.route('/prices', methods=['GET'])
+
+@api_bp.route("/prices", methods=["GET"])
 def list_prices():
     """Devuelve una lista de precios almacenados."""
     try:
-        limit = request.args.get('limit', type=int)
+        limit = request.args.get("limit", type=int)
         query = StockPrice.query.order_by(StockPrice.timestamp.desc())
         if limit:
             query = query.limit(limit)
@@ -345,17 +398,17 @@ def list_prices():
         return jsonify({"error": str(e)}), 500
 
 
-@api_bp.route('/prices', methods=['POST'])
+@api_bp.route("/prices", methods=["POST"])
 def create_price():
     """Crea un nuevo registro de precio."""
     data = request.get_json() or {}
     try:
-        ts = data.get('timestamp')
+        ts = data.get("timestamp")
         ts = datetime.fromisoformat(ts) if ts else datetime.utcnow()
         price = StockPrice(
-            symbol=data.get('symbol'),
-            price=data.get('price', 0),
-            variation=data.get('variation'),
+            symbol=data.get("symbol"),
+            price=data.get("price", 0),
+            variation=data.get("variation"),
             timestamp=ts,
         )
         db.session.add(price)
@@ -366,35 +419,39 @@ def create_price():
         return jsonify({"error": str(e)}), 400
 
 
-@api_bp.route('/prices/<string:symbol>/<string:ts>', methods=['GET'])
+@api_bp.route("/prices/<string:symbol>/<string:ts>", methods=["GET"])
 def get_price(symbol, ts):
     """Obtiene un registro de precio por símbolo y timestamp."""
     try:
         timestamp = datetime.fromisoformat(ts)
     except ValueError:
         abort(400, description="Invalid timestamp format")
-    price = StockPrice.query.filter_by(symbol=symbol, timestamp=timestamp).first_or_404()
+    price = StockPrice.query.filter_by(
+        symbol=symbol, timestamp=timestamp
+    ).first_or_404()
     return jsonify(price.to_dict())
 
 
-@api_bp.route('/prices/<string:symbol>/<string:ts>', methods=['PUT'])
+@api_bp.route("/prices/<string:symbol>/<string:ts>", methods=["PUT"])
 def update_price(symbol, ts):
     """Actualiza un registro existente."""
     try:
         timestamp = datetime.fromisoformat(ts)
     except ValueError:
         abort(400, description="Invalid timestamp format")
-    price = StockPrice.query.filter_by(symbol=symbol, timestamp=timestamp).first_or_404()
+    price = StockPrice.query.filter_by(
+        symbol=symbol, timestamp=timestamp
+    ).first_or_404()
     data = request.get_json() or {}
     try:
-        if 'symbol' in data:
-            price.symbol = data['symbol']
-        if 'price' in data:
-            price.price = data['price']
-        if 'variation' in data:
-            price.variation = data['variation']
-        if 'timestamp' in data:
-            price.timestamp = datetime.fromisoformat(data['timestamp'])
+        if "symbol" in data:
+            price.symbol = data["symbol"]
+        if "price" in data:
+            price.price = data["price"]
+        if "variation" in data:
+            price.variation = data["variation"]
+        if "timestamp" in data:
+            price.timestamp = datetime.fromisoformat(data["timestamp"])
         db.session.commit()
         return jsonify(price.to_dict())
     except Exception as e:
@@ -402,38 +459,41 @@ def update_price(symbol, ts):
         return jsonify({"error": str(e)}), 400
 
 
-@api_bp.route('/prices/<string:symbol>/<string:ts>', methods=['DELETE'])
+@api_bp.route("/prices/<string:symbol>/<string:ts>", methods=["DELETE"])
 def delete_price(symbol, ts):
     """Elimina un registro de precio."""
     try:
         timestamp = datetime.fromisoformat(ts)
     except ValueError:
         abort(400, description="Invalid timestamp format")
-    price = StockPrice.query.filter_by(symbol=symbol, timestamp=timestamp).first_or_404()
+    price = StockPrice.query.filter_by(
+        symbol=symbol, timestamp=timestamp
+    ).first_or_404()
     try:
         db.session.delete(price)
         db.session.commit()
-        return '', 204
+        return "", 204
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 400
 
 
-@api_bp.route('/history', methods=['GET'])
+@api_bp.route("/history", methods=["GET"])
 def history_list():
     """Return list of historical data loads."""
     data = history_view.load_history()
     return jsonify(data)
 
 
-@api_bp.route('/history/compare', methods=['GET'])
+@api_bp.route("/history/compare", methods=["GET"])
 def history_compare():
-    """Return comparison between latest JSON load and previous DB snapshot."""
+    """Return comparison between the last two data loads."""
     try:
-        latest_json = get_latest_json_file()
-        if not latest_json:
-            return jsonify({"error": "No JSON files found"}), 404
-        result = compare_prices(latest_json)
-        return jsonify(result)
-    except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
+        from src.scripts.bolsa_service import compare_last_two_db_entries
+
+        data = compare_last_two_db_entries()
+        if not data:
+            data = history_view.compare_latest()
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
