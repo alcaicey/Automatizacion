@@ -130,7 +130,7 @@ def get_active_page():
 
 
 def refresh_active_page(logger_param):
-    """Recarga la página existente para obtener datos frescos."""
+    """Refresca la página abierta enviando ``Enter`` y captura el JSON."""
     page = get_active_page()
     if not page:
         logger_param.warning("No existe una página activa para refrescar")
@@ -138,25 +138,63 @@ def refresh_active_page(logger_param):
 
     ensure_timestamp_current(logger_param)
     output_path = OUTPUT_ACCIONES_DATA_FILENAME
+    patterns = [
+        "api/Cuenta_Premium/getPremiumAccionesPrecios",
+        "api/RV_ResumenMercado/getAccionesPrecios",
+    ]
+
+    captured = {}
+
+    def handle_response(resp):
+        if (
+            any(p in resp.url for p in patterns)
+            and resp.status == 200
+            and not captured
+        ):
+            try:
+                data_json = resp.json()
+                ts = extract_json_timestamp(data_json)
+                if ts:
+                    logger_param.info(f"Timestamp del JSON recibido: {ts}")
+                with open(output_path, "w", encoding="utf-8") as f_out:
+                    json.dump(data_json, f_out, indent=2, ensure_ascii=False)
+                logger_param.info(
+                    f"Datos premium capturados desde evento de respuesta en: {output_path} ({resp.url})"
+                )
+                captured["ok"] = True
+            except Exception as e:
+                logger_param.warning(f"Error al procesar respuesta JSON: {e}")
+
     try:
-        page.reload(wait_until="networkidle", timeout=60000)
-        logger_param.info(f"Página recargada: {page.url}")
-        time.sleep(5)
-        captured, data_json, _ = capture_premium_data_via_network(
-            page, logger_param, output_path
-        )
-        if not captured:
-            captured, data_json, _ = fetch_premium_data(
-                page.context,
-                logger_param,
-                output_path,
-                cache_bust=random.randint(0, 1000000),
-            )
-        if captured:
+        page.on("response", handle_response)
+        page.keyboard.press("Enter")
+        page.wait_for_load_state("networkidle", timeout=60000)
+
+        deadline = time.time() + 20
+        while time.time() < deadline:
+            if captured.get("ok"):
+                break
+            time.sleep(0.5)
+        page.off("response", handle_response)
+
+        if captured.get("ok"):
             return True, output_path
+
+        logger_param.warning(
+            "No se capturó JSON de precios tras refrescar con Enter"
+        )
+
+        # Intento de respaldo usando solicitud directa
+        captured_ok, _, _ = fetch_premium_data(
+            page.context,
+            logger_param,
+            output_path,
+            cache_bust=random.randint(0, 1000000),
+        )
+        return (captured_ok, output_path if captured_ok else None)
     except Exception as exc:
         logger_param.exception(f"Error al refrescar la página existente: {exc}")
-    return False, None
+        return False, None
 
 
 def extract_json_timestamp(data_obj):
