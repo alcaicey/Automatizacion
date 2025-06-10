@@ -47,6 +47,8 @@ DEFAULT_USER_AGENT = (
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/120.0.0.0 Safari/537.36"
 )
+# Número mínimo de acciones esperado en la respuesta de la API
+MIN_EXPECTED_RESULTS = 5
 
 logger_instance_global = logging.getLogger(__name__)
 # --- Fin Configuración de Logging ---
@@ -261,6 +263,22 @@ def extract_json_timestamp(data_obj):
     return None
 
 
+def validate_premium_data(data_obj, logger_param, min_entries=MIN_EXPECTED_RESULTS):
+    """Valida que el JSON de precios contenga al menos ``min_entries`` filas."""
+    if not data_obj:
+        logger_param.warning("JSON recibido vacío o None")
+        return False
+
+    rows = data_obj.get("listaResult") if isinstance(data_obj, dict) else data_obj
+    if not isinstance(rows, list) or len(rows) < min_entries:
+        row_count = len(rows) if isinstance(rows, list) else 0
+        logger_param.warning(
+            f"Datos premium sospechosos: {row_count} elementos, mínimo esperado {min_entries}"
+        )
+        return False
+    return True
+
+
 def handle_console_message(msg, logger_param):
     text = msg.text
     if "Failed to load resource" in text and (
@@ -396,6 +414,7 @@ def run_automation(
         except Exception as e:
             logger_param.warning(f"No se pudo cargar storage state: {e}")
     is_mis_conexiones_page = False
+    force_reauth = False
 
     try:
         p_instance = sync_playwright().start()
@@ -420,21 +439,23 @@ def run_automation(
         page.goto(INITIAL_PAGE_URL, timeout=60000)
         logger_param.info(f"Paso 1: URL actual después de goto inicial: {page.url}")
 
-        logged_in_via_cookies = "sso.bolsadesantiago.com" not in page.url
+        logged_in_via_cookies = storage_to_load is not None and "sso.bolsadesantiago.com" not in page.url
         if logged_in_via_cookies:
             logger_param.info(
                 "Sesión detectada mediante cookies. Omitiendo login SSO."
             )
             try:
-                page.wait_for_event("websocket", timeout=10000)
+                if hasattr(page, "wait_for_event"):
+                    page.wait_for_event("websocket", timeout=10000)
             except PlaywrightTimeoutError:
                 logger_param.warning("El WebSocket no apareció en el tiempo esperado")
             try:
-                page.wait_for_response(
-                    lambda resp: "getPremiumAccionesPrecios" in resp.url
-                    and resp.status == 200,
-                    timeout=30000,
-                )
+                if hasattr(page, "wait_for_response"):
+                    page.wait_for_response(
+                        lambda resp: "getPremiumAccionesPrecios" in resp.url
+                        and resp.status == 200,
+                        timeout=30000,
+                    )
             except PlaywrightTimeoutError:
                 logger_param.warning(
                     "No se recibió respuesta de la API de precios en el tiempo esperado"
@@ -591,6 +612,9 @@ def run_automation(
                 captured, captured_json, captured_ts = capture_premium_data_via_network(
                     page, logger_param, current_output_acciones_data_filename
                 )
+                valid_data = False
+                if captured:
+                    valid_data = validate_premium_data(captured_json, logger_param)
 
                 logger_param.info(
                     "Paso 10: El script ha completado la navegación y espera. Los datos de la API deberían estar en el HAR."
@@ -599,13 +623,18 @@ def run_automation(
                 logger_param.info(
                     "Paso 10b: Intentando obtener datos premium directamente desde la API..."
                 )
-                if not captured:
+                if not captured or not valid_data:
                     captured, captured_json, captured_ts = fetch_premium_data(
                         context,
                         logger_param,
                         current_output_acciones_data_filename,
                         cache_bust=random.randint(0, 1000000),
                     )
+                    if captured:
+                        valid_data = validate_premium_data(captured_json, logger_param)
+
+                if not valid_data:
+                    force_reauth = True
 
             if is_mis_conexiones_page:
                 logger_param.info(
@@ -662,7 +691,27 @@ def run_automation(
             )
 
         logger_param.info("Proceso del script realmente finalizado.")
-        if keep_open and (not is_mis_conexiones_page or attempt >= max_attempts):
+        if force_reauth and attempt < max_attempts:
+            if os.path.exists(storage_state_path):
+                try:
+                    os.remove(storage_state_path)
+                    logger_param.info(
+                        f"Archivo de estado {storage_state_path} eliminado para forzar reautenticación"
+                    )
+                except Exception as rm_err:
+                    logger_param.warning(
+                        f"No se pudo eliminar {storage_state_path}: {rm_err}"
+                    )
+            configure_run_specific_logging(logger_param)
+            return run_automation(
+                logger_param,
+                attempt + 1,
+                max_attempts,
+                non_interactive=non_interactive,
+                keep_open=keep_open,
+            )
+
+        if keep_open and (not is_mis_conexiones_page or attempt >= max_attempts) and not force_reauth:
             if browser is not None:
                 try:
                     keep_context = browser.new_context(
