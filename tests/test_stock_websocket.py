@@ -107,6 +107,9 @@ def test_update_endpoint_uses_context(app, tmp_path, monkeypatch):
     monkeypatch.setattr(bolsa_service.subprocess, "run", fake_run_subprocess)
     monkeypatch.setattr(bolsa_service, "store_prices_in_db", wrapped_store)
 
+    monkeypatch.setenv("BOLSA_USERNAME", "u")
+    monkeypatch.setenv("BOLSA_PASSWORD", "p")
+
     class DummyThread:
         def __init__(self, target, args=(), kwargs=None):
             self.target = target

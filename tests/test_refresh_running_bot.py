@@ -8,7 +8,7 @@ def test_update_when_bot_running_triggers_enter(app, monkeypatch):
 
     def fake_enter():
         called["enter"] = True
-        return True
+        return True, True
 
     monkeypatch.setattr("src.scripts.bolsa_service.send_enter_key_to_browser", fake_enter)
 
@@ -24,7 +24,7 @@ def test_update_restarts_when_enter_fails(app, monkeypatch):
     monkeypatch.setattr(api_module, "is_bot_running", lambda: True)
 
     def fake_enter():
-        return False
+        return False, True
 
     run_called = {}
 

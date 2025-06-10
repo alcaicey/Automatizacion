@@ -110,7 +110,7 @@ def update_stocks():
             logger.info("Bot en ejecución, enviando ENTER para refrescar datos")
             from src.scripts import bolsa_service
 
-            success = bolsa_service.send_enter_key_to_browser()
+            success, had_page = bolsa_service.send_enter_key_to_browser()
             if success:
                 return jsonify(
                     {
@@ -137,6 +137,10 @@ def update_stocks():
                 )
                 update_thread.daemon = True
                 update_thread.start()
+                if had_page:
+                    bolsa_service.logger.warning(
+                        "Fallo validación de navegador activo. Se abrió uno nuevo innecesariamente"
+                    )
                 return jsonify(
                     {
                         "success": True,

@@ -52,6 +52,32 @@ bot_running = False
 bot_lock = threading.Lock()
 
 
+def _ensure_env_credentials(app=None) -> bool:
+    """Carga credenciales de la base de datos al entorno si existen."""
+    ctx = app.app_context() if app else nullcontext()
+    with ctx:
+        cred = None
+        try:
+            from src.models.credentials import Credential
+
+            cred = Credential.query.first()
+        except Exception:
+            cred = None
+
+        if cred:
+            os.environ["BOLSA_USERNAME"] = cred.username
+            os.environ["BOLSA_PASSWORD"] = cred.password
+            return True
+
+    if os.getenv("BOLSA_USERNAME") and os.getenv("BOLSA_PASSWORD"):
+        return True
+
+    client_logger = logging.getLogger("client_errors")
+    client_logger.error("No hay credenciales disponibles")
+    logger.error("No hay credenciales disponibles")
+    return False
+
+
 def get_last_update_timestamp(app=None):
     """Devuelve la marca de tiempo de la última actualización registrada."""
     ctx = app.app_context() if app else nullcontext()
@@ -83,16 +109,23 @@ def send_enter_key_to_browser(app=None, wait_seconds=5):
     page = bot.get_active_page()
     if page:
         logger.info("Reutilizando navegador existente con Playwright")
-        success, _ = bot.refresh_active_page(bot.logger_instance_global)
+        try:
+            success, _ = bot.refresh_active_page(bot.logger_instance_global)
+        except Exception as exc:  # Posible error de hilos/greenlet
+            if "different thread" in str(exc) or "greenlet" in str(exc):
+                logger.warning(f"Navegador ligado a hilo inactivo: {exc}")
+                return False, True
+            logger.exception(f"Error inesperado al refrescar: {exc}")
+            return False, True
         if success:
             logger.info("Actualización realizada vía Playwright")
         else:
             logger.warning("No se capturó JSON al refrescar con Playwright")
-        return success
+        return success, True
 
     if os.getenv("BOLSA_NON_INTERACTIVE") == "1":
         logger.info("Entorno no interactivo detectado y no hay página activa")
-        return False
+        return False, False
 
     prev_ts = get_last_update_timestamp(app)
     try:
@@ -108,10 +141,10 @@ def send_enter_key_to_browser(app=None, wait_seconds=5):
             logger.info(f"last_update modificado: {prev_ts} -> {new_ts}")
         else:
             logger.warning("last_update no cambió tras refrescar la página")
-        return True
+        return True, False
     except Exception as e:
         logger.exception(f"No se pudo enviar ENTER al navegador externo: {e}")
-        return False
+        return False, False
 
 
 def get_latest_json_file():
@@ -338,6 +371,9 @@ def run_bolsa_bot(
     global bot_running
     ctx = app.app_context() if app else nullcontext()
     with ctx:
+        if not _ensure_env_credentials(app):
+            bot_running = False
+            return None
         with bot_lock:
             if bot_running:
                 logger.info(
