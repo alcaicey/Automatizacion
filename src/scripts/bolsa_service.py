@@ -28,10 +28,14 @@ logger.setLevel(logging.INFO)
 # Centralizar logs en la misma carpeta definida en LOGS_DIR
 service_log_file = os.path.join(LOGS_DIR, "bolsa_service.log")
 
-file_handler = logging.FileHandler(service_log_file, encoding='utf-8')
-file_handler.setFormatter(logging.Formatter('[%(levelname)s] %(asctime)s - %(message)s'))
+file_handler = logging.FileHandler(service_log_file, encoding="utf-8")
+file_handler.setFormatter(
+    logging.Formatter("[%(levelname)s] %(asctime)s - %(message)s")
+)
 stream_handler = logging.StreamHandler()
-stream_handler.setFormatter(logging.Formatter('[%(levelname)s] %(asctime)s - %(message)s'))
+stream_handler.setFormatter(
+    logging.Formatter("[%(levelname)s] %(asctime)s - %(message)s")
+)
 
 # Evitar añadir handlers múltiples si el script se recarga o se llama a la configuración varias veces
 if not logger.hasHandlers():
@@ -47,6 +51,7 @@ stop_update_thread = False
 bot_running = False
 bot_lock = threading.Lock()
 
+
 def get_last_update_timestamp(app=None):
     """Devuelve la marca de tiempo de la última actualización registrada."""
     ctx = app.app_context() if app else nullcontext()
@@ -54,10 +59,12 @@ def get_last_update_timestamp(app=None):
         lu = LastUpdate.query.get(1)
         return lu.timestamp if lu else None
 
+
 def is_bot_running():
     """Devuelve True si el bot se está ejecutando actualmente."""
     with bot_lock:
         return bot_running
+
 
 def send_enter_key_to_browser(app=None, wait_seconds=5):
     """Intenta refrescar la página abierta usando Playwright.
@@ -90,8 +97,9 @@ def send_enter_key_to_browser(app=None, wait_seconds=5):
     prev_ts = get_last_update_timestamp(app)
     try:
         import pyautogui
-        pyautogui.hotkey('ctrl', 'l')
-        pyautogui.press('enter')
+
+        pyautogui.hotkey("ctrl", "l")
+        pyautogui.press("enter")
         logger.info("ENTER enviado al navegador externo")
         if wait_seconds:
             time.sleep(wait_seconds)
@@ -105,6 +113,7 @@ def send_enter_key_to_browser(app=None, wait_seconds=5):
         logger.exception(f"No se pudo enviar ENTER al navegador externo: {e}")
         return False
 
+
 def get_latest_json_file():
     """
     Obtiene el archivo JSON de datos de acciones más reciente del directorio de logs
@@ -113,20 +122,23 @@ def get_latest_json_file():
     try:
         # Patrón para los archivos JSON de datos de acciones
         pattern = os.path.join(LOGS_DIR, "acciones-precios-plus_*.json")
-        
+
         json_files = glob.glob(pattern)
-        
+
         if not json_files:
-            logger.warning(f"No se encontraron archivos 'acciones-precios-plus_*.json' en {LOGS_DIR}")
+            logger.warning(
+                f"No se encontraron archivos 'acciones-precios-plus_*.json' en {LOGS_DIR}"
+            )
             return None
-        
+
         latest_json = max(json_files, key=os.path.getmtime)
         logger.info(f"Archivo JSON de datos más reciente encontrado: {latest_json}")
         return latest_json
-    
+
     except Exception as e:
         logger.exception(f"Error al buscar el archivo JSON de datos más reciente: {e}")
         return None
+
 
 def extract_timestamp_from_filename(filename):
     """
@@ -135,20 +147,22 @@ def extract_timestamp_from_filename(filename):
     """
     try:
         base_name = os.path.basename(filename)
-        match = re.search(r'acciones-precios-plus_(\d{8})_(\d{6})\.json', base_name)
-        
+        match = re.search(r"acciones-precios-plus_(\d{8})_(\d{6})\.json", base_name)
+
         if match:
             date_str, time_str = match.groups()
             dt_obj = datetime.strptime(f"{date_str}{time_str}", "%Y%m%d%H%M%S")
             return dt_obj.strftime("%d/%m/%Y %H:%M:%S")
-        
+
         # Fallback si el patrón no coincide, usar fecha de modificación del archivo
         stat = os.stat(filename)
         return datetime.fromtimestamp(stat.st_mtime).strftime("%d/%m/%Y %H:%M:%S")
-    
+
     except Exception as e:
-        logger.exception(f"Error al extraer timestamp del nombre de archivo '{filename}': {e}")
-        return datetime.now().strftime("%d/%m/%Y %H:%M:%S") # Fallback a ahora
+        logger.exception(
+            f"Error al extraer timestamp del nombre de archivo '{filename}': {e}"
+        )
+        return datetime.now().strftime("%d/%m/%Y %H:%M:%S")  # Fallback a ahora
 
 
 def get_json_hash_and_timestamp(path):
@@ -165,7 +179,9 @@ def get_json_hash_and_timestamp(path):
         ts = None
         if isinstance(data, dict):
             for k, v in data.items():
-                if isinstance(k, str) and any(t in k.lower() for t in ["time", "fecha", "stamp"]):
+                if isinstance(k, str) and any(
+                    t in k.lower() for t in ["time", "fecha", "stamp"]
+                ):
                     ts = str(v)
                     break
 
@@ -178,17 +194,20 @@ def get_json_hash_and_timestamp(path):
         if not ts:
             ts = datetime.fromtimestamp(os.path.getmtime(path)).isoformat()
 
-        hash_val = hashlib.md5(json.dumps(data, sort_keys=True).encode("utf-8")).hexdigest()
+        hash_val = hashlib.md5(
+            json.dumps(data, sort_keys=True).encode("utf-8")
+        ).hexdigest()
         return hash_val, ts
     except Exception:
         return None, None
+
 
 def store_prices_in_db(json_path, app=None):
     """Guarda los precios de acciones en la base de datos y emite notificación."""
     ctx = app.app_context() if app else nullcontext()
     with ctx:
         try:
-            with open(json_path, 'r', encoding='utf-8') as f:
+            with open(json_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
             rows = data.get("listaResult") if isinstance(data, dict) else data
@@ -203,7 +222,9 @@ def store_prices_in_db(json_path, app=None):
                     symbol = item.get("NEMO") or item.get("symbol")
                     if not symbol:
                         for k, v in item.items():
-                            if isinstance(k, str) and re.search(r"(nemo|symbol)", k, re.IGNORECASE):
+                            if isinstance(k, str) and re.search(
+                                r"(nemo|symbol)", k, re.IGNORECASE
+                            ):
                                 if isinstance(v, str):
                                     symbol = v.strip()
                                     break
@@ -218,7 +239,9 @@ def store_prices_in_db(json_path, app=None):
                     price = item.get("PRECIO_CIERRE") or item.get("price")
                     if price is None:
                         for k, v in item.items():
-                            if isinstance(k, str) and re.search(r"(precio|price)", k, re.IGNORECASE):
+                            if isinstance(k, str) and re.search(
+                                r"(precio|price)", k, re.IGNORECASE
+                            ):
                                 price = v
                                 break
                     price = float(price or 0)
@@ -226,7 +249,9 @@ def store_prices_in_db(json_path, app=None):
                     variation = item.get("VARIACION") or item.get("variation")
                     if variation is None:
                         for k, v in item.items():
-                            if isinstance(k, str) and re.search(r"(var|variation)", k, re.IGNORECASE):
+                            if isinstance(k, str) and re.search(
+                                r"(var|variation)", k, re.IGNORECASE
+                            ):
                                 variation = v
                                 break
                     variation = float(variation or 0)
@@ -259,9 +284,10 @@ def store_prices_in_db(json_path, app=None):
                     db.session.add(lu)
 
                 db.session.commit()
-                socketio.emit('new_data')
+                socketio.emit("new_data")
         except Exception as e:
             logger.exception(f"Error al guardar datos en DB: {e}")
+
 
 def get_latest_summary_file():
     """Devuelve la ruta al resumen HAR más reciente generado por el bot."""
@@ -270,7 +296,9 @@ def get_latest_summary_file():
         summary_files = glob.glob(pattern)
 
         if not summary_files:
-            logger.warning(f"No se encontraron archivos 'network_summary_*.json' en {LOGS_DIR}")
+            logger.warning(
+                f"No se encontraron archivos 'network_summary_*.json' en {LOGS_DIR}"
+            )
             return None
 
         latest_summary = max(summary_files, key=os.path.getmtime)
@@ -281,6 +309,7 @@ def get_latest_summary_file():
         logger.exception(f"Error al buscar el archivo de resumen HAR más reciente: {e}")
         return None
 
+
 def get_session_remaining_seconds():
     """Obtiene los segundos restantes de la sesión desde el resumen HAR más reciente."""
     try:
@@ -288,7 +317,7 @@ def get_session_remaining_seconds():
         if not summary_path or not os.path.exists(summary_path):
             return None
 
-        with open(summary_path, 'r', encoding='utf-8') as f:
+        with open(summary_path, "r", encoding="utf-8") as f:
             summary_data = json.load(f)
 
         if isinstance(summary_data, list):
@@ -301,7 +330,10 @@ def get_session_remaining_seconds():
         logger.exception(f"Error al obtener los segundos restantes de la sesión: {e}")
         return None
 
-def run_bolsa_bot(app=None, *, non_interactive=None, keep_open=True, force_update=False):
+
+def run_bolsa_bot(
+    app=None, *, non_interactive=None, keep_open=True, force_update=False
+):
     """Ejecuta el bot reutilizando el navegador si es posible."""
     global bot_running
     ctx = app.app_context() if app else nullcontext()
@@ -317,7 +349,9 @@ def run_bolsa_bot(app=None, *, non_interactive=None, keep_open=True, force_updat
         if lu_before:
             logger.info(f"last_update antes de ejecutar: {lu_before}")
         prev_file = get_latest_json_file()
-        prev_hash, prev_ts = get_json_hash_and_timestamp(prev_file) if prev_file else (None, None)
+        prev_hash, prev_ts = (
+            get_json_hash_and_timestamp(prev_file) if prev_file else (None, None)
+        )
         logger.info(f"Hash previo: {prev_hash}, timestamp previo: {prev_ts}")
         try:
             logger.info("=== INICIO DE CICLO COMPLETO DE SCRAPING ===")
@@ -361,8 +395,8 @@ def run_bolsa_bot(app=None, *, non_interactive=None, keep_open=True, force_updat
                     "response.text() no cambió entre ejecuciones. Los datos parecen ser los mismos."
                 )
                 socketio.emit(
-                    'no_new_data',
-                    {'timestamp': datetime.now().strftime("%d/%m/%Y %H:%M:%S")},
+                    "no_new_data",
+                    {"timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S")},
                 )
                 return None
             prev_lu = get_last_update_timestamp(app)
@@ -381,6 +415,7 @@ def run_bolsa_bot(app=None, *, non_interactive=None, keep_open=True, force_updat
                 bot_running = False
             logger.info("=== FIN DE CICLO COMPLETO DE SCRAPING ===")
 
+
 def get_latest_data():
     """
     Obtiene los datos más recientes del archivo JSON de acciones.
@@ -388,22 +423,24 @@ def get_latest_data():
     """
     try:
         # Intentar obtener datos desde la base de datos
-        latest_entry = (
-            StockPrice.query.order_by(StockPrice.timestamp.desc()).first()
-        )
+        latest_entry = StockPrice.query.order_by(StockPrice.timestamp.desc()).first()
         ts_db = None
         if latest_entry:
             ts_db = latest_entry.timestamp
 
         latest_json_path = get_latest_json_file()
-        
+
         if not latest_json_path or not os.path.exists(latest_json_path):
-            logger.warning("No existe archivo de datos o no es accesible. Ejecutando scraping...")
+            logger.warning(
+                "No existe archivo de datos o no es accesible. Ejecutando scraping..."
+            )
             if not is_bot_running():
                 latest_json_path = run_bolsa_bot()
             else:
-                logger.info("El bot ya se está ejecutando, no se iniciará una nueva instancia para obtener datos.")
-            
+                logger.info(
+                    "El bot ya se está ejecutando, no se iniciará una nueva instancia para obtener datos."
+                )
+
         if latest_json_path and os.path.exists(latest_json_path):
             file_timestamp = extract_timestamp_from_filename(latest_json_path)
             try:
@@ -424,7 +461,11 @@ def get_latest_data():
 
             timestamp = file_timestamp
 
-            if isinstance(data_content, dict) and "listaResult" in data_content and isinstance(data_content["listaResult"], list):
+            if (
+                isinstance(data_content, dict)
+                and "listaResult" in data_content
+                and isinstance(data_content["listaResult"], list)
+            ):
                 return {
                     "data": data_content["listaResult"],
                     "timestamp": timestamp,
@@ -459,10 +500,14 @@ def get_latest_data():
             "error": "No se pudieron obtener datos",
             "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
         }
-    
+
     except Exception as e:
         logger.exception(f"Error en get_latest_data: {e}")
-        return {"error": str(e), "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S")}
+        return {
+            "error": str(e),
+            "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+        }
+
 
 def filter_stocks(stock_codes):
     """
@@ -470,26 +515,45 @@ def filter_stocks(stock_codes):
     """
     try:
         latest_data_result = get_latest_data()
-        
+
         if "error" in latest_data_result:
-            logger.error(f"Error al obtener datos para filtrar: {latest_data_result['error']}")
-            return latest_data_result 
-        
+            logger.error(
+                f"Error al obtener datos para filtrar: {latest_data_result['error']}"
+            )
+            return latest_data_result
+
         # Los datos de acciones están bajo la clave "data" en el resultado de get_latest_data()
         stocks_list = latest_data_result.get("data")
         original_timestamp = latest_data_result.get("timestamp")
         source_file = latest_data_result.get("source_file", "N/A")
 
         if not isinstance(stocks_list, list):
-            logger.error(f"Se esperaba una lista de acciones, pero se obtuvo: {type(stocks_list)}. Archivo: {source_file}")
-            return {"error": "Datos de acciones no son una lista.", "timestamp": original_timestamp, "source_file": source_file}
-            
-        if not stock_codes: # Si no se proporcionan códigos, devolver todos los datos
-            logger.info("No se proporcionaron códigos de acciones para filtrar, devolviendo todos los datos.")
-            return {"data": stocks_list, "timestamp": original_timestamp, "count": len(stocks_list), "source_file": source_file}
+            logger.error(
+                f"Se esperaba una lista de acciones, pero se obtuvo: {type(stocks_list)}. Archivo: {source_file}"
+            )
+            return {
+                "error": "Datos de acciones no son una lista.",
+                "timestamp": original_timestamp,
+                "source_file": source_file,
+            }
 
-        stock_codes_upper = [code.upper().strip() for code in stock_codes if isinstance(code, str) and code.strip()]
-        
+        if not stock_codes:  # Si no se proporcionan códigos, devolver todos los datos
+            logger.info(
+                "No se proporcionaron códigos de acciones para filtrar, devolviendo todos los datos."
+            )
+            return {
+                "data": stocks_list,
+                "timestamp": original_timestamp,
+                "count": len(stocks_list),
+                "source_file": source_file,
+            }
+
+        stock_codes_upper = [
+            code.upper().strip()
+            for code in stock_codes
+            if isinstance(code, str) and code.strip()
+        ]
+
         filtered_stocks = []
 
         def extract_symbol(item):
@@ -509,28 +573,100 @@ def filter_stocks(stock_codes):
                     str(stock)[:100],
                 )
                 continue
-            if re.fullmatch(r"[A-Z0-9.-]+", symbol.upper()) and symbol.upper() in stock_codes_upper:
+            if (
+                re.fullmatch(r"[A-Z0-9.-]+", symbol.upper())
+                and symbol.upper() in stock_codes_upper
+            ):
                 filtered_stocks.append(stock)
-        
-        logger.info(f"Filtradas {len(filtered_stocks)} acciones de {len(stocks_list)} originales.")
+
+        logger.info(
+            f"Filtradas {len(filtered_stocks)} acciones de {len(stocks_list)} originales."
+        )
         return {
-            "data": filtered_stocks, 
-            "timestamp": original_timestamp, 
+            "data": filtered_stocks,
+            "timestamp": original_timestamp,
             "count": len(filtered_stocks),
-            "source_file": source_file
+            "source_file": source_file,
         }
-    
+
     except Exception as e:
         logger.exception(f"Error en filter_stocks: {e}")
-        return {"error": str(e), "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S")}
+        return {
+            "error": str(e),
+            "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+        }
+
+
+def compare_last_two_db_entries():
+    """Return comparison info between the last two stored timestamps."""
+    try:
+        timestamps = (
+            db.session.query(StockPrice.timestamp)
+            .distinct()
+            .order_by(StockPrice.timestamp.desc())
+            .limit(2)
+            .all()
+        )
+        if len(timestamps) < 2:
+            return {}
+
+        ts_curr, ts_prev = timestamps[0][0], timestamps[1][0]
+        curr_rows = StockPrice.query.filter_by(timestamp=ts_curr).all()
+        prev_rows = StockPrice.query.filter_by(timestamp=ts_prev).all()
+
+        curr_map = {r.symbol: r for r in curr_rows}
+        prev_map = {r.symbol: r for r in prev_rows}
+
+        new_syms = set(curr_map) - set(prev_map)
+        removed_syms = set(prev_map) - set(curr_map)
+
+        changes = []
+        unchanged = []
+        for sym in curr_map.keys() & prev_map.keys():
+            curr = curr_map[sym]
+            prev = prev_map[sym]
+            if curr.price != prev.price:
+                diff = curr.price - prev.price
+                pct = (diff / prev.price * 100) if prev.price else 0.0
+                changes.append(
+                    {
+                        "symbol": sym,
+                        "old": prev.to_dict(),
+                        "new": curr.to_dict(),
+                        "abs_diff": diff,
+                        "pct_diff": pct,
+                    }
+                )
+            else:
+                unchanged.append(curr.to_dict())
+
+        return {
+            "current_timestamp": ts_curr.strftime("%d/%m/%Y %H:%M:%S"),
+            "previous_timestamp": ts_prev.strftime("%d/%m/%Y %H:%M:%S"),
+            "current_file": ts_curr.isoformat(),
+            "previous_file": ts_prev.isoformat(),
+            "new": [curr_map[s].to_dict() for s in new_syms],
+            "removed": [prev_map[s].to_dict() for s in removed_syms],
+            "changes": changes,
+            "unchanged": unchanged,
+            "errors": [],
+            "total_compared": len(curr_map.keys() | prev_map.keys()),
+            "change_count": len(changes),
+        }
+    except Exception as exc:
+        logger.exception(f"Error al comparar registros históricos: {exc}")
+        return {}
+
 
 def update_data_periodically(min_interval_seconds, max_interval_seconds, app=None):
     """
     Actualiza los datos periódicamente en un intervalo aleatorio.
     """
     global stop_update_thread
-    
-    logger.info(f"Hilo de actualización periódica iniciado. Intervalo: {min_interval_seconds}-{max_interval_seconds} segundos.")
+
+    logger.info(
+        f"Hilo de actualización periódica iniciado. Intervalo: {min_interval_seconds}-{max_interval_seconds} segundos."
+    )
     while not stop_update_thread:
         try:
             logger.info("Ejecutando actualización periódica de datos...")
@@ -538,97 +674,117 @@ def update_data_periodically(min_interval_seconds, max_interval_seconds, app=Non
                 run_bolsa_bot(app=app)
             else:
                 logger.info("Se omite la ejecución porque el bot ya está en marcha.")
-            
+
             interval = random.randint(min_interval_seconds, max_interval_seconds)
             logger.info(f"Próxima actualización periódica en {interval} segundos.")
-            
+
             # Esperar el intervalo, verificando periódicamente si debemos detenernos
             for _ in range(interval):
                 if stop_update_thread:
-                    logger.info("Señal de detención recibida en el hilo de actualización.")
+                    logger.info(
+                        "Señal de detención recibida en el hilo de actualización."
+                    )
                     break
                 time.sleep(1)
-                
+
         except Exception as e:
             logger.exception(f"Error en la actualización periódica: {e}")
-            logger.info("Esperando 60 segundos antes de reintentar la actualización periódica.")
+            logger.info(
+                "Esperando 60 segundos antes de reintentar la actualización periódica."
+            )
             time.sleep(60)
     logger.info("Hilo de actualización periódica detenido.")
 
 
-def start_periodic_updates(min_minutes=15, max_minutes=45, app=None):  # Intervalos más largos por defecto
+def start_periodic_updates(
+    min_minutes=15, max_minutes=45, app=None
+):  # Intervalos más largos por defecto
     """
     Inicia la actualización periódica de datos en un hilo separado.
     """
     global update_thread, stop_update_thread
-    
+
     if update_thread and update_thread.is_alive():
         logger.info("El hilo de actualización periódica ya está en ejecución.")
         return False
-    
+
     stop_update_thread = False
     min_interval_seconds = min_minutes * 60
     max_interval_seconds = max_minutes * 60
-    
+
     update_thread = threading.Thread(
         target=update_data_periodically,
         args=(min_interval_seconds, max_interval_seconds, app),
-        daemon=True # El hilo terminará cuando el programa principal termine
+        daemon=True,  # El hilo terminará cuando el programa principal termine
     )
     update_thread.start()
-    
-    logger.info(f"Actualización periódica iniciada. Intervalo entre ejecuciones: {min_minutes}-{max_minutes} minutos.")
+
+    logger.info(
+        f"Actualización periódica iniciada. Intervalo entre ejecuciones: {min_minutes}-{max_minutes} minutos."
+    )
     return True
+
 
 def stop_periodic_updates():
     """
     Detiene la actualización periódica de datos.
     """
     global stop_update_thread, update_thread
-    
+
     if not update_thread or not update_thread.is_alive():
         logger.info("El hilo de actualización periódica no está en ejecución.")
         return True
 
     logger.info("Enviando señal de detención al hilo de actualización periódica...")
     stop_update_thread = True
-    update_thread.join(timeout=10) # Esperar hasta 10 segundos a que el hilo termine
-    
+    update_thread.join(timeout=10)  # Esperar hasta 10 segundos a que el hilo termine
+
     if update_thread.is_alive():
-        logger.warning("El hilo de actualización periódica no terminó limpiamente después de 10 segundos.")
+        logger.warning(
+            "El hilo de actualización periódica no terminó limpiamente después de 10 segundos."
+        )
     else:
         logger.info("Hilo de actualización periódica detenido exitosamente.")
     update_thread = None
     return True
 
+
 # Ejemplo de uso (puedes comentar o eliminar esto si usas el script como módulo)
 if __name__ == "__main__":
     logger.info("--- Servicio de Datos de Bolsa de Santiago Iniciado ---")
-    
+
     # Obtener datos una vez al iniciar
     initial_data = get_latest_data()
     if "error" not in initial_data:
-        logger.info(f"Datos iniciales cargados desde: {initial_data.get('source_file', 'N/A')}")
+        logger.info(
+            f"Datos iniciales cargados desde: {initial_data.get('source_file', 'N/A')}"
+        )
         logger.info(f"Timestamp de datos iniciales: {initial_data['timestamp']}")
-        logger.info(f"Número de acciones en datos iniciales: {len(initial_data.get('data', []))}")
+        logger.info(
+            f"Número de acciones en datos iniciales: {len(initial_data.get('data', []))}"
+        )
     else:
         logger.error(f"Error al cargar datos iniciales: {initial_data['error']}")
 
     # Filtrar algunas acciones de ejemplo
-    codigos_a_filtrar = ["SQM-B", "COPEC", "CMPC", "FALABELLA", "CHILE"] # Ejemplo
+    codigos_a_filtrar = ["SQM-B", "COPEC", "CMPC", "FALABELLA", "CHILE"]  # Ejemplo
     logger.info(f"Filtrando por los siguientes códigos: {codigos_a_filtrar}")
     acciones_filtradas = filter_stocks(codigos_a_filtrar)
-    
+
     if "error" not in acciones_filtradas:
-        logger.info(f"Resultado del filtrado (Fuente: {acciones_filtradas.get('source_file', 'N/A')}, Timestamp: {acciones_filtradas['timestamp']}):")
+        logger.info(
+            f"Resultado del filtrado (Fuente: {acciones_filtradas.get('source_file', 'N/A')}, Timestamp: {acciones_filtradas['timestamp']}):"
+        )
         for accion in acciones_filtradas.get("data", []):
-            print(f"  NEMO: {accion.get('NEMO')}, PRECIO_CIERRE: {accion.get('PRECIO_CIERRE')}, VARIACION: {accion.get('VARIACION')}")
+            print(
+                f"  NEMO: {accion.get('NEMO')}, PRECIO_CIERRE: {accion.get('PRECIO_CIERRE')}, VARIACION: {accion.get('VARIACION')}"
+            )
     else:
         logger.error(f"Error al filtrar acciones: {acciones_filtradas['error']}")
 
     # Iniciar actualizaciones periódicas (ej. cada 15-45 minutos)
     # start_periodic_updates(min_minutes=15, max_minutes=45)
-    
+
     # Mantener el script principal vivo si se desea que el hilo siga corriendo
     # o si esto fuera parte de una aplicación más grande (ej. Flask, FastAPI)
     # try:

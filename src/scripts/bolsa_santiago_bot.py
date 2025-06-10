@@ -146,11 +146,7 @@ def refresh_active_page(logger_param):
     captured = {}
 
     def handle_response(resp):
-        if (
-            any(p in resp.url for p in patterns)
-            and resp.status == 200
-            and not captured
-        ):
+        if any(p in resp.url for p in patterns) and resp.status == 200 and not captured:
             try:
                 data_json = resp.json()
                 ts = extract_json_timestamp(data_json)
@@ -167,6 +163,7 @@ def refresh_active_page(logger_param):
 
     try:
         page.on("response", handle_response)
+        page.keyboard.press("Control+L")
         page.keyboard.press("Enter")
         page.wait_for_load_state("networkidle", timeout=60000)
 
@@ -180,9 +177,7 @@ def refresh_active_page(logger_param):
         if captured.get("ok"):
             return True, output_path
 
-        logger_param.warning(
-            "No se capturó JSON de precios tras refrescar con Enter"
-        )
+        logger_param.warning("No se capturó JSON de precios tras refrescar con Enter")
 
         # Intento de respaldo usando solicitud directa
         captured_ok, _, _ = fetch_premium_data(
@@ -286,8 +281,7 @@ def capture_premium_data_via_network(page, logger_param, output_path):
     ]
     try:
         response = page.wait_for_response(
-            lambda resp: any(p in resp.url for p in patterns)
-            and resp.status == 200,
+            lambda resp: any(p in resp.url for p in patterns) and resp.status == 200,
             timeout=20000,
         )
         data_json = response.json()
@@ -590,13 +584,15 @@ def run_automation(
                     keep_context = browser.new_context(
                         user_agent=DEFAULT_USER_AGENT,
                         no_viewport=True,
-                        storage_state=storage_state_path if os.path.exists(storage_state_path) else {},
+                        storage_state=(
+                            storage_state_path
+                            if os.path.exists(storage_state_path)
+                            else {}
+                        ),
                     )
                     keep_page = keep_context.new_page()
                     keep_page.goto(TARGET_DATA_PAGE_URL, timeout=60000)
-                    logger_param.info(
-                        "Contexto adicional abierto para reutilización"
-                    )
+                    logger_param.info("Contexto adicional abierto para reutilización")
                     global _p_instance, _browser, _context, _page
                     _p_instance = p_instance
                     _browser = browser
@@ -614,7 +610,9 @@ def run_automation(
                         while True:
                             try:
                                 input()
-                                keep_page.reload(wait_until="networkidle", timeout=60000)
+                                keep_page.reload(
+                                    wait_until="networkidle", timeout=60000
+                                )
                             except EOFError:
                                 time.sleep(60)
                             except KeyboardInterrupt:
