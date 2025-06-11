@@ -26,6 +26,17 @@ def get_active_page():
     return _page
 
 
+async def check_browser_alive() -> bool:
+    """Return True if there is an active browser context with open pages."""
+    if _context:
+        try:
+            pages = _context.pages
+            return bool(pages)
+        except Exception:
+            return False
+    return False
+
+
 async def close_resources() -> None:
     """Cierra de forma segura recursos de Playwright."""
     try:
@@ -37,4 +48,4 @@ async def close_resources() -> None:
         logger.error(f"Error cerrando Playwright: {exc}")
 
 
-__all__ = ["create_page", "get_active_page", "close_resources"]
+__all__ = ["create_page", "get_active_page", "close_resources", "check_browser_alive"]

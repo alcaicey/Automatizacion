@@ -11,6 +11,7 @@ import glob
 import random  # Asegurarse de que random esté importado
 import sys
 import hashlib
+import traceback
 from contextlib import nullcontext
 from typing import Any, Dict, List
 from flask import current_app
@@ -76,7 +77,9 @@ def _ensure_env_credentials(app=None) -> bool:
 
     client_logger = logging.getLogger("client_errors")
     client_logger.error("No hay credenciales disponibles")
+    from src.routes.errors import log_error
     logger.error("No hay credenciales disponibles")
+    log_error("service", "No hay credenciales disponibles")
     return False
 
 
@@ -124,6 +127,14 @@ def send_enter_key_to_browser(app=None, wait_seconds=5):
         else:
             logger.warning("No se capturó JSON al refrescar con Playwright")
         return success, True
+
+    # Validar si el navegador sigue activo aunque no haya referencia a la página
+    try:
+        from src.automatizacion_bolsa.playwright_session import check_browser_alive
+        if asyncio.run(check_browser_alive()):
+            logger.warning("Navegador activo sin página asociada. Se lanzará nuevo.")
+    except Exception:
+        pass
 
     if os.getenv("BOLSA_NON_INTERACTIVE") == "1":
         logger.info("Entorno no interactivo detectado y no hay página activa")
@@ -462,7 +473,9 @@ def run_bolsa_bot(
                 success, json_path = bot.refresh_active_page(bot.logger_instance_global)
 
             if not success or not json_path:
+                from src.routes.errors import log_error
                 logger.error("No se pudo obtener datos frescos")
+                log_error("service", "No se pudo obtener datos frescos")
                 fallback = prev_file or get_latest_json_file()
                 if fallback and os.path.exists(fallback):
                     store_prices_in_db(fallback, app=app)
@@ -576,14 +589,18 @@ def get_latest_data():
                 "source_file": "db",
             }
 
+        from src.routes.errors import log_error
         logger.error("No se pudo obtener el archivo de datos actualizado.")
+        log_error("service", "No se pudo obtener el archivo de datos actualizado")
         return {
             "error": "No se pudieron obtener datos",
             "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
         }
 
     except Exception as e:
+        from src.routes.errors import log_error
         logger.exception(f"Error en get_latest_data: {e}")
+        log_error("service", str(e), traceback.format_exc())
         return {
             "error": str(e),
             "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
@@ -598,9 +615,11 @@ def filter_stocks(stock_codes):
         latest_data_result = get_latest_data()
 
         if "error" in latest_data_result:
+            from src.routes.errors import log_error
             logger.error(
                 f"Error al obtener datos para filtrar: {latest_data_result['error']}"
             )
+            log_error("service", latest_data_result["error"])
             return latest_data_result
 
         # Los datos de acciones están bajo la clave "data" en el resultado de get_latest_data()
@@ -609,8 +628,13 @@ def filter_stocks(stock_codes):
         source_file = latest_data_result.get("source_file", "N/A")
 
         if not isinstance(stocks_list, list):
+            from src.routes.errors import log_error
             logger.error(
                 f"Se esperaba una lista de acciones, pero se obtuvo: {type(stocks_list)}. Archivo: {source_file}"
+            )
+            log_error(
+                "service",
+                f"Estructura inesperada en {source_file}",
             )
             return {
                 "error": "Datos de acciones no son una lista.",
