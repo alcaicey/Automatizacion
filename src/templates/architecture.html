@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Arquitectura de Base de Datos{% endblock %}
+{% block content %}
+  <h2>Arquitectura de Base de Datos</h2>
+  <p class="mb-3">A continuación se muestra el diagrama generado automáticamente a partir de los modelos actuales:</p>
+  <img src="{{ url_for('static', filename='schema_diagram.png') }}" alt="Diagrama de la base de datos" class="img-fluid border shadow">
+{% endblock %}
