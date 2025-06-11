@@ -3,8 +3,8 @@
 import logging
 import os
 import random
-import time
-from playwright.sync_api import sync_playwright
+import asyncio
+from playwright.async_api import async_playwright
 
 from src.config import (
     INITIAL_PAGE_URL,
@@ -52,21 +52,21 @@ from src.automatizacion_bolsa.resources import (
 logger_instance_global = logger
 
 
-def run_automation(
+async def run_automation(
     log_instance: logging.Logger,
     max_attempts: int = 1,
     non_interactive: bool | None = None,
     keep_open: bool = True,
 ):
-    return _run_automation(
+    return await _run_automation(
         log_instance,
         max_attempts=max_attempts,
         non_interactive=non_interactive,
         keep_open=keep_open,
         capture_func=capture_premium_data_via_network,
         fetch_func=fetch_premium_data,
-        sync_pw=sync_playwright,
-        sleep_func=time.sleep,
+        async_pw=async_playwright,
+        sleep_func=asyncio.sleep,
         input_func=input,
     )
 

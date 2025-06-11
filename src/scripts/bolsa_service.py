@@ -3,6 +3,7 @@ import json
 import logging
 import time
 import subprocess
+import asyncio
 from datetime import datetime
 import threading
 import re
@@ -451,10 +452,12 @@ def run_bolsa_bot(
                 except Exception as cred_err:
                     logger.warning(f"Credenciales no configuradas: {cred_err}")
                 bot.configure_run_specific_logging(bot.logger_instance_global)
-                bot.run_automation(
-                    bot.logger_instance_global,
-                    non_interactive=os.getenv("BOLSA_NON_INTERACTIVE") == "1",
-                    keep_open=True,
+                asyncio.run(
+                    bot.run_automation(
+                        bot.logger_instance_global,
+                        non_interactive=os.getenv("BOLSA_NON_INTERACTIVE") == "1",
+                        keep_open=True,
+                    )
                 )
                 success, json_path = bot.refresh_active_page(bot.logger_instance_global)
 

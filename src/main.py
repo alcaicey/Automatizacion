@@ -2,6 +2,7 @@ import os
 import sys
 import signal
 import atexit
+import asyncio
 
 # Add project root to Python path for absolute imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
@@ -45,7 +46,7 @@ def _cleanup_resources():
     try:
         from src.scripts.bolsa_santiago_bot import close_playwright_resources
 
-        close_playwright_resources()
+        asyncio.run(close_playwright_resources())
     except Exception as exc:
         print(f"Error al cerrar Playwright: {exc}")
 
