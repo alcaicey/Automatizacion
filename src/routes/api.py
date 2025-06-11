@@ -23,6 +23,7 @@ from src.scripts.bolsa_service import (
 from src.models.stock_price import StockPrice
 from src.models import db
 from src.models.credentials import Credential
+from src.models.log_entry import LogEntry
 from src.models.column_preference import ColumnPreference
 from src.models.stock_filter import StockFilter
 from src import history_view
@@ -30,12 +31,7 @@ from src.scripts.compare_prices import compare_prices
 from src.scripts.bolsa_service import get_latest_json_file
 
 client_logger = logging.getLogger("client_errors")
-if not client_logger.handlers:
-    log_file = os.path.join(LOGS_DIR, "frontend.log")
-    handler = logging.FileHandler(log_file, encoding="utf-8")
-    handler.setFormatter(logging.Formatter("[%(levelname)s] %(asctime)s - %(message)s"))
-    client_logger.addHandler(handler)
-    client_logger.setLevel(logging.INFO)
+client_logger.setLevel(logging.INFO)
 
 # Crear el blueprint
 api_bp = Blueprint("api", __name__)
@@ -53,12 +49,41 @@ def store_frontend_log():
     if not message:
         return jsonify({"error": "message required"}), 400
 
-    log_parts = [f"[{action}] {message}"]
-    if stack:
-        log_parts.append(stack)
-    client_logger.info(" | ".join(log_parts))
+    log_entry = LogEntry(level="INFO", message=message, action=action, stack=stack)
+    db.session.add(log_entry)
+    db.session.commit()
+    client_logger.info(f"[{action}] {message}")
 
-    return jsonify({"success": True}), 201
+    return jsonify(log_entry.to_dict()), 201
+
+
+@api_bp.route("/logs", methods=["GET"])
+def list_logs():
+    query = LogEntry.query
+    search = request.args.get("q")
+    if search:
+        like = f"%{search}%"
+        query = query.filter(LogEntry.message.ilike(like))
+    sort = request.args.get("sort", "timestamp")
+    order = request.args.get("order", "desc")
+    if sort == "action":
+        col = LogEntry.action
+    else:
+        col = LogEntry.timestamp
+    if order == "asc":
+        query = query.order_by(col.asc())
+    else:
+        query = query.order_by(col.desc())
+    logs = [l.to_dict() for l in query.all()]
+    return jsonify(logs)
+
+
+@api_bp.route("/logs/<int:log_id>", methods=["DELETE"])
+def delete_log(log_id):
+    entry = LogEntry.query.get_or_404(log_id)
+    db.session.delete(entry)
+    db.session.commit()
+    return "", 204
 
 
 @api_bp.route("/stocks", methods=["GET"])
