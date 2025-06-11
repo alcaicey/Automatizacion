@@ -254,3 +254,35 @@ el siguiente comando después de completar la instalación:
 pytest tests/test_database_connection.py
 ```
 
+## Consulta rápida con PowerShell
+
+Los siguientes pasos permiten conectarse a la base de datos de TimescaleDB y
+revisar el contenido de la tabla `stock_prices` desde PowerShell:
+
+1. Verifica que el contenedor de la base de datos esté en ejecución:
+
+   ```powershell
+   docker-compose up -d db
+   ```
+
+2. Conéctate utilizando `psql` (la contraseña por defecto es `postgres`):
+
+   ```powershell
+   psql -h localhost -U postgres -d bolsa
+   ```
+
+   Dentro de la consola de `psql` puedes consultar algunos registros:
+
+   ```sql
+   SELECT * FROM stock_prices LIMIT 5;
+   ```
+
+3. Para finalizar la sesión escribe `\q`.
+
+Si prefieres conectarte directamente al contenedor sin instalar `psql` en tu
+sistema, ejecuta:
+
+```powershell
+docker-compose exec db psql -U postgres -d bolsa
+```
+
