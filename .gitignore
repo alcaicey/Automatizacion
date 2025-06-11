@@ -365,4 +365,6 @@ src/logs_bolsa/
 
 # Python virtual environments
 envLocal/
+
 venv/
+src/static/schema_diagram.png
