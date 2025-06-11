@@ -20,6 +20,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 # Importar blueprints
 from src.routes.api import api_bp
 from src.routes.user import user_bp
+from src.routes.errors import errors_bp
 
 # Crear la aplicación Flask
 app = Flask(__name__)
@@ -79,6 +80,7 @@ def load_saved_credentials():
 # Registrar blueprints
 app.register_blueprint(api_bp, url_prefix="/api")
 app.register_blueprint(user_bp, url_prefix="/api")
+app.register_blueprint(errors_bp, url_prefix="/api")
 
 
 # Preguntar por la configuración de ejecución interactiva del bot
