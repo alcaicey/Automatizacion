@@ -7,6 +7,6 @@ flask-socketio==5.3.6
 psycopg2-binary==2.9.9
 pytest
 pyautogui
-
 sqlalchemy_schemadisplay
 pydot
+Pillow

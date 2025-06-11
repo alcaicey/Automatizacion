@@ -1,7 +1,46 @@
 {% extends "base.html" %}
+
 {% block title %}Arquitectura de Base de Datos{% endblock %}
+
 {% block content %}
-  <h2>Arquitectura de Base de Datos</h2>
-  <p class="mb-3">A continuación se muestra el diagrama generado automáticamente a partir de los modelos actuales:</p>
-  <img src="{{ url_for('static', filename='schema_diagram.png') }}" alt="Diagrama de la base de datos" class="img-fluid border shadow">
+<h2>Arquitectura de Base de Datos</h2>
+
+<button class="btn btn-warning mb-3" onclick="regenerarDiagrama()">🔄 Regenerar Diagrama</button>
+<div id="msg" class="alert d-none mt-2"></div>
+
+<p>A continuación se muestra el diagrama generado automáticamente a partir de los modelos actuales:</p>
+<img id="schemaImage" src="{{ url_for('static', filename='schema_diagram.png') }}" alt="Diagrama de la base de datos" class="img-fluid border shadow">
+{% endblock %}
+
+{% block scripts %}
+<script>
+function regenerarDiagrama() {
+  if (!confirm("¿Estás seguro de que deseas regenerar el diagrama?")) return;
+  fetch("/api/regenerate-schema-diagram", { method: "POST" })
+    .then(res => res.json())
+    .then(data => {
+      const msg = document.getElementById("msg");
+      msg.classList.remove("d-none", "alert-success", "alert-danger");
+      if (data.success) {
+        msg.classList.add("alert-success");
+        msg.innerText = "✅ Diagrama regenerado correctamente. Actualizando imagen...";
+
+        // Forzar recarga de imagen sin cache
+        const img = document.getElementById("schemaImage");
+        const timestamp = new Date().getTime();
+        img.src = "{{ url_for('static', filename='schema_diagram.png') }}" + "?t=" + timestamp;
+
+      } else {
+        msg.classList.add("alert-danger");
+        msg.innerText = "❌ Error al regenerar: " + (data.error || "Desconocido");
+      }
+    })
+    .catch(err => {
+      const msg = document.getElementById("msg");
+      msg.classList.remove("d-none", "alert-success");
+      msg.classList.add("alert-danger");
+      msg.innerText = "❌ Error inesperado: " + err.message;
+    });
+}
+</script>
 {% endblock %}
