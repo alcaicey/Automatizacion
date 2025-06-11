@@ -1,22 +1,24 @@
-from playwright.sync_api import sync_playwright
+from playwright.async_api import (
+    Playwright,
+    Browser,
+    BrowserContext,
+)
 
 from .config_loader import logger
 from src.config import INITIAL_PAGE_URL
 
-_p_instance = None
-_browser = None
-_context = None
+_browser: Browser | None = None
+_context: BrowserContext | None = None
 _page = None
 
 
-def create_page(sync_pw=sync_playwright):
+async def create_page(pw: Playwright) -> None:
     """Inicia Playwright y devuelve una nueva página."""
-    global _p_instance, _browser, _context, _page
-    _p_instance = sync_pw().start()
-    _browser = _p_instance.chromium.launch()
-    _context = _browser.new_context()
-    _page = _context.new_page()
-    _page.goto(INITIAL_PAGE_URL)
+    global _browser, _context, _page
+    _browser = await pw.chromium.launch()
+    _context = await _browser.new_context()
+    _page = await _context.new_page()
+    await _page.goto(INITIAL_PAGE_URL)
     return _page
 
 
@@ -24,15 +26,13 @@ def get_active_page():
     return _page
 
 
-def close_resources():
+async def close_resources() -> None:
     """Cierra de forma segura recursos de Playwright."""
     try:
         if _context:
-            _context.close()
+            await _context.close()
         if _browser:
-            _browser.close()
-        if _p_instance:
-            _p_instance.stop()
+            await _browser.close()
     except Exception as exc:
         logger.error(f"Error cerrando Playwright: {exc}")
 

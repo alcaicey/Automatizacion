@@ -1,6 +1,7 @@
 import builtins
 import os
 from unittest import mock
+import asyncio
 
 import pytest
 
@@ -13,24 +14,29 @@ from src.config import (
 class DummyLocator:
     def __init__(self, visible=True):
         self.visible = visible
-    def is_visible(self, timeout=0):
+    async def is_visible(self, timeout=0):
         return self.visible
-    def click(self):
+
+    async def click(self):
         pass
 
 class DummyPage:
     def __init__(self, attempt_ref):
         self.attempt_ref = attempt_ref
         self.url = bot.INITIAL_PAGE_URL
-    def goto(self, url, timeout=None):
+    async def goto(self, url, timeout=None):
         self.url = url
-    def wait_for_url(self, *args, **kwargs):
+
+    async def wait_for_url(self, *args, **kwargs):
         pass
-    def wait_for_selector(self, *args, **kwargs):
+
+    async def wait_for_selector(self, *args, **kwargs):
         pass
-    def fill(self, selector, value):
+
+    async def fill(self, selector, value):
         pass
-    def click(self, selector):
+
+    async def click(self, selector):
         pass
     def content(self):
         return ""
@@ -41,13 +47,13 @@ class DummyPage:
         if selector == CERRAR_TODAS_SESIONES_SELECTOR:
             return DummyLocator(True)
         return DummyLocator(False)
-    def wait_for_load_state(self, *args, **kwargs):
+    async def wait_for_load_state(self, *args, **kwargs):
         pass
     def on(self, *args, **kwargs):
         pass
-    def reload(self, *args, **kwargs):
+    async def reload(self, *args, **kwargs):
         pass
-    def screenshot(self, *args, **kwargs):
+    async def screenshot(self, *args, **kwargs):
         pass
     def is_closed(self):
         return False
@@ -55,37 +61,42 @@ class DummyPage:
 class DummyContext:
     def __init__(self, attempt_ref):
         self.attempt_ref = attempt_ref
-    def new_page(self):
+    async def new_page(self):
         self.attempt_ref[0] += 1
         return DummyPage(self.attempt_ref)
-    def close(self):
+
+    async def close(self):
         pass
 
 class DummyBrowser:
     def __init__(self, attempt_ref):
         self.attempt_ref = attempt_ref
-    def new_context(self, **kwargs):
+    async def new_context(self, **kwargs):
         return DummyContext(self.attempt_ref)
-    def close(self):
+
+    async def close(self):
         pass
 
 class DummyChromium:
     def __init__(self, attempt_ref):
         self.attempt_ref = attempt_ref
-    def launch(self, **kwargs):
+    async def launch(self, **kwargs):
         return DummyBrowser(self.attempt_ref)
 
 class DummyPlaywright:
     def __init__(self, attempt_ref):
         self.chromium = DummyChromium(attempt_ref)
-    def start(self):
+    async def __aenter__(self):
         return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        pass
 
 def test_restart_after_closing_sessions(monkeypatch):
     attempt_ref = [0]
 
     dummy_playwright = DummyPlaywright(attempt_ref)
-    monkeypatch.setattr(bot, "sync_playwright", lambda: dummy_playwright)
+    monkeypatch.setattr(bot, "async_playwright", lambda: dummy_playwright)
     monkeypatch.setattr(
         bot,
         "analyze_har_and_extract_data",
@@ -104,7 +115,7 @@ def test_restart_after_closing_sessions(monkeypatch):
     monkeypatch.setattr(builtins, "input", forbid_input)
 
     logger = mock.Mock()
-    bot.run_automation(logger, max_attempts=2, keep_open=False)
+    asyncio.run(bot.run_automation(logger, max_attempts=2, keep_open=False))
 
     # dos intentos principales deben haberse ejecutado. Tras los cambios el
     # script abre un contexto adicional al finalizar, por lo que el contador
@@ -118,7 +129,7 @@ def test_keep_browser_alive_on_eof(monkeypatch):
     monkeypatch.delenv("BOLSA_NON_INTERACTIVE", raising=False)
 
     dummy_playwright = DummyPlaywright(attempt_ref)
-    monkeypatch.setattr(bot, "sync_playwright", lambda: dummy_playwright)
+    monkeypatch.setattr(bot, "async_playwright", lambda: dummy_playwright)
     monkeypatch.setattr(
         bot,
         "analyze_har_and_extract_data",
@@ -137,16 +148,16 @@ def test_keep_browser_alive_on_eof(monkeypatch):
 
     sleep_calls = []
 
-    def dummy_sleep(t):
+    async def dummy_sleep(t):
         sleep_calls.append(t)
         if t == 60:
             raise RuntimeError("loop started")
 
-    monkeypatch.setattr(bot.time, "sleep", dummy_sleep)
+    monkeypatch.setattr(bot.asyncio, "sleep", lambda t: dummy_sleep(t))
 
     logger = mock.Mock()
     with pytest.raises(RuntimeError, match="loop started"):
-        bot.run_automation(logger, max_attempts=1)
+        asyncio.run(bot.run_automation(logger, max_attempts=1))
 
     assert 60 in sleep_calls
 
@@ -155,12 +166,16 @@ def test_no_sleep_when_keep_open_false(monkeypatch):
     attempt_ref = [0]
     monkeypatch.delenv("BOLSA_NON_INTERACTIVE", raising=False)
     dummy_playwright = DummyPlaywright(attempt_ref)
-    monkeypatch.setattr(bot, "sync_playwright", lambda: dummy_playwright)
+    monkeypatch.setattr(bot, "async_playwright", lambda: dummy_playwright)
     monkeypatch.setattr(bot, "analyze_har_and_extract_data", lambda *a, **k: None)
     monkeypatch.setattr(bot, "configure_run_specific_logging", lambda *a, **k: None)
     monkeypatch.setattr(builtins, "input", lambda *a, **k: "")
     sleep_calls = []
-    monkeypatch.setattr(bot.time, "sleep", lambda t: sleep_calls.append(t))
+
+    async def record_sleep(t):
+        sleep_calls.append(t)
+
+    monkeypatch.setattr(bot.asyncio, "sleep", lambda t: record_sleep(t))
     logger = mock.Mock()
-    bot.run_automation(logger, max_attempts=1, keep_open=False)
+    asyncio.run(bot.run_automation(logger, max_attempts=1, keep_open=False))
     assert 60 not in sleep_calls
