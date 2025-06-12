@@ -24,7 +24,7 @@ from src.config import (
 from src.scripts.har_analyzer import analyze_har_and_extract_data
 
 from src.automatizacion_bolsa import run_automation as _run_automation
-from src.automatizacion_bolsa import refresh_active_page
+from src.automatizacion_bolsa.page_refresh import refresh_active_page
 from src.automatizacion_bolsa import clean_percentage
 from src.automatizacion_bolsa.playwright_session import (
     create_page,

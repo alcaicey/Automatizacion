@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block title %}Histórico de Cargas{% endblock %}
+
+{% block head %}
+{{ super() }}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.5/css/dataTables.bootstrap5.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.bootstrap5.min.css">
+{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Histórico de Cargas</h1>
+
+<table id="historyTable" class="table table-striped w-100 mb-5">
+    <thead class="table-dark">
+        <tr>
+            <th>Archivo</th>
+            <th>Fecha</th>
+            <th>Total</th>
+            <th>Cambios</th>
+            <th>Nuevas</th>
+            <th>Eliminadas</th>
+            <th>Errores</th>
+            <th>Estado</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<h2 class="mt-5">Comparación Última Carga</h2>
+<div class="mb-3">
+    <div class="form-check form-check-inline">
+        <input class="form-check-input filter-checkbox" type="checkbox" id="filterChanges" checked>
+        <label class="form-check-label" for="filterChanges">Cambios</label>
+    </div>
+    <div class="form-check form-check-inline">
+        <input class="form-check-input filter-checkbox" type="checkbox" id="filterNew" checked>
+        <label class="form-check-label" for="filterNew">Nuevas</label>
+    </div>
+    <div class="form-check form-check-inline">
+        <input class="form-check-input filter-checkbox" type="checkbox" id="filterRemoved" checked>
+        <label class="form-check-label" for="filterRemoved">Eliminadas</label>
+    </div>
+    <div class="form-check form-check-inline">
+        <input class="form-check-input filter-checkbox" type="checkbox" id="filterErrors" checked>
+        <label class="form-check-label" for="filterErrors">Errores</label>
+    </div>
+    <div class="form-check form-check-inline">
+        <input class="form-check-input filter-checkbox" type="checkbox" id="filterUnchanged">
+        <label class="form-check-label" for="filterUnchanged">Sin cambios</label>
+    </div>
+</div>
+
+<table id="comparisonTable" class="table table-bordered w-100">
+    <thead class="table-light">
+        <tr>
+            <th>Símbolo</th>
+            <th>Precio Anterior</th>
+            <th>Precio Nuevo</th>
+            <th>Variación</th>
+            <th>Diferencia</th>
+            <th>% Cambio</th>
+            <th>Tipo</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.5/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.bootstrap5.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.0/jszip.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
+<script src="{{ url_for('static', filename='historico.js') }}"></script>
+{% endblock %}

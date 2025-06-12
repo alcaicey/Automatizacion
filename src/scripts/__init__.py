@@ -1,1 +1,4 @@
-# Este archivo permite que el directorio scripts sea un paquete Python
+from src.automatizacion_bolsa.run_automation import run_automation
+
+
+__all__ = ["run_automation"]

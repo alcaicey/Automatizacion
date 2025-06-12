@@ -17,7 +17,7 @@ Esta aplicación web permite filtrar y visualizar datos de acciones de la Bolsa 
    - Botones para filtrar y limpiar campos
 
 3. **Actualización de Datos**:
-   - Actualización manual mediante botón (ejecuta directamente bolsa_santiago_bot.py)
+   - Actualización manual mediante botón "Actualizar" (ejecuta directamente bolsa_santiago_bot.py)
    - Indicador de progreso durante la generación del JSON (hasta 20 segundos)
    - Actualización automática configurable (1-3 o 1-5 minutos)
    - Indicador de próxima actualización y timestamp del último archivo JSON

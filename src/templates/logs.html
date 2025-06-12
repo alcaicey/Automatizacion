@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block title %}Logs{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Logs</h1>
+
+<div class="mb-3">
+  <input id="searchInput" class="form-control" placeholder="Buscar...">
+</div>
+
+<table id="logsTable" class="table table-striped">
+  <thead class="table-dark">
+      <tr>
+          <th>Id</th>
+          <th>Fecha</th>
+          <th>Acción</th>
+          <th>Mensaje</th>
+          <th></th>
+      </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='logs.js') }}"></script>
+{% endblock %}

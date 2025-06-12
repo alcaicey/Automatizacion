@@ -1,51 +1,79 @@
-from playwright.async_api import (
-    Playwright,
-    Browser,
-    BrowserContext,
-)
 
-from .config_loader import logger
-from src.config import INITIAL_PAGE_URL
+from __future__ import annotations
 
-_browser: Browser | None = None
-_context: BrowserContext | None = None
-_page = None
+import asyncio
+from typing import Optional
 
+from playwright.async_api import async_playwright, Playwright, Browser, BrowserContext, Page
 
-async def create_page(pw: Playwright) -> None:
-    """Inicia Playwright y devuelve una nueva página."""
-    global _browser, _context, _page
-    _browser = await pw.chromium.launch()
-    _context = await _browser.new_context()
-    _page = await _context.new_page()
-    await _page.goto(INITIAL_PAGE_URL)
-    return _page
+_PW: Optional[Playwright] = None
+_BROWSER: Optional[Browser] = None
+_CONTEXT: Optional[BrowserContext] = None
+_LAST_PAGE: Optional[Page] = None
 
 
-def get_active_page():
-    return _page
+def _ensure_pw() -> Playwright:
+    global _PW
+    if _PW is None:
+        _PW = asyncio.get_event_loop().run_until_complete(async_playwright().start())
+    return _PW
+
+
+async def create_page(pw: Playwright | None = None, *, headless: bool = True, context_kwargs: dict | None = None) -> Page:
+    global _PW, _BROWSER, _CONTEXT, _LAST_PAGE
+    if pw is None:
+        pw = _ensure_pw()
+    else:
+        _PW = pw
+    if _BROWSER is None:
+        _BROWSER = await pw.chromium.launch(headless=headless)
+    _CONTEXT = await _BROWSER.new_context(**(context_kwargs or {}))
+    _LAST_PAGE = await _CONTEXT.new_page()
+    return _LAST_PAGE
+
+
+def get_active_page() -> Page | None:
+    return _LAST_PAGE
 
 
 async def check_browser_alive() -> bool:
-    """Return True if there is an active browser context with open pages."""
-    if _context:
-        try:
-            pages = _context.pages
-            return bool(pages)
-        except Exception:
-            return False
-    return False
+    return bool(_CONTEXT and _CONTEXT.pages)
 
 
 async def close_resources() -> None:
-    """Cierra de forma segura recursos de Playwright."""
+    global _PW, _BROWSER, _CONTEXT, _LAST_PAGE
     try:
-        if _context:
-            await _context.close()
-        if _browser:
-            await _browser.close()
-    except Exception as exc:
-        logger.error(f"Error cerrando Playwright: {exc}")
+        if _CONTEXT:
+            await _CONTEXT.close()
+    finally:
+        _CONTEXT = None
+        _LAST_PAGE = None
+        if _BROWSER:
+            await _BROWSER.close()
+            _BROWSER = None
+        if _PW:
+            await _PW.stop()
+            _PW = None
 
 
-__all__ = ["create_page", "get_active_page", "close_resources", "check_browser_alive"]
+async def find_page_by_title(keyword: str) -> Page | None:
+    if not _BROWSER:
+        return None
+    for context in _BROWSER.contexts:
+        for page in context.pages:
+            try:
+                title = await page.title()
+            except Exception:
+                continue
+            if keyword.lower() in title.lower():
+                return page
+    return None
+
+
+__all__ = [
+    "create_page",
+    "get_active_page",
+    "check_browser_alive",
+    "close_resources",
+    "find_page_by_title",
+]

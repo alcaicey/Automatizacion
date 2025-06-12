@@ -1,12 +1,14 @@
-Flask==3.1.0
+Flask==3.1.*
+Flask-SocketIO==5.3.*
 flask-cors==6.0.0
 Flask-SQLAlchemy==3.1.1
-SQLAlchemy==2.0.40
-playwright==1.52.0
-flask-socketio==5.3.6
+Playwright==1.52.*
+SQLAlchemy==2.0.*
 psycopg2-binary==2.9.9
-pytest
-pyautogui
+pyautogui==0.9.*
 sqlalchemy_schemadisplay
 pydot
 Pillow
+psutil==5.9.*
+pygetwindow==0.0.9     # solo necesario en Windows para activar la ventana
+pytest

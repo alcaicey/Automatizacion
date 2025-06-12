@@ -1,0 +1,29 @@
+{# templates/_navbar.html #}
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="{{ url_for('pages.home') }}">Bolsa App</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+            data-bs-target="#navbarNav" aria-controls="navbarNav"
+            aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        {% for pg in NAV_PAGES if pg.label %}
+          <li class="nav-item">
+            <a class="nav-link {{ 'active' if active == pg.key else '' }}"
+               href="{{ url_for('pages.' ~ pg.key) }}">{{ pg.label }}</a>
+          </li>
+        {% endfor %}
+
+        <li class="nav-item">
+          <a class="nav-link {{ 'active' if request.path.startswith('/architecture') else '' }}"
+             href="{{ url_for('architecture.architecture_page') }}">Arquitectura</a>
+        </li>
+      </ul>
+
+      <button id="themeToggle" class="btn btn-outline-secondary ms-auto" type="button" aria-label="Toggle theme">🌓</button>
+    </div>
+  </div>
+</nav>
