@@ -71,7 +71,7 @@ def _safe_log(level: str, msg: str, *args, **kwargs):
         return getattr(h, "stream", None) and getattr(h.stream, "closed", False)
     if any(_closed(h) for h in logger.handlers) or any(_closed(h) for h in root.handlers):
         return
-    getattr(logger, level)(msg, *args, **kwargs) 
+    getattr(logger, level)(msg, *args, **kwargs) True
 
     if os.getenv("BOLSA_USERNAME") and os.getenv("BOLSA_PASSWORD"):
         return True
