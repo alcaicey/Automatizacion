@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 
 from src.scripts.compare_prices import compare_prices
 from src.models.stock_price import StockPrice
-from src.models import db
+from src.extensions import db
 
 
 def test_compare_prices_basic(app):

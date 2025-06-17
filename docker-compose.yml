@@ -1,14 +1,36 @@
-version: '3.8'
+# --- INICIO DE LA CORRECCIÓN: Se elimina 'version' y se añade 'healthcheck' ---
 services:
   db:
     image: timescale/timescaledb:latest-pg15
+    container_name: bolsa_timescaledb
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: bolsa
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=bolsa
     ports:
       - "5432:5432"
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - timescale_data:/var/lib/postgresql/data
+    # Esta sección es la clave:
+    healthcheck:
+      # Comando que se ejecuta dentro del contenedor para verificar la salud.
+      # pg_isready es una utilidad de postgres que devuelve 0 si está lista.
+      test: ["CMD-SHELL", "pg_isready -U postgres -d bolsa"]
+      interval: 10s   # Revisa cada 10 segundos.
+      timeout: 5s     # Espera un máximo de 5 segundos por respuesta.
+      retries: 5      # Intenta 5 veces antes de marcarlo como "unhealthy".
+
+  # Si tuvieras un servicio para tu app Flask aquí (opcional),
+  # podrías hacer que dependa de la salud de la DB así:
+  # web:
+  #   build: .
+  #   ports:
+  #     - "5000:5000"
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy # No empieza hasta que la DB esté saludable
+
 volumes:
-  db_data:
+  timescale_data:
+# --- FIN DE LA CORRECCIÓN ---

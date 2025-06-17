@@ -1,13 +1,22 @@
-from flask_sqlalchemy import SQLAlchemy
+# Este archivo sirve para que Python reconozca el directorio 'models' como un paquete.
+# No es necesario que contenga código, pero podemos usarlo para facilitar las importaciones.
 
-# Base de datos
-db = SQLAlchemy()
+from .user import User
+from .stock_price import StockPrice
+from .credentials import Credential
+from .column_preference import ColumnPreference
+from .stock_filter import StockFilter
+from .last_update import LastUpdate
+from .log_entry import LogEntry
 
-# Import models to ensure they are registered with SQLAlchemy
-from .user import User  # noqa: E402,F401
-from .stock_price import StockPrice  # noqa: E402,F401
-from .credentials import Credential  # noqa: E402,F401
-from .column_preference import ColumnPreference  # noqa: E402,F401
-from .stock_filter import StockFilter  # noqa: E402,F401
-from .last_update import LastUpdate  # noqa: E402,F401
-from .log_entry import LogEntry  # noqa: E402,F401
+# El __all__ define qué se importa cuando se hace 'from src.models import *'
+__all__ = [
+    "db",
+    "User",
+    "StockPrice",
+    "Credential",
+    "ColumnPreference",
+    "StockFilter",
+    "LastUpdate",
+    "LogEntry",
+]

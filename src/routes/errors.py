@@ -1,27 +1,20 @@
 import logging
 import traceback
-from flask import Blueprint, jsonify, request
+from flask import Blueprint
 from src.models.log_entry import LogEntry
-from src.models import db
+from src.extensions import db
 
 errors_bp = Blueprint('errors', __name__)
 logger = logging.getLogger(__name__)
 
 
-def log_error(source: str, message: str, stack: str | None = None) -> LogEntry:
-    """Persist an error log entry in the database and log via logger."""
+def log_error(source: str, message: str, stack: str | None = None) -> None:
+    """Persiste una entrada de log de error en la base de datos y la registra a través del logger."""
     logger.error(f"[{source}] {message}")
-    entry = LogEntry(level='ERROR', message=message, action=source, stack=stack)
-    db.session.add(entry)
-    db.session.commit()
-    return entry
-
-
-@errors_bp.route('/error-logs', methods=['GET'])
-def list_error_logs():
-    """Return paginated error logs ordered by most recent."""
-    offset = request.args.get('offset', default=0, type=int)
-    limit = request.args.get('limit', default=100, type=int)
-    query = LogEntry.query.filter_by(level='ERROR').order_by(LogEntry.timestamp.desc())
-    logs = query.offset(offset).limit(limit).all()
-    return jsonify([log.to_dict() for log in logs])
+    try:
+        entry = LogEntry(level='ERROR', message=message, action=source, stack=stack)
+        db.session.add(entry)
+        db.session.commit()
+    except Exception as e:
+        logger.critical(f"FALLO AL GUARDAR LOG DE ERROR EN DB: {e}", exc_info=True)
+        db.session.rollback()

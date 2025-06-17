@@ -1,142 +1,128 @@
-import os
-import sys
-import signal
-import atexit
 import asyncio
+import logging
+import os
+import signal
+import sys
+import atexit
+import threading
 
-# Add project root to Python path for absolute imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, render_template
 from flask_cors import CORS
+from dotenv import load_dotenv
 
-from src.extensions import socketio
-from src.models import db
-from src.models.credentials import Credential
 from src.config import SQLALCHEMY_DATABASE_URI, SQLALCHEMY_TRACK_MODIFICATIONS
-
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-
-# Importar blueprints
+from src.extensions import db, socketio
+from src.models.credentials import Credential
 from src.routes.api import api_bp
-from src.routes.user import user_bp
-from src.routes.errors import errors_bp
 from src.routes.architecture import architecture_bp
+from src.routes.errors import errors_bp
+from src.routes.user import user_bp
+from src.utils.scheduler import stop_periodic_updates
+from src.scripts.bot_page_manager import close_browser
 
-# Crear la aplicación Flask
-app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = SQLALCHEMY_DATABASE_URI
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = SQLALCHEMY_TRACK_MODIFICATIONS
-CORS(app)  # Habilitar CORS para todas las rutas
+load_dotenv()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(levelname)s] [%(name)s] %(asctime)s - %(message)s",
+    stream=sys.stdout
+)
+logger = logging.getLogger(__name__)
+
+LOOP = asyncio.new_event_loop()
+BOT_THREAD = threading.Thread(target=LOOP.run_forever, daemon=True)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+app = Flask(__name__, static_folder=os.path.join(BASE_DIR, "static"), template_folder='templates')
+app.config.update(
+    SQLALCHEMY_DATABASE_URI=SQLALCHEMY_DATABASE_URI,
+    SQLALCHEMY_TRACK_MODIFICATIONS=SQLALCHEMY_TRACK_MODIFICATIONS,
+)
+app.bot_event_loop = LOOP
+
+CORS(app)
 db.init_app(app)
-socketio.init_app(app, cors_allowed_origins="*")
+socketio.init_app(app, cors_allowed_origins="*", async_mode="threading")
 
+@app.route("/")
+def home():
+    return render_template("index.html")
 
-# --- Manejo de cierre limpio -------------------------------------------------
-def _cleanup_resources():
-    """Libera hilos y cierra Playwright al terminar la aplicación."""
-    try:
-        from src.scripts.bolsa_service import stop_periodic_updates
-        import logging
+@app.route("/historico")
+def historico():
+    return render_template("historico.html")
 
-        logging.getLogger("src.scripts.bolsa_service").disabled = True
-        stop_periodic_updates()
-        logging.getLogger("src.scripts.bolsa_service").disabled = False
-    except Exception as exc:
-        print(f"Error al detener actualizaciones periódicas: {exc}")
+@app.route("/logs")
+def logs():
+    return render_template("logs.html")
 
-    try:
-        from src.scripts.bolsa_santiago_bot import close_playwright_resources
+@app.route("/login")
+def login():
+    return render_template("login.html")
 
-        asyncio.run(close_playwright_resources())
-    except Exception as exc:
-        print(f"Error al cerrar Playwright: {exc}")
-
-
-def graceful_shutdown(signum, frame):
-    print(f"Señal {signum} recibida. Cerrando aplicación de forma limpia...")
-    _cleanup_resources()
-    try:
-        socketio.stop()
-    except BrokenPipeError:
-        pass
-    except Exception as exc:
-        print(f"Error al detener SocketIO: {exc}")
-    sys.exit(0)
-
-
-atexit.register(_cleanup_resources)
-for sig in (signal.SIGINT, signal.SIGTERM):
-    signal.signal(sig, graceful_shutdown)
-
-
-def load_saved_credentials():
-    """Carga credenciales desde la base de datos si existen."""
-    cred = Credential.query.first()
-    if cred:
-        os.environ.setdefault("BOLSA_USERNAME", cred.username)
-        os.environ.setdefault("BOLSA_PASSWORD", cred.password)
-
-
-# Registrar blueprints
 app.register_blueprint(api_bp, url_prefix="/api")
 app.register_blueprint(user_bp, url_prefix="/api")
 app.register_blueprint(errors_bp, url_prefix="/api")
 app.register_blueprint(architecture_bp)
 
+@app.route("/static/<path:path>")
+def static_files(path):
+    return send_from_directory(app.static_folder, path)
 
-# Preguntar por la configuración de ejecución interactiva del bot
-def _prompt_non_interactive():
-    """Solicita al usuario si desea activar el modo no interactivo."""
-    if os.environ.get("BOLSA_NON_INTERACTIVE") is not None:
-        return
+def _cleanup_resources():
+    logger.info("Iniciando cierre limpio de la aplicación...")
+    stop_periodic_updates()
+    
+    # --- INICIO DE LA CORRECCIÓN ---
+    # Detenemos el hilo y cerramos el navegador de forma más directa
+    if BOT_THREAD.is_alive():
+        logger.info("Solicitando detención del bucle de eventos del bot...")
+        # Simplemente corremos la corutina de cierre.
+        # No es necesario `run_coroutine_threadsafe` aquí.
+        try:
+            asyncio.run(close_browser())
+        except RuntimeError:
+            # Puede que el bucle ya esté cerrado, es seguro ignorarlo.
+            pass
+        
+        LOOP.call_soon_threadsafe(LOOP.stop)
+        BOT_THREAD.join(timeout=5)
+        if not BOT_THREAD.is_alive():
+            logger.info("✓ Hilo del bot finalizado correctamente.")
+    # --- FIN DE LA CORRECCIÓN ---
+    
+atexit.register(_cleanup_resources)
 
-    try:
-        resp = (
-            input(
-                "\u00bfEjecutar bolsa_santiago_bot.py sin confirmaci\u00f3n de usuario? "
-                "[s/N]: "
-            )
-            .strip()
-            .lower()
-        )
-    except EOFError:
-        resp = ""
+def graceful_shutdown(signum, frame):
+    logger.info(f"Recibida señal de apagado ({signum})...")
+    sys.exit(0)
 
-    if resp in {"s", "y", "yes", "si"}:
-        os.environ["BOLSA_NON_INTERACTIVE"] = "1"
-    else:
-        os.environ["BOLSA_NON_INTERACTIVE"] = "0"
+signal.signal(signal.SIGINT, graceful_shutdown)
+signal.signal(signal.SIGTERM, graceful_shutdown)
 
+def load_saved_credentials(app_context):
+    with app_context:
+        if not (os.getenv("BOLSA_USERNAME") and os.getenv("BOLSA_PASSWORD")):
+            try:
+                cred = Credential.query.first()
+                if cred:
+                    os.environ["BOLSA_USERNAME"] = cred.username
+                    os.environ["BOLSA_PASSWORD"] = cred.password
+                    logger.info("✓ Credenciales cargadas desde la base de datos.")
+            except Exception as e:
+                logger.error(f"No se pudieron cargar las credenciales desde la DB: {e}")
 
-# Ruta principal que sirve el frontend
-@app.route("/", defaults={"path": ""})
-@app.route("/<path:path>")
-def serve(path):
-    if path and os.path.exists(os.path.join(app.static_folder, path)):
-        return send_from_directory(app.static_folder, path)
-    return send_from_directory(app.static_folder, "index.html")
-
+def start_bot_thread():
+    if not BOT_THREAD.is_alive():
+        logger.info("Iniciando hilo de fondo para el bot de Playwright...")
+        BOT_THREAD.start()
 
 if __name__ == "__main__":
-    # Crear directorios necesarios si no existen
-    os.makedirs(os.path.join(BASE_DIR, "logs"), exist_ok=True)
-    os.makedirs(os.path.join(BASE_DIR, "data"), exist_ok=True)
-
-    # Configurar la variable BOLSA_NON_INTERACTIVE si es necesario
-    _prompt_non_interactive()
-
-    # Iniciar la aplicación con soporte WebSocket
     with app.app_context():
         db.create_all()
-        load_saved_credentials()
-    try:
-        socketio.run(
-            app,
-            host="0.0.0.0",
-            port=5000,
-            debug=False,
-            use_reloader=False,
-        )
-    except KeyboardInterrupt:
-        _signal_handler(signal.SIGINT, None)
+        load_saved_credentials(app.app_context())
+
+    start_bot_thread()
+
+    logger.info("🚀 Iniciando servidor Flask. La aplicación está lista en http://localhost:5000")
+    socketio.run(app, host="0.0.0.0", port=5000, debug=False, use_reloader=False, allow_unsafe_werkzeug=True)

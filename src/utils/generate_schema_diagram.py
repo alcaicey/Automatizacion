@@ -10,7 +10,7 @@ import sys
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 sys.path.insert(0, BASE_DIR)
 
-from src.models import db  # Asegura acceso a los modelos
+from src.extensions import db  # Asegura acceso a los modelos
 
 OUTPUT_PATH = os.path.join(BASE_DIR, "src", "static", "schema_diagram.png")
 FALLBACK_FONT_SIZE = 14

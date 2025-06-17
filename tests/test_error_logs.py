@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from src.routes import errors as errors_module
 from src.models.log_entry import LogEntry
-from src.models import db
+from src.extensions import db
 
 
 def test_error_log_pagination(app):

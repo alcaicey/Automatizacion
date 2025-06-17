@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Tuple
 from contextlib import nullcontext
 
-from src.models import db
+from src.extensions import db
 from src.models.stock_price import StockPrice
 
 

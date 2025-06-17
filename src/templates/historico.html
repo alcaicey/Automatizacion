@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block title %}Histórico de Cargas{% endblock %}
+
+{% block head %}
+{{ super() }}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap5.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4">Histórico de Cargas</h1>
+    <div class="card shadow-sm mb-5">
+        <div class="card-body">
+            <table id="historyTable" class="table table-striped table-hover w-100">
+            </table>
+        </div>
+    </div>
+
+
+    <h2 class="mt-5">Comparación de la Última Carga</h2>
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="mb-3 d-flex flex-wrap gap-3">
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input filter-checkbox" type="checkbox" id="filterChanges" checked>
+                    <label class="form-check-label" for="filterChanges">Cambios</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input filter-checkbox" type="checkbox" id="filterNew" checked>
+                    <label class="form-check-label" for="filterNew">Nuevas</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input filter-checkbox" type="checkbox" id="filterRemoved" checked>
+                    <label class="form-check-label" for="filterRemoved">Eliminadas</label>
+                </div>
+                 <div class="form-check form-check-inline">
+                    <input class="form-check-input filter-checkbox" type="checkbox" id="filterUnchanged">
+                    <label class="form-check-label" for="filterUnchanged">Sin cambios</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input filter-checkbox" type="checkbox" id="filterErrors" checked>
+                    <label class="form-check-label" for="filterErrors">Errores</label>
+                </div>
+            </div>
+            <table id="comparisonTable" class="table table-bordered table-hover w-100">
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.bootstrap5.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
+<script src="{{ url_for('static', filename='historico.js') }}"></script>
+{% endblock %}

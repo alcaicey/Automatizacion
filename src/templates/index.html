@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+
+{% block title %}Filtro de Acciones - Bolsa de Santiago{% endblock %}
+
+{% block head %}
+{{ super() }}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/simple-datatables@latest/dist/style.css">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h1 class="h4 mb-0"><i class="fas fa-filter me-2"></i>Filtro de Acciones</h1>
+                    <div id="lastUpdate" class="small">
+                        <i class="fas fa-clock me-1"></i>Última act: --
+                    </div>
+                </div>
+                <div class="card-body">
+                    <form id="stockFilterForm" class="mb-4 p-3 border rounded bg-body-tertiary">
+                        <div class="row g-3 align-items-center">
+                            <div class="col-12"><label class="form-label fw-bold">Filtrar por códigos:</label></div>
+                            {% for i in range(5) %}
+                            <div class="col"><input type="text" class="form-control stock-code" placeholder="Ej: COPEC" maxlength="12"></div>
+                            {% endfor %}
+                            <div class="col-auto">
+                                <div class="form-check form-switch fs-5">
+                                    <input class="form-check-input" type="checkbox" role="switch" id="allStocksCheck">
+                                    <label class="form-check-label" for="allStocksCheck">Todas</label>
+                                </div>
+                            </div>
+                            <div class="col-12 d-flex justify-content-end gap-2 mt-3">
+                                <button type="button" id="clearBtn" class="btn btn-outline-secondary"><i class="fas fa-eraser me-1"></i>Limpiar</button>
+                                <button type="submit" class="btn btn-primary"><i class="fas fa-search me-1"></i>Aplicar</button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <label for="autoUpdateSelect" class="form-label mb-0">Auto-Update:</label>
+                            <select id="autoUpdateSelect" class="form-select form-select-sm w-auto">
+                                <option value="off">Desactivado</option>
+                                <option value="1-3">1-3 min</option>
+                                <option value="3-5">3-5 min</option>
+                                <option value="5-10">5-10 min</option>
+                            </select>
+                            <span id="countdownTimer" class="text-muted small ms-2"></span>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" id="refreshBtn" class="btn btn-success"><i class="fas fa-sync-alt me-2"></i>Actualizar Ahora</button>
+                            <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#columnConfigModal"><i class="fas fa-sliders-h me-2"></i>Columnas</button>
+                        </div>
+                    </div>
+
+                    <div id="statusMessage" class="alert alert-info small py-2"><i class="fas fa-info-circle me-1"></i>Cargando...</div>
+
+                    <div class="table-responsive">
+                        <table id="stocksTable" class="table table-striped table-hover"></table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="columnConfigModal" tabindex="-1" aria-labelledby="columnConfigModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="columnConfigModalLabel">Seleccionar Columnas</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="columnConfigForm" class="row g-2"></form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" id="saveColumnPrefs" class="btn btn-primary">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="loadingOverlay" class="loading-overlay d-none">
+    <div class="loading-content">
+        <div class="spinner-border text-light mb-3" style="width: 3rem; height: 3rem;"></div>
+        <h5 id="loadingMessage" class="text-light">Cargando...</h5>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/simple-datatables@latest"></script>
+<script src="{{ url_for('static', filename='ui_manager.js') }}"></script>
+<script src="{{ url_for('static', filename='auto_updater.js') }}"></script>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+{% endblock %}
