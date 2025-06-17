@@ -1,60 +1,65 @@
 import os
 import json
 import glob
-from typing import List, Dict, Any
+import logging
+from typing import List, Dict, Any, Optional
 from datetime import datetime
 
 from src.config import LOGS_DIR
-from src.scripts.bolsa_service import extract_timestamp_from_filename
-from src.models import db
+from src.utils.db_io import compare_last_two_db_entries
+from src.utils.json_utils import extract_timestamp_from_filename
+from src.extensions import db
 from src.models.stock_price import StockPrice
+
+logger = logging.getLogger(__name__)
 
 
 def _parse_file(path: str) -> Dict[str, Any]:
-    """Return parsed items with error detection."""
-    with open(path, 'r', encoding='utf-8') as f:
-        raw = json.load(f)
+    """Parsea un archivo JSON de precios, valida su estructura y devuelve un diccionario normalizado."""
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            raw = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        logger.error(f"Error al leer o parsear el archivo {path}: {e}")
+        return {'items': [], 'map': {}, 'errors': [{'file': os.path.basename(path), 'error': str(e)}], 'timestamp': ''}
 
     rows = raw.get('listaResult') if isinstance(raw, dict) else raw
     if not isinstance(rows, list):
         rows = []
-    items: list[dict[str, Any]] = []
-    errors: list[dict[str, Any]] = []
-    mapping: dict[str, dict[str, Any]] = {}
+
+    items: List[Dict[str, Any]] = []
+    errors: List[Dict[str, Any]] = []
+    mapping: Dict[str, Dict[str, Any]] = {}
+
     for item in rows:
         if not isinstance(item, dict):
             continue
-        symbol = item.get('symbol') or item.get('NEMO') or ''
-        price = item.get('price')
-        if price is None:
-            price = item.get('PRECIO_CIERRE')
-        variation = item.get('variation')
-        if variation is None:
-            variation = item.get('VARIACION')
-        ts = item.get('timestamp')
-        try:
-            price = float(price)
-        except (TypeError, ValueError):
-            price = 0.0
-        try:
-            variation = float(variation)
-        except (TypeError, ValueError):
-            variation = 0.0
-        errs = []
+        
+        symbol = item.get('symbol') or item.get('NEMO')
+        price = item.get('price', item.get('PRECIO_CIERRE'))
+        variation = item.get('variation', item.get('VARIACION'))
+        
+        validation_errors = []
         if not symbol:
-            errs.append('symbol')
-        if ts in (None, ''):
-            errs.append('timestamp')
-        if errs:
-            errors.append({'symbol': symbol, 'errors': errs})
-            # Skip invalid records entirely
+            validation_errors.append('symbol_missing')
+        
+        try:
+            price_float = float(str(price).replace(",", ".")) if price is not None else 0.0
+        except (TypeError, ValueError):
+            price_float = 0.0
+            validation_errors.append('price_invalid')
+
+        try:
+            variation_float = float(str(variation).replace(",", ".")) if variation is not None else 0.0
+        except (TypeError, ValueError):
+            variation_float = 0.0
+            validation_errors.append('variation_invalid')
+
+        if validation_errors:
+            errors.append({'symbol': symbol or 'UNKNOWN', 'errors': validation_errors, 'raw_item': item})
             continue
-        entry = {
-            'symbol': symbol,
-            'price': price,
-            'variation': variation,
-            'timestamp': ts,
-        }
+
+        entry = {'symbol': symbol, 'price': price_float, 'variation': variation_float, 'timestamp': item.get('timestamp')}
         items.append(entry)
         mapping[symbol] = entry
 
@@ -63,165 +68,157 @@ def _parse_file(path: str) -> Dict[str, Any]:
 
 
 def _history_from_db() -> List[Dict[str, Any]]:
-    """Build history summaries using database records."""
-    timestamps = (
-        db.session.query(StockPrice.timestamp)
-        .distinct()
-        .order_by(StockPrice.timestamp)
-        .all()
-    )
-    if not timestamps:
+    """Construye un resumen del historial de cargas utilizando los registros de la base de datos."""
+    timestamps_query = db.session.query(StockPrice.timestamp).distinct().order_by(StockPrice.timestamp).all()
+    if len(timestamps_query) < 2:
         return []
 
+    timestamps = [ts[0] for ts in timestamps_query]
     history: List[Dict[str, Any]] = []
-    prev_symbols: set[str] = set()
-    prev_map: Dict[str, Any] | None = None
 
-    for ts_obj in timestamps:
-        ts = ts_obj[0]
-        rows = StockPrice.query.filter_by(timestamp=ts).all()
-        curr_map = {r.symbol: r.to_dict() for r in rows}
-        symbols = set(curr_map)
-        new_syms = symbols - prev_symbols if prev_symbols else set()
-        removed_syms = prev_symbols - symbols if prev_symbols else set()
-        changes = []
-        if prev_map:
-            for sym in symbols & prev_symbols:
-                curr = curr_map[sym]
-                prev = prev_map[sym]
-                if (
-                    curr["price"] != prev["price"]
-                    or curr["variation"] != prev["variation"]
-                ):
-                    changes.append(sym)
+    for i in range(1, len(timestamps)):
+        ts_curr = timestamps[i]
+        ts_prev = timestamps[i-1]
+        
+        curr_rows = StockPrice.query.filter_by(timestamp=ts_curr).all()
+        prev_rows = StockPrice.query.filter_by(timestamp=ts_prev).all()
+
+        curr_map = {r.symbol: r.to_dict() for r in curr_rows}
+        prev_map = {r.symbol: r.to_dict() for r in prev_rows}
+        
+        curr_symbols = set(curr_map.keys())
+        prev_symbols = set(prev_map.keys())
+            
+        new = len(curr_symbols - prev_symbols)
+        removed = len(prev_symbols - curr_symbols)
+        
+        changes = 0
+        for sym in curr_symbols & prev_symbols:
+            if curr_map[sym]['price'] != prev_map[sym]['price'] or curr_map[sym]['variation'] != prev_map[sym]['variation']:
+                changes += 1
 
         status = "OK"
-        if not new_syms and not removed_syms and not changes:
-            status = "sin cambios"
+        if not new and not removed and not changes:
+            status = "Sin cambios"
 
-        history.append(
-            {
-                "file": ts.isoformat(),
-                "timestamp": ts.strftime("%d/%m/%Y %H:%M:%S"),
-                "total": len(symbols),
-                "changes": len(changes),
-                "new": len(new_syms),
-                "removed": len(removed_syms),
-                "error_count": 0,
-                "status": status,
-            }
-        )
+        history.append({
+            "file": ts_curr.isoformat(),
+            "timestamp": ts_curr.strftime("%d/%m/%Y %H:%M:%S"),
+            "total": len(curr_map),
+            "changes": changes,
+            "new": new,
+            "removed": removed,
+            "error_count": 0,
+            "status": status,
+        })
 
-        prev_symbols = symbols
-        prev_map = curr_map
-
-    history.sort(
-        key=lambda x: datetime.strptime(x["timestamp"], "%d/%m/%Y %H:%M:%S"),
-        reverse=True,
-    )
+    history.sort(key=lambda x: datetime.fromisoformat(x["file"]), reverse=True)
     return history
 
 
-def load_history(logs_dir: str | None = None) -> List[Dict[str, Any]]:
-    """Return list of historical load summaries sorted by date descending."""
-    if logs_dir is None:
-        try:
-            db_history = _history_from_db()
-            if db_history:
-                return db_history
-        except Exception:
-            pass
-        logs_dir = LOGS_DIR
+def load_history(logs_dir: Optional[str] = None) -> List[Dict[str, Any]]:
+    """
+    Devuelve una lista de resúmenes del historial de cargas, priorizando la base de datos.
+    Si la base de datos no tiene datos, recurre a los archivos JSON.
+    """
+    try:
+        # Prioridad 1: Intentar cargar desde la base de datos
+        db_history = _history_from_db()
+        if db_history:
+            return db_history
+    except Exception as e:
+        logger.warning(f"No se pudo cargar el historial desde la DB. Recurriendo a archivos. Error: {e}")
 
+    # Fallback: Cargar desde archivos JSON
+    logs_dir = logs_dir or LOGS_DIR
     pattern = os.path.join(logs_dir, 'acciones-precios-plus_*.json')
-    files = sorted(glob.glob(pattern))
+    files = sorted(glob.glob(pattern), key=os.path.getmtime)
+    
     history: List[Dict[str, Any]] = []
-    prev_symbols: set[str] = set()
-    prev_data: Dict[str, Any] | None = None
+    prev_data: Optional[Dict[str, Any]] = None
+
     for path in files:
         parsed = _parse_file(path)
-        symbols = set(parsed['map'])
-        new_syms = symbols - prev_symbols if prev_symbols else set()
-        removed_syms = prev_symbols - symbols if prev_symbols else set()
-        changes = []
+        symbols = set(parsed['map'].keys())
+        
+        changes, new, removed = 0, 0, 0
         if prev_data:
+            prev_symbols = set(prev_data['map'].keys())
+            new = len(symbols - prev_symbols)
+            removed = len(prev_symbols - symbols)
             for sym in symbols & prev_symbols:
-                curr = parsed['map'][sym]
-                prev = prev_data['map'][sym]
-                if curr['price'] != prev['price'] or curr['variation'] != prev['variation']:
-                    changes.append(sym)
+                if parsed['map'][sym]['price'] != prev_data['map'][sym]['price'] or parsed['map'][sym]['variation'] != prev_data['map'][sym]['variation']:
+                    changes += 1
+
         status = 'OK'
         if parsed['errors']:
-            status = 'con errores'
-        elif not new_syms and not removed_syms and not changes:
-            status = 'sin cambios'
+            status = 'Con errores'
+        elif not new and not removed and not changes and prev_data:
+            status = 'Sin cambios'
+            
         history.append({
             'file': os.path.basename(path),
             'timestamp': parsed['timestamp'],
             'total': len(symbols),
-            'changes': len(changes),
-            'new': len(new_syms),
-            'removed': len(removed_syms),
+            'changes': changes,
+            'new': new,
+            'removed': removed,
             'error_count': len(parsed['errors']),
             'status': status,
         })
-        prev_symbols = symbols
         prev_data = parsed
-    history.sort(key=lambda x: datetime.strptime(x['timestamp'], '%d/%m/%Y %H:%M:%S'), reverse=True)
+        
+    history.reverse() # Ordenar de más reciente a más antiguo
     return history
 
 
-def compare_latest(logs_dir: str | None = None) -> Dict[str, Any]:
-    """Return comparison details between the last and previous loads."""
-    if logs_dir is None:
-        try:
-            from src.scripts.bolsa_service import compare_last_two_db_entries
+def compare_latest(logs_dir: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Compara los dos últimos estados de datos, priorizando la base de datos.
+    """
+    try:
+        # Prioridad 1: Comparar desde la base de datos
+        db_comparison = compare_last_two_db_entries()
+        if db_comparison:
+            return db_comparison
+    except Exception as e:
+        logger.warning(f"No se pudo comparar desde la DB. Recurriendo a archivos. Error: {e}")
 
-            data = compare_last_two_db_entries()
-            if data:
-                return data
-        except Exception:
-            pass
-        logs_dir = LOGS_DIR
-
+    # Fallback: Comparar desde archivos JSON
+    logs_dir = logs_dir or LOGS_DIR
     pattern = os.path.join(logs_dir, 'acciones-precios-plus_*.json')
-    files = sorted(glob.glob(pattern))
+    files = sorted(glob.glob(pattern), key=os.path.getmtime)
     if len(files) < 2:
         return {}
+
     prev_file, curr_file = files[-2], files[-1]
     prev_data = _parse_file(prev_file)
     curr_data = _parse_file(curr_file)
-    prev_symbols = set(prev_data['map'])
-    curr_symbols = set(curr_data['map'])
-    new_syms = curr_symbols - prev_symbols
-    removed_syms = prev_symbols - curr_symbols
-    changes: list[dict[str, Any]] = []
-    unchanged: list[dict[str, Any]] = []
+    
+    prev_map = prev_data['map']
+    curr_map = curr_data['map']
+    prev_symbols = set(prev_map.keys())
+    curr_symbols = set(curr_map.keys())
+    
+    new_syms = [curr_map[s] for s in curr_symbols - prev_symbols]
+    removed_syms = [prev_map[s] for s in prev_symbols - curr_symbols]
+    
+    changes, unchanged = [], []
     for sym in curr_symbols & prev_symbols:
-        curr = curr_data['map'][sym]
-        prev = prev_data['map'][sym]
-        if curr['price'] != prev['price']:
-            diff = curr['price'] - prev['price']
-            pct = (diff / prev['price'] * 100) if prev['price'] else 0.0
-            changes.append({
-                'symbol': sym,
-                'old': prev,
-                'new': curr,
-                'abs_diff': diff,
-                'pct_diff': pct,
-            })
+        curr_item, prev_item = curr_map[sym], prev_map[sym]
+        if curr_item['price'] != prev_item['price'] or curr_item['variation'] != prev_item['variation']:
+            diff = curr_item['price'] - prev_item['price']
+            pct = (diff / prev_item['price'] * 100) if prev_item['price'] != 0 else 0.0
+            changes.append({'symbol': sym, 'old': prev_item, 'new': curr_item, 'abs_diff': diff, 'pct_diff': pct})
         else:
-            unchanged.append(curr)
+            unchanged.append(curr_item)
+            
     return {
-        'current_file': os.path.basename(curr_file),
-        'previous_file': os.path.basename(prev_file),
         'current_timestamp': curr_data['timestamp'],
         'previous_timestamp': prev_data['timestamp'],
-        'new': [curr_data['map'][s] for s in new_syms],
-        'removed': [prev_data['map'][s] for s in removed_syms],
+        'new': new_syms,
+        'removed': removed_syms,
         'changes': changes,
         'unchanged': unchanged,
         'errors': curr_data['errors'] + prev_data['errors'],
-        'total_compared': len(curr_symbols | prev_symbols),
-        'change_count': len(changes),
     }

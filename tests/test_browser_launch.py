@@ -5,7 +5,7 @@ import pytest
 
 from src.scripts import bolsa_service
 
-from src.extensions import socketio
+from src.utils.extensions import socketio
 
 
 def test_filter_endpoint_launches_browser(app, tmp_path, monkeypatch):

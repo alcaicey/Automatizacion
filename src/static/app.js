@@ -1,675 +1,261 @@
-// Funcionalidad principal de la aplicación
-console.log('app.js loaded');
+// src/static/app.js
 
-// Variables globales
-let autoUpdateTimer = null;
-let lastStockCodes = [];
-let nextUpdateTime = null;
-let updateStatusInterval = null;
-let isUpdating = false;
-let nextUpdateCountdownInterval = null;
-
-async function logErrorToServer(message, stack = '', action = '') {
-    try {
-        await fetch('/api/logs', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message, stack, action })
-        });
-    } catch (e) {
-        console.error('Error enviando log al servidor:', e);
-    }
-}
-
-window.addEventListener('error', (e) => {
-    logErrorToServer(e.message || 'Error', e.error ? e.error.stack : '', 'global');
-});
-
-window.addEventListener('unhandledrejection', (e) => {
-    const reason = e.reason || {};
-    logErrorToServer(reason.message || String(reason), reason.stack, 'global');
-});
-
-// Elementos DOM (se asignan tras DOMContentLoaded)
-let stockFilterForm;
-let stockCodeInputs;
-let autoUpdateSelect;
-let clearBtn;
-let refreshBtn;
-let configColumnsBtn;
-let columnConfigForm;
-let saveColumnPrefsBtn;
-let statusMessage;
-let lastUpdate;
-let stocksTable;
-let loadingOverlay;
-let loadingMessage;
-let nextUpdateInfo;
-let sessionCountdown;
-let allStocksCheck;
-let alertContainer;
-
-let sessionCountdownInterval = null;
-let visibleColumns = [];
-let dataTable = null;
-
-const ALL_COLUMNS = [
-    { key: 'NEMO', label: 'Acción' },
-    { key: 'ISIN', label: 'ISIN' },
-    { key: 'PRECIO_CIERRE', label: 'Precio' },
-    { key: 'VARIACION', label: '$% Var' },
-    { key: 'PRECIO_COMPRA', label: 'Compra' },
-    { key: 'PRECIO_VENTA', label: 'Venta' },
-    { key: 'MONTO', label: 'Monto M$' },
-    { key: 'MONEDA', label: 'Moneda' },
-    { key: 'UN_TRANSADAS', label: 'Volumen' },
-    { key: 'BONO_VERDE', label: 'Bono Verde' },
-    { key: 'VALORES_EXTRANJEROS', label: 'Valores Extr.' },
-];
-
-// Cuando los datos provienen de la base de datos usan
-// nombres de propiedad en inglés. Este mapa permite
-// traducirlos a las claves históricas utilizadas por la tabla.
-const ALT_FIELD_MAP = {
-    'NEMO': 'symbol',
-    'PRECIO_CIERRE': 'price',
-    'VARIACION': 'variation',
-    'ISIN': 'isin',
-    'PRECIO_COMPRA': 'bid',
-    'PRECIO_VENTA': 'ask',
-    'MONTO': 'MONTO_MILES',
-    'UN_TRANSADAS': 'UN_TRANSDAS',
-    'MONEDA': 'currency',
-    'BONO_VERDE': 'PREMIO_BONO_VERDE',
-    'VALORES_EXTRANJEROS': 'valores_extr'
-};
-
-// Función para mostrar/ocultar el overlay de carga
-function toggleLoading(show, message = '') {
-    if (show) {
-        loadingOverlay.classList.remove('d-none');
-        if (message) {
-            loadingMessage.textContent = message;
-        }
-    } else {
-        loadingOverlay.classList.add('d-none');
-    }
-}
-
-// Función para actualizar el mensaje de estado
-function updateStatus(message, isError = false) {
-    statusMessage.innerHTML = `<i class="fas fa-${isError ? 'exclamation-circle text-danger' : 'info-circle'}"></i> <span>${message}</span>`;
-}
-
-function showAlert(message, type = 'danger') {
-    if (!alertContainer) return;
-    alertContainer.innerHTML = `<div class="alert alert-${type} alert-dismissible fade show" role="alert">${message}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>`;
-}
-
-// Función para actualizar la información de última actualización
-function updateLastUpdateTime(timestamp) {
-    if (timestamp) {
-        lastUpdate.innerHTML = `<i class="fas fa-clock me-1"></i> <span>Última actualización: ${timestamp}</span>`;
-    } else {
-        lastUpdate.innerHTML = `<i class="fas fa-clock me-1"></i> <span>Última actualización: --</span>`;
-    }
-}
-
-// Función para formatear valores numéricos
-function formatNumber(value, decimals = 2) {
-    if (value === null || value === undefined || isNaN(value)) {
-        return '--';
-    }
-    return Number(value).toLocaleString('es-CL', {
-        minimumFractionDigits: decimals,
-        maximumFractionDigits: decimals
-    });
-}
-
-// Crear los checkboxes de configuración
-function renderColumnConfig() {
-    columnConfigForm.innerHTML = '';
-    ALL_COLUMNS.forEach(col => {
-        const div = document.createElement('div');
-        div.className = 'form-check col-6';
-        div.innerHTML = `
-            <input class="form-check-input column-checkbox" type="checkbox" value="${col.key}" id="chk_${col.key}">
-            <label class="form-check-label" for="chk_${col.key}">${col.label}</label>
-        `;
-        columnConfigForm.appendChild(div);
-    });
-}
-
-async function loadColumnPreferences() {
-    try {
-        const resp = await fetch('/api/column-preferences');
-        const data = await resp.json();
-        if (data.columns) {
-            visibleColumns = JSON.parse(data.columns);
-        } else {
-            visibleColumns = ALL_COLUMNS.map(c => c.key);
-        }
-    } catch (e) {
-        visibleColumns = ALL_COLUMNS.map(c => c.key);
-    }
-    // Marcar checkboxes
-    document.querySelectorAll('.column-checkbox').forEach(chk => {
-        chk.checked = visibleColumns.includes(chk.value);
-    });
-}
-
-async function saveColumnPreferences() {
-    const cols = Array.from(document.querySelectorAll('.column-checkbox'))
-        .filter(c => c.checked)
-        .map(c => c.value);
-    visibleColumns = cols;
-    await fetch('/api/column-preferences', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ columns: cols })
-    });
-    fetchAndDisplayStocks();
-}
-
-// Función para obtener y mostrar los datos de acciones
-async function fetchAndDisplayStocks() {
-    try {
-        console.log('Fetching stock data...');
-        toggleLoading(true, 'Cargando datos de acciones...');
-
-        const allStocks = allStocksCheck.checked;
-
-        // Obtener códigos de acciones no vacíos
-        let stockCodes = Array.from(stockCodeInputs)
-            .map(input => input.value.trim())
-            .filter(code => code !== '');
-        if (allStocks) {
-            stockCodes = [];
-        }
-
-        // Guardar los códigos para futuras actualizaciones
-        lastStockCodes = [...stockCodes];
-
-        // Construir la URL con los parámetros de consulta
-        let url = '/api/stocks';
-        if (stockCodes.length > 0) {
-            url += '?' + stockCodes.map(code => `code=${encodeURIComponent(code)}`).join('&');
-        }
-        
-        // Realizar la petición
-        const response = await fetch(url);
-        const data = await response.json();
-        console.log('Datos recibidos:', data);
-        
-        if (data.error) {
-            updateStatus(`Error: ${data.error}`, true);
-            toggleLoading(false);
-            return;
-        }
-        
-        // Actualizar la tabla con los datos
-        updateStocksTable(data);
-        console.log('Tabla actualizada');
-        
-        // Actualizar información de última actualización
-        updateLastUpdateTime(data.timestamp);
-        updateStatus(`Datos cargados correctamente. ${stockCodes.length > 0 ? `Mostrando ${data.count || 0} acción(es).` : 'Mostrando todas las acciones.'}`);
-        fetchSessionTime();
-        
-    } catch (error) {
-        console.error('Error al obtener datos:', error);
-        updateStatus(`Error al obtener datos: ${error.message}`, true);
-        logErrorToServer(error.message, error.stack, 'fetchAndDisplayStocks');
-    } finally {
-        toggleLoading(false);
-    }
-}
-
-// Función para actualizar la tabla de acciones
-function updateStocksTable(data) {
-    console.log('Rendering table with', data.data ? data.data.length : 0, 'rows');
-    if (dataTable) {
-        dataTable.destroy();
-        dataTable = null;
-        // destroy() replaces the table element, so refresh the reference
-        stocksTable = document.getElementById('stocksTable');
-    }
-
-    const thead = stocksTable.querySelector('thead tr');
-    const tbody = stocksTable.querySelector('tbody');
-    thead.innerHTML = '';
-    tbody.innerHTML = '';
-
-    const cols = visibleColumns.length ? visibleColumns : ALL_COLUMNS.map(c => c.key);
-    cols.forEach(key => {
-        const def = ALL_COLUMNS.find(c => c.key === key);
-        const th = document.createElement('th');
-        th.textContent = def ? def.label : key;
-        thead.appendChild(th);
-    });
-
-    const stocks = data.data || [];
-    if (stocks.length === 0) {
-        const row = document.createElement('tr');
-        const td = document.createElement('td');
-        td.colSpan = cols.length;
-        td.className = 'text-center py-4';
-        td.innerHTML = '<div class="text-muted">No hay datos disponibles</div>';
-        row.appendChild(td);
-        tbody.appendChild(row);
-    } else {
-        stocks.forEach(stock => {
-            const row = document.createElement('tr');
-            cols.forEach(key => {
-                let value = stock[key];
-                if (value === undefined) {
-                    const altKey = ALT_FIELD_MAP[key];
-                    if (altKey) {
-                        value = stock[altKey];
-                    }
-                }
-
-                let html = '--';
-                if (key === 'NEMO') {
-                    html = `<strong>${value || '--'}</strong>`;
-                } else if (key === 'PRECIO_CIERRE') {
-                    html = formatNumber(value || 0);
-                } else if (key === 'VARIACION') {
-                    const val = parseFloat(value || 0);
-                    const isPos = val > 0;
-                    const isNeg = val < 0;
-                    const cls = isPos ? 'variation-positive' : (isNeg ? 'variation-negative' : '');
-                    const icon = isPos ? 'fa-arrow-up arrow-up' : (isNeg ? 'fa-arrow-down arrow-down' : '');
-                    const sign = isPos ? '+' : '';
-                    html = `<span class="${cls}">${icon ? `<i class="fas ${icon} me-1"></i>` : ''}${sign}${formatNumber(val, 2)}%</span>`;
-                } else if (key === 'PRECIO_COMPRA') {
-                    html = formatNumber(value || 0);
-                } else if (key === 'PRECIO_VENTA') {
-                    html = formatNumber(value || 0);
-                } else if (key === 'MONTO') {
-                    html = formatNumber(value || 0, 0);
-                } else if (key === 'UN_TRANSADAS') {
-                    html = formatNumber(value || 0, 0);
-                } else {
-                    html = value ?? '--';
-                }
-                const td = document.createElement('td');
-                td.innerHTML = html;
-                row.appendChild(td);
-            });
-            tbody.appendChild(row);
-        });
-    }
-
-    dataTable = new simpleDatatables.DataTable(stocksTable, {
-        searchable: true,
-        fixedHeight: true,
-        perPageSelect: false,
-    });
-    console.log('DataTable inicializado');
-}
-
-// Función para actualizar manualmente los datos
-async function updateStocksData() {
-    console.log('updateStocksData triggered');
-    if (isUpdating) {
-        updateStatus('Ya hay una actualización en curso, por favor espere...', true);
-        return;
-    }
-    
-    try {
-        isUpdating = true;
-        toggleLoading(true, 'Ejecutando script de actualización de datos...');
-        updateStatus('Iniciando proceso de actualización de datos...');
-        
-        // Iniciar la actualización
-        const response = await fetch('/api/stocks/update', {
-            method: 'POST'
-        });
-        const data = await response.json();
-
-        if (!data.success) {
-            updateStatus(`Error al iniciar actualización: ${data.message}`, true);
-            showAlert(data.message || 'Error al actualizar');
-            toggleLoading(false);
-            isUpdating = false;
-            return;
-        }
-
-        if (data.message && data.message.includes('Bot reiniciado')) {
-            showAlert('Bot reiniciado porque no se detectó navegador');
-        }
-        
-        // Esperar un tiempo para que el script se ejecute (puede tardar hasta 20 segundos)
-        updateStatus('Ejecutando script de actualización. Esto puede tardar hasta 20 segundos...');
-        
-        // Esperar 20 segundos antes de intentar obtener los datos actualizados
-        setTimeout(async () => {
-            try {
-                await fetchAndDisplayStocks();
-                console.log('Datos actualizados, tabla refrescada');
-                updateStatus('Datos actualizados correctamente');
-            } catch (error) {
-                console.error('Error al actualizar datos:', error);
-                updateStatus(`Error al actualizar datos: ${error.message}`, true);
-                logErrorToServer(error.message, error.stack, 'updateStocksData');
-                toggleLoading(false);
-            } finally {
-                isUpdating = false;
-            }
-        }, 20000);
-        
-    } catch (error) {
-        console.error('Error al actualizar datos:', error);
-        updateStatus(`Error al actualizar datos: ${error.message}`, true);
-        toggleLoading(false);
-        logErrorToServer(error.message, error.stack, 'updateStocksData');
-        isUpdating = false;
-    }
-}
-
-// Función para configurar la actualización automática
-async function setAutoUpdate(mode) {
-    try {
-        // Detener el temporizador actual si existe
-        if (autoUpdateTimer) {
-            clearInterval(autoUpdateTimer);
-            autoUpdateTimer = null;
-            nextUpdateTime = null;
-            stopNextUpdateCountdown();
-        }
-        
-        // Si el modo es "off", solo detener el temporizador
-        if (mode === 'off') {
-            updateStatus('Actualización automática desactivada');
-
-            // Notificar al servidor
-            await fetch('/api/stocks/auto-update', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ mode: 'off' })
-            });
-            
-            return;
-        }
-        
-        // Configurar la actualización automática en el servidor
-        const response = await fetch('/api/stocks/auto-update', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ mode })
-        });
-        
-        const data = await response.json();
-        
-        if (!data.success) {
-            updateStatus(`Error al configurar actualización automática: ${data.message}`, true);
-            autoUpdateSelect.value = 'off';
-            return;
-        }
-        
-        updateStatus(`Actualización automática configurada: ${mode === '1-3' ? '1-3 minutos' : '1-5 minutos'}`);
-        
-        // Configurar el temporizador en el cliente
-        const minMinutes = mode === '1-3' ? 1 : 1;
-        const maxMinutes = mode === '1-3' ? 3 : 5;
-        
-        // Función para programar la próxima actualización
-        function scheduleNextUpdate() {
-            // Calcular un tiempo aleatorio en el rango especificado
-            const minMs = minMinutes * 60 * 1000;
-            const maxMs = maxMinutes * 60 * 1000;
-            const updateInterval = Math.floor(minMs + Math.random() * (maxMs - minMs));
-            
-            // Calcular la hora de la próxima actualización
-            nextUpdateTime = new Date(Date.now() + updateInterval);
-            
-            // Actualizar la información de próxima actualización
-            updateNextUpdateInfo();
-            
-            // Configurar el temporizador
-            autoUpdateTimer = setTimeout(async () => {
-                await updateStocksData();
-                scheduleNextUpdate();
-            }, updateInterval);
-        }
-        
-        // Iniciar la programación
-        scheduleNextUpdate();
-        
-    } catch (error) {
-        console.error('Error al configurar actualización automática:', error);
-        updateStatus(`Error al configurar actualización automática: ${error.message}`, true);
-        autoUpdateSelect.value = 'off';
-        logErrorToServer(error.message, error.stack, 'setAutoUpdate');
-    }
-}
-
-// Función para actualizar la información de próxima actualización
-function stopNextUpdateCountdown() {
-    if (nextUpdateCountdownInterval) {
-        clearInterval(nextUpdateCountdownInterval);
-        nextUpdateCountdownInterval = null;
-    }
-    nextUpdateInfo.textContent = '';
-}
-
-function updateNextUpdateInfo() {
-    stopNextUpdateCountdown();
-
-    if (!nextUpdateTime) {
-        return;
-    }
-
-    function updateCountdown() {
-        const now = new Date();
-        const diffMs = nextUpdateTime - now;
-
-        const modeLabel = autoUpdateSelect.value === '1-3' ? '1-3 minutos' : '1-5 minutos';
-
-        if (diffMs <= 0) {
-            nextUpdateInfo.textContent = 'Actualizando...';
-            updateStatus(`Actualización automática configurada: ${modeLabel} - actualizando...`);
-            return;
-        }
-
-        const diffSecs = Math.floor(diffMs / 1000);
-        const minutes = Math.floor(diffSecs / 60);
-        const seconds = diffSecs % 60;
-
-        nextUpdateInfo.textContent = `Próxima actualización en: ${minutes}m ${seconds}s`;
-        updateStatus(`Actualización automática configurada: ${modeLabel} - próxima en ${minutes}m ${seconds}s`);
-    }
-
-    updateCountdown();
-    nextUpdateCountdownInterval = setInterval(updateCountdown, 1000);
-}
-
-// Función para iniciar el contador de sesión
-function startSessionCountdown(seconds) {
-    if (sessionCountdownInterval) {
-        clearInterval(sessionCountdownInterval);
-        sessionCountdownInterval = null;
-    }
-
-    let remaining = parseInt(seconds, 10);
-    if (isNaN(remaining) || remaining <= 0) {
-        sessionCountdown.textContent = '';
-        return;
-    }
-
-    function update() {
-        if (remaining <= 0) {
-            sessionCountdown.textContent = 'Sesión expirada';
-            clearInterval(sessionCountdownInterval);
-            sessionCountdownInterval = null;
-            return;
-        }
-
-        const m = Math.floor(remaining / 60);
-        const s = remaining % 60;
-        sessionCountdown.textContent = `Sesión expira en: ${m}m ${s}s`;
-        remaining -= 1;
-    }
-
-    update();
-    sessionCountdownInterval = setInterval(update, 1000);
-}
-
-// Función para obtener el tiempo restante de la sesión desde el servidor
-async function fetchSessionTime() {
-    try {
-        const response = await fetch('/api/session-time');
-        const data = await response.json();
-        if (data && data.remaining_seconds != null) {
-            startSessionCountdown(data.remaining_seconds);
-        } else {
-            sessionCountdown.textContent = '';
-        }
-    } catch (error) {
-        console.error('Error al obtener tiempo de sesión:', error);
-        logErrorToServer(error.message, error.stack, 'fetchSessionTime');
-    }
-}
-
-// Función para guardar los códigos de acciones en localStorage
-async function saveStockCodes() {
-    const codes = Array.from(stockCodeInputs).map(input => input.value.trim());
-    const all = allStocksCheck.checked;
-    localStorage.setItem('stockCodes', JSON.stringify({ codes, all }));
-    try {
-        await fetch('/api/stock-filter', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ codes, all })
-        });
-    } catch (e) {
-        console.error('Error saving stock codes', e);
-    }
-}
-
-// Función para cargar los códigos de acciones desde localStorage
-async function loadStockCodes() {
-    let saved = null;
-    try {
-        const resp = await fetch('/api/stock-filter');
-        const data = await resp.json();
-        if (data.codes) {
-            saved = { codes: JSON.parse(data.codes), all: data.all };
-        }
-    } catch (e) {
-        console.error('Error loading codes from server', e);
-    }
-    if (!saved) {
-        const local = localStorage.getItem('stockCodes');
-        if (local) {
-            saved = JSON.parse(local);
-        }
-    }
-    if (saved) {
-        const { codes = [], all = false } = saved;
-        stockCodeInputs.forEach((input, index) => {
-            input.value = codes[index] || '';
-            input.disabled = all;
-        });
-        allStocksCheck.checked = all;
-    }
-}
-
-// Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM fully loaded, initializing app');
-    // Obtener referencias a los elementos del DOM
-    stockFilterForm = document.getElementById('stockFilterForm');
-    stockCodeInputs = document.querySelectorAll('.stock-code');
-    autoUpdateSelect = document.getElementById('autoUpdateSelect');
-    clearBtn = document.getElementById('clearBtn');
-    refreshBtn = document.getElementById('refreshBtn');
-    configColumnsBtn = document.getElementById('configColumnsBtn');
-    columnConfigForm = document.getElementById('columnConfigForm');
-    saveColumnPrefsBtn = document.getElementById('saveColumnPrefs');
-    statusMessage = document.getElementById('statusMessage');
-    lastUpdate = document.getElementById('lastUpdate');
-    stocksTable = document.getElementById('stocksTable');
-    loadingOverlay = document.getElementById('loadingOverlay');
-    loadingMessage = document.getElementById('loadingMessage');
-    nextUpdateInfo = document.getElementById('nextUpdateInfo');
-    sessionCountdown = document.getElementById('sessionCountdown');
-    allStocksCheck = document.getElementById('allStocksCheck');
-    alertContainer = document.getElementById('alertContainer');
-    fetch('/api/credentials')
-        .then(r => r.json())
-        .then(data => {
-            if (!data.has_credentials) {
-                window.location.href = '/login.html';
-            }
-        });
-    // Conectar con el servidor vía WebSocket
-    const socket = io();
-    socket.on('connect', () => {
-        console.log('WebSocket connected');
-    });
-    socket.on('new_data', () => {
-        console.log('Evento new_data recibido');
-        fetchAndDisplayStocks();
-    });
-    // Cargar códigos guardados
-    loadStockCodes();
-    fetchSessionTime();
-    renderColumnConfig();
-    loadColumnPreferences().then(fetchAndDisplayStocks);
-    
-    // Configurar event listeners
-    stockFilterForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        await saveStockCodes();
-        await fetchAndDisplayStocks();
-    });
-    
-    clearBtn.addEventListener('click', async () => {
-        stockCodeInputs.forEach(input => {
-            input.value = '';
-        });
-        allStocksCheck.checked = false;
-        stockCodeInputs.forEach(input => {
-            input.disabled = false;
-        });
-        await saveStockCodes();
-    });
-    
-    refreshBtn.addEventListener('click', async () => {
-        await updateStocksData();
-    });
+    // --- 1. ESTADO DE LA APLICACIÓN ---
+    let isUpdating = false;
+    let isFirstRun = true;
+    let dataTable = null;
+    let autoUpdateTimer = null;
+    let countdownInterval = null;
+    let columnPreferences = { all: [], visible: [] };
+    let stockFilters = { codes: [], all: true };
 
-    configColumnsBtn.addEventListener('click', () => {
-        loadColumnPreferences();
-    });
+    // --- 2. REFERENCIAS A ELEMENTOS DEL DOM ---
+    const dom = {
+        statusMessage: document.getElementById('statusMessage'),
+        loadingOverlay: document.getElementById('loadingOverlay'),
+        loadingMessage: document.getElementById('loadingMessage'),
+        refreshBtn: document.getElementById('refreshBtn'),
+        stocksTable: document.getElementById('stocksTable'),
+        stockFilterForm: document.getElementById('stockFilterForm'),
+        columnConfigModal: document.getElementById('columnConfigModal'),
+        columnConfigForm: document.getElementById('columnConfigForm'),
+        saveColumnPrefsBtn: document.getElementById('saveColumnPrefs'),
+        stockCodeInputs: document.querySelectorAll('.stock-code'),
+        allStocksCheck: document.getElementById('allStocksCheck'),
+        clearFilterBtn: document.getElementById('clearBtn'),
+        autoUpdateSelect: document.getElementById('autoUpdateSelect'),
+        countdownTimer: document.getElementById('countdownTimer')
+    };
 
-    saveColumnPrefsBtn.addEventListener('click', async () => {
-        await saveColumnPreferences();
-        const modal = bootstrap.Modal.getInstance(document.getElementById('columnConfigModal'));
-        modal.hide();
-    });
-    
-    autoUpdateSelect.addEventListener('change', () => {
-        setAutoUpdate(autoUpdateSelect.value);
-    });
-
-    allStocksCheck.addEventListener('change', async () => {
-        const disabled = allStocksCheck.checked;
-        stockCodeInputs.forEach(input => {
-            input.disabled = disabled;
-        });
-        await saveStockCodes();
-    });
-    
-    // Cargar datos iniciales si hay códigos guardados
-    const hasInitialCodes = Array.from(stockCodeInputs).some(input => input.value.trim() !== '') || allStocksCheck.checked;
-    if (hasInitialCodes) {
-        fetchAndDisplayStocks();
+    // --- 3. FUNCIONES DE UI ---
+    function updateStatus(message, type = 'info') {
+        if (countdownInterval) {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+            if (dom.countdownTimer) dom.countdownTimer.textContent = '';
+        }
+        if (!dom.statusMessage) return;
+        const icons = { info: 'info-circle', success: 'check-circle', warning: 'exclamation-triangle', danger: 'x-circle' };
+        const alertClass = `alert-${type}`;
+        dom.statusMessage.innerHTML = `<i class="fas fa-${icons[type]} me-2"></i><span>${message}</span>`;
+        dom.statusMessage.className = `alert ${alertClass} small py-2`;
     }
+
+    function toggleLoading(show, message = 'Cargando...') {
+        if (!dom.loadingOverlay || !dom.loadingMessage) return;
+        dom.loadingMessage.textContent = message;
+        dom.loadingOverlay.classList.toggle('d-none', !show);
+    }
+
+    function updateRefreshButtonState() {
+        if (!dom.refreshBtn) return;
+        if (isUpdating) {
+            const text = isFirstRun ? 'Iniciando Navegador...' : 'Actualizando...';
+            dom.refreshBtn.innerHTML = `<i class="fas fa-spinner fa-spin me-2"></i>${text}`;
+            dom.refreshBtn.disabled = true;
+        } else {
+            const text = isFirstRun ? 'Iniciar Navegador' : 'Actualizar Ahora';
+            dom.refreshBtn.innerHTML = `<i class="fas fa-sync-alt me-2"></i>${text}`;
+            dom.refreshBtn.disabled = false;
+        }
+    }
+
+    function renderColumnModal() {
+        if (!dom.columnConfigForm) return;
+        dom.columnConfigForm.innerHTML = '';
+        columnPreferences.all.forEach(col => {
+            const isChecked = columnPreferences.visible.includes(col);
+            dom.columnConfigForm.innerHTML += `<div class="col-6"><div class="form-check"><input class="form-check-input" type="checkbox" value="${col}" id="col-check-${col}" ${isChecked ? 'checked' : ''}><label class="form-check-label" for="col-check-${col}">${col.replace(/_/g, ' ')}</label></div></div>`;
+        });
+    }
+
+    function renderFilterInputs() {
+        if (!dom.allStocksCheck || !dom.stockCodeInputs) return;
+        dom.allStocksCheck.checked = stockFilters.all;
+        dom.stockCodeInputs.forEach((input, index) => { input.value = stockFilters.codes[index] || ''; });
+    }
+
+    function renderTable(stocks, timestamp) {
+        if (!dom.stocksTable) return;
+        if (dataTable) dataTable.destroy();
+        
+        const tableContainer = dom.stocksTable.parentElement;
+        tableContainer.innerHTML = '<table id="stocksTable" class="table table-striped table-hover"></table>';
+        dom.stocksTable = document.getElementById('stocksTable');
+
+        if (!stocks || stocks.length === 0) {
+            updateStatus('No hay datos para mostrar con el filtro actual.', 'warning');
+            return;
+        }
+
+        const headings = Object.keys(stocks[0]);
+        let visibleHeadings = columnPreferences.visible.filter(h => headings.includes(h));
+        if (visibleHeadings.length === 0) visibleHeadings = headings;
+
+        const tableData = stocks.map(stock =>
+            visibleHeadings.map(header => {
+                const value = stock[header];
+                if (typeof value === 'number') return value.toLocaleString('es-CL');
+                return value !== undefined && value !== null ? value : 'N/A';
+            })
+        );
+        
+        dataTable = new simpleDatatables.DataTable(dom.stocksTable, {
+            data: { headings: visibleHeadings.map(h => h.replace(/_/g, ' ')), data: tableData },
+            perPage: 50, perPageSelect: [25, 50, 100],
+            searchable: true, sortable: true, fixedHeight: true,
+        });
+        updateStatus(`Mostrando ${stocks.length} acciones. Última actualización: ${timestamp}`, 'success');
+    }
+
+    // --- 4. LÓGICA DE DATOS Y PREFERENCIAS ---
+    async function loadPreferences() {
+        try {
+            const [colsRes, filtersRes] = await Promise.all([fetch('/api/columns'), fetch('/api/filters')]);
+            if (!colsRes.ok || !filtersRes.ok) throw new Error('No se pudieron cargar las preferencias.');
+            const colsData = await colsRes.json();
+            const filtersData = await filtersRes.json();
+            columnPreferences = { all: colsData.all_columns, visible: colsData.visible_columns };
+            stockFilters = { codes: filtersData.codes, all: filtersData.all !== false };
+            renderColumnModal();
+            renderFilterInputs();
+        } catch (error) {
+            console.error(error);
+            updateStatus('Error al cargar preferencias.', 'danger');
+        }
+    }
+
+    async function fetchAndDisplayStocks() {
+        const url = buildFilterUrl();
+        try {
+            const response = await fetch(url);
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'Error del servidor');
+            renderTable(result.data, result.timestamp);
+        } catch (error) {
+            console.error(error);
+            updateStatus(`Error al cargar datos: ${error.message}`, 'danger');
+        }
+    }
+
+    async function saveColumnPreferences() {
+        columnPreferences.visible = Array.from(dom.columnConfigForm.querySelectorAll('input:checked')).map(input => input.value);
+        try {
+            await fetch('/api/columns', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ columns: columnPreferences.visible })
+            });
+            bootstrap.Modal.getInstance(dom.columnConfigModal).hide();
+            await fetchAndDisplayStocks();
+        } catch (error) {
+            updateStatus('Error al guardar preferencias.', 'danger');
+        }
+    }
+
+    async function saveFilterPreferences() {
+        stockFilters.codes = Array.from(dom.stockCodeInputs).map(input => input.value.trim().toUpperCase()).filter(Boolean);
+        stockFilters.all = dom.allStocksCheck.checked;
+        try {
+            await fetch('/api/filters', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(stockFilters)
+            });
+        } catch (error) { console.error('Error al guardar filtros:', error); }
+    }
+
+    // --- 5. LÓGICA DE CONTROL DEL BOT Y AUTO-UPDATE ---
+    async function handleUpdateClick() {
+        autoUpdater.stop(); 
+        if (isUpdating) return;
+        isUpdating = true;
+        updateRefreshButtonState();
+        toggleLoading(true, isFirstRun ? 'Iniciando navegador...' : 'Actualizando datos...');
+        try {
+            const response = await fetch('/api/stocks/update', { method: 'POST' });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'Fallo al iniciar el bot.');
+            updateStatus(data.message, 'info');
+        } catch (error) {
+            updateStatus(`Error: ${error.message}`, 'danger');
+            isUpdating = false;
+            toggleLoading(false);
+            updateRefreshButtonState();
+        }
+    }
+
+    function buildFilterUrl() {
+        if (stockFilters.all || !stockFilters.codes || stockFilters.codes.length === 0) return '/api/stocks';
+        const queryParams = new URLSearchParams();
+        stockFilters.codes.forEach(code => queryParams.append('code', code));
+        return `/api/stocks?${queryParams.toString()}`;
+    }
+
+    async function handleFilterSubmit(event) {
+        event.preventDefault();
+        await saveFilterPreferences();
+        await fetchAndDisplayStocks();
+    }
+
+    function handleAutoUpdateChange() {
+        autoUpdater.start(
+            dom.autoUpdateSelect.value, 
+            () => dom.refreshBtn.click(),
+            (text) => { if(dom.countdownTimer) dom.countdownTimer.textContent = text; }
+        );
+    }
+
+    // --- 6. INICIALIZACIÓN Y WEBSOCKETS ---
+    async function initializeApp() {
+        updateStatus('Inicializando...', 'info');
+        updateRefreshButtonState();
+        await loadPreferences();
+        await fetchAndDisplayStocks();
+    }
+
+    const socket = io();
+    socket.on('connect', () => updateStatus('Conectado al servidor.', 'success'));
+    socket.on('disconnect', () => {
+        autoUpdater.stop();
+        updateStatus('Desconectado.', 'danger');
+    });
+
+    socket.on('initial_session_ready', () => {
+        isUpdating = false;
+        isFirstRun = false;
+        toggleLoading(false);
+        updateRefreshButtonState();
+        updateStatus("Navegador listo. Presione 'Actualizar Ahora' para capturar datos.", 'warning');
+        handleAutoUpdateChange();
+    });
+
+    socket.on('new_data', () => {
+        updateStatus("¡Datos recibidos! Actualizando la página...", 'success');
+        setTimeout(() => location.reload(), 1500);
+    });
+
+    socket.on('bot_error', (data) => {
+        isUpdating = false;
+        isFirstRun = true; 
+        toggleLoading(false);
+        updateRefreshButtonState();
+        updateStatus(`Error del bot: ${data.message}`, 'danger');
+    });
+
+    // --- 7. ASIGNACIÓN DE EVENT LISTENERS ---
+    if (dom.refreshBtn) dom.refreshBtn.addEventListener('click', handleUpdateClick);
+    if (dom.stockFilterForm) dom.stockFilterForm.addEventListener('submit', handleFilterSubmit);
+    if (dom.saveColumnPrefsBtn) dom.saveColumnPrefsBtn.addEventListener('click', saveColumnPreferences);
+    if (dom.autoUpdateSelect) dom.autoUpdateSelect.addEventListener('change', handleAutoUpdateChange);
+    if (dom.clearFilterBtn) {
+        dom.clearFilterBtn.addEventListener('click', async () => {
+            if(dom.stockFilterForm) dom.stockFilterForm.reset();
+            if(dom.allStocksCheck) dom.allStocksCheck.checked = true;
+            await handleFilterSubmit(new Event('submit', { bubbles: true, cancelable: true }));
+        });
+    }
+    
+    initializeApp();
 });

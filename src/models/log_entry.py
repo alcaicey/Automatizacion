@@ -1,5 +1,5 @@
 from datetime import datetime
-from . import db
+from src.extensions import db
 
 class LogEntry(db.Model):
     __tablename__ = 'log_entries'

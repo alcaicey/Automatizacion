@@ -1,4 +1,3 @@
-
 """utils/json_utils.py
 Funciones auxiliares para trabajar con archivos JSON de precios de acciones.
 Extraídas de bolsa_service.py sin modificar la lógica original.
@@ -11,6 +10,32 @@ import logging
 from src.config import LOGS_DIR
 
 logger = logging.getLogger(__name__)
+
+# ✅ Constante para evitar duplicación de formato de fecha
+DATE_FORMAT_STR = "%d/%m/%Y %H:%M:%S"
+
+def save_json_with_timestamp(
+    data: dict,
+    prefix: str = "acciones-precios-plus",
+    log_instance: Optional[logging.Logger] = None
+) -> str:
+    """Guarda un JSON con timestamp en el nombre y lo retorna"""
+    try:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{prefix}_{timestamp}.json"
+        filepath = os.path.join(LOGS_DIR, filename)
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+        # Usar logger personalizado si se proporciona
+        log = log_instance or logger
+        log.info("Archivo guardado: %s", filepath)
+        return filepath
+
+    except Exception as e:
+        log = log_instance or logger
+        log.exception("Error al guardar JSON con timestamp: %s", e)
+        return ""
 
 def get_latest_json_file() -> Optional[str]:
     """Devuelve el archivo JSON más reciente `acciones-precios-plus_*.json`."""
@@ -33,12 +58,12 @@ def extract_timestamp_from_filename(filename: str) -> str:
         if m:
             date_str, time_str = m.groups()
             dt = datetime.strptime(f"{date_str}{time_str}", "%Y%m%d%H%M%S")
-            return dt.strftime("%d/%m/%Y %H:%M:%S")
+            return dt.strftime(DATE_FORMAT_STR)
         stat = os.stat(filename)
-        return datetime.fromtimestamp(stat.st_mtime).strftime("%d/%m/%Y %H:%M:%S")
+        return datetime.fromtimestamp(stat.st_mtime).strftime(DATE_FORMAT_STR)
     except Exception as e:
         logger.exception("Error al extraer timestamp: %s", e, exc_info=False)
-        return datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        return datetime.now().strftime(DATE_FORMAT_STR)
 
 def get_json_hash_and_timestamp(path: str) -> Tuple[Optional[str], Optional[str]]:
     """Devuelve (md5, timestamp ISO) de un JSON."""

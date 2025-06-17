@@ -4,7 +4,7 @@ import pytest
 os.environ['DATABASE_URL'] = 'sqlite:///:memory:'
 
 from src import main
-from src.models import db
+from src.extensions import db
 from src.models.column_preference import ColumnPreference
 
 @pytest.fixture

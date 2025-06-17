@@ -5,6 +5,8 @@ import asyncio
 
 import pytest
 
+from src.automatizacion_bolsa.config_loader import configure_run_specific_logging
+
 from src.scripts import bolsa_santiago_bot as bot
 from src.config import (
     MIS_CONEXIONES_TITLE_SELECTOR,

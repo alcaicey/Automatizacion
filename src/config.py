@@ -1,48 +1,37 @@
 import os
+from dotenv import load_dotenv
 
-BASE_DIR = os.path.dirname(os.path.abspath(os.path.dirname(__file__)))
+# Cargar variables de entorno desde un archivo .env si existe
+load_dotenv()
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROJECT_SRC_DIR = os.path.join(BASE_DIR, 'src')
 
-# Directorio con los scripts de scraping
+# Directorio de scripts de scraping
 SCRIPTS_DIR = os.environ.get('BOLSA_SCRIPTS_DIR', os.path.join(PROJECT_SRC_DIR, 'scripts'))
 
-# Carpeta base donde se guardan los logs y archivos JSON generados por el bot
+# Carpeta para logs y archivos generados
 LOGS_DIR = os.environ.get('BOLSA_LOGS_DIR', os.path.join(PROJECT_SRC_DIR, 'logs_bolsa'))
 os.makedirs(LOGS_DIR, exist_ok=True)
 
-# Archivo donde se guarda el estado de la sesión de Playwright
+# Archivo de estado de sesión de Playwright
 STORAGE_STATE_PATH = os.path.join(LOGS_DIR, 'playwright_state.json')
 
-# Credenciales de acceso
-# Por defecto se utilizan cadenas vacías. Es obligatorio definirlas mediante las
-# variables de entorno ``BOLSA_USERNAME`` y ``BOLSA_PASSWORD`` antes de ejecutar
-# el bot.
-USERNAME = os.environ.get('BOLSA_USERNAME', '')
-PASSWORD = os.environ.get('BOLSA_PASSWORD', '')
+# Credenciales de acceso (leídas desde el entorno)
+USERNAME = os.environ.get('BOLSA_USERNAME', 'postgres')
+PASSWORD = os.environ.get('BOLSA_PASSWORD', 'postgres')
 
-# URLs y selectores utilizados por el bot
-INITIAL_PAGE_URL = 'https://www.bolsadesantiago.com/plus_acciones_precios'
+# URLs y selectores del bot
 TARGET_DATA_PAGE_URL = 'https://www.bolsadesantiago.com/plus_acciones_precios'
 
-USERNAME_SELECTOR = '#username'
-PASSWORD_SELECTOR = '#password'
-LOGIN_BUTTON_SELECTOR = '#kc-login'
-
 API_PRIMARY_DATA_PATTERNS = [
-    'https://www.bolsadesantiago.com/api/RV_ResumenMercado/getAccionesPrecios',
-    'https://www.bolsadesantiago.com/api/Cuenta_Premium/getPremiumAccionesPrecios',
+    'api/RV_ResumenMercado/getAccionesPrecios',
+    'api/Cuenta_Premium/getPremiumAccionesPrecios',
 ]
-
-URLS_TO_INSPECT_IN_HAR_FOR_CONTEXT = [
-    'https://www.bolsadesantiago.com/api/Comunes_User/getEstadoSesionUsuario',
-    'https://www.bolsadesantiago.com/api/Indices/getIndicesPremium',
-]
-
-MIS_CONEXIONES_TITLE_SELECTOR = "h1:has-text('MIS CONEXIONES')"
-CERRAR_TODAS_SESIONES_SELECTOR = "button:has-text('Cerrar sesión en todos los dispositivos')"
-
 
 # Configuración de base de datos
-DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/bolsa')
+# DATABASE_URL por defecto para docker-compose
+DEFAULT_DB_URL = 'postgresql://postgres:postgres@localhost:5432/bolsa'
+DATABASE_URL = os.environ.get('DATABASE_URL', DEFAULT_DB_URL)
 SQLALCHEMY_DATABASE_URI = DATABASE_URL
 SQLALCHEMY_TRACK_MODIFICATIONS = False

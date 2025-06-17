@@ -2,287 +2,138 @@
 
 ## Descripción General
 
-Esta aplicación web permite filtrar y visualizar datos de acciones de la Bolsa de Santiago en tiempo real. La aplicación utiliza un script de scraping existente para obtener los datos más recientes, y proporciona una interfaz intuitiva para filtrar y visualizar la información.
+Esta aplicación web permite filtrar y visualizar datos de acciones de la Bolsa de Santiago en tiempo real. La aplicación utiliza un script de scraping con Playwright para obtener los datos, los almacena en una base de datos TimescaleDB y los presenta en una interfaz de usuario intuitiva y responsiva con actualizaciones en tiempo real a través de WebSockets.
 
 ## Características Principales
 
-1. **Interfaz de Usuario Responsiva**:
-   - Diseño adaptable para dispositivos móviles y escritorio
-   - Campos para ingresar hasta 5 códigos de acciones
-   - Tabla de resultados con indicadores visuales
+1.  **Backend Robusto con Flask**:
+    *   API RESTful para la gestión de datos, credenciales, filtros y configuraciones.
+    *   Integración con SQLAlchemy para el mapeo de objetos a la base de datos.
+    *   Servidor WebSocket con Flask-SocketIO para notificaciones en tiempo real al frontend.
 
-2. **Filtrado de Acciones**:
-   - Búsqueda por códigos de acciones (nemos)
-   - Persistencia de búsquedas anteriores
-   - Botones para filtrar y limpiar campos
+2.  **Scraping y Automatización con Playwright**:
+    *   Módulo `bolsa_santiago_bot.py` que automatiza el login y la captura de datos de la red.
+    *   Gestor de página (`page_manager.py`) que mantiene una sesión persistente del navegador para evitar logins repetidos.
+    *   Orquestador (`bolsa_service.py`) que coordina la ejecución del bot y el almacenamiento de datos.
 
-3. **Actualización de Datos**:
-   - Actualización manual mediante botón "Actualizar" (ejecuta directamente bolsa_santiago_bot.py)
-   - Indicador de progreso durante la generación del JSON (hasta 20 segundos)
-   - Actualización automática configurable (1-3 o 1-5 minutos)
-   - Indicador de próxima actualización y timestamp del último archivo JSON
-   - Actualización en tiempo real vía WebSocket al almacenar nuevos datos
+3.  **Persistencia de Datos**:
+    *   Uso de PostgreSQL con la extensión TimescaleDB, optimizada para datos de series temporales (precios de acciones).
+    *   Modelos de datos para acciones, credenciales, logs, filtros y preferencias de usuario.
+    *   Fallback a archivos JSON para historial y comparación si la base de datos no está disponible.
 
-4. **Visualización de Datos**:
-   - Tabla con columnas para Acción, Precio, Variación, Compra, Venta, Monto, Moneda y Volumen
-   - Indicadores visuales (flechas y colores) para variaciones positivas y negativas
-   - Animación de actualización para cambios en los datos
+4.  **Frontend Interactivo**:
+    *   Interfaz responsiva construida con Bootstrap.
+    *   Filtrado de acciones por código, con persistencia de la configuración.
+    *   Actualización manual de datos con un solo clic.
+    *   Planificador de actualizaciones automáticas (intervalos aleatorios).
+    *   Visualización de datos con indicadores de cambio (colores y flechas).
+    *   Configuración de columnas visibles en la tabla de datos.
+    *   Página de visualización de la arquitectura de la aplicación con diagramas Mermaid.js.
 
-## Estructura del Proyecto
-
-```
+## Estructura del Proyecto (Refactorizada)
 bolsa_app/
-├── venv/                  # Entorno virtual de Python
 ├── src/
-│   ├── models/            # Modelos de datos (no utilizados en esta versión)
-│   ├── routes/            # Rutas de la API
-│   │   ├── api.py         # Endpoints de acciones
-│   │   └── user.py        # Endpoints de usuarios
-│   ├── scripts/           # Scripts de servicio
-│   │   ├── __init__.py
-│   │   └── bolsa_service.py  # Servicio para gestionar datos de acciones
-│   ├── static/            # Archivos estáticos
-│   │   ├── index.html     # Página principal
-│   │   ├── styles.css     # Estilos CSS
-│   │   └── app.js         # Lógica de frontend
-│   └── main.py            # Punto de entrada de la aplicación
-└── requirements.txt       # Dependencias de Python
-```
-
-## Configuración Personalizada
-
-Esta aplicación utiliza un archivo de configuración (`src/config.py`) donde se definen las rutas por defecto y otros parámetros estáticos. Las variables de entorno `BOLSA_SCRIPTS_DIR` y `BOLSA_LOGS_DIR` son opcionales y permiten sobrescribir dichas rutas:
-
-- **Scripts de scraping**: `<BOLSA_SCRIPTS_DIR>/bolsa_santiago_bot.py`
-- **Archivos JSON generados**: `<BOLSA_LOGS_DIR>/acciones-precios-plus_*.json`
-
-La aplicación siempre selecciona el archivo JSON más reciente basándose en la fecha de modificación y muestra el timestamp extraído del nombre del archivo en la interfaz.
-
-## Estructura del JSON
-
-La aplicación está configurada para trabajar con la estructura específica del JSON generado por el script:
-
-```json
-{
-  "listaResult": [
-    {
-      "NEMO": "AAISA",
-      "PRECIO_CIERRE": 220,
-      "VARIACION": 0.18,
-      "PRECIO_COMPRA": 220,
-      "PRECIO_VENTA": 221,
-      "MONTO": 2203979,
-      "MONEDA": "CLP",
-      "UN_TRANSADAS": 10041
-    },
-    ...
-  ]
-}
-```
-
-La aplicación normaliza automáticamente los nombres de los campos para mantener la consistencia en la interfaz de usuario.
+│ ├── automatizacion_bolsa/
+│ │ ├── page_manager.py # Gestión centralizada del navegador y sesiones
+│ │ └── data_capture.py # Lógica para capturar datos de la red
+│ ├── models/ # Modelos de datos SQLAlchemy
+│ ├── routes/
+│ │ └── api.py # Endpoints de la API RESTful
+│ ├── scripts/
+│ │ ├── bolsa_santiago_bot.py # Bot que ejecuta la automatización de Playwright
+│ │ └── bolsa_service.py # Orquestador principal del scraping y almacenamiento
+│ ├── static/
+│ │ ├── app.js # Lógica JS principal del frontend
+│ │ └── historico.js # JS para la vista de historial y comparación
+│ ├── templates/
+│ │ ├── index.html # Interfaz principal de la aplicación
+│ │ ├── architecture.html # Página de visualización de la arquitectura
+│ │ └── historico.html # Página para ver historial y comparaciones
+│ ├── utils/
+│ │ ├── db_io.py # Lógica de lectura/escritura en la base de datos
+│ │ ├── json_utils.py # Utilidades para manejo de archivos JSON
+│ │ ├── scheduler.py # Planificador de tareas periódicas
+│ │ └── bot_control.py # Proxy para evitar importaciones circulares
+│ ├── main.py # Punto de entrada de la aplicación Flask
+│ └── config.py # Configuración centralizada
+├── requirements.txt # Dependencias del proyecto
+├── docker-compose.yml # Configuración para la base de datos TimescaleDB
+└── README.md # Esta documentación
 
 ## Requisitos
 
 - Python 3.11 o superior
-- Navegador web moderno (Chrome, Firefox, Edge, Safari)
-- Conexión a Internet
-- Scripts `bolsa_santiago_bot.py` y `har_analyzer.py` ubicados en `src/scripts`
+- Docker y Docker Compose (para la base de datos)
+- Un navegador web moderno
 
 ## Variables de Entorno
 
-Antes de ejecutar la aplicación se deben definir las siguientes variables de entorno:
+Es **obligatorio** definir las siguientes variables de entorno para que la aplicación funcione:
 
-- **BOLSA_USERNAME** y **BOLSA_PASSWORD**: credenciales para iniciar sesión en el sitio de la Bolsa de Santiago. Estas credenciales **deben** establecerse como variables de entorno; si no están definidas el bot abortará su ejecución. En `src/config.py` las variables correspondientes tienen un valor vacío por defecto.
-- **BOLSA_SCRIPTS_DIR**: (opcional) ruta al directorio que contiene `bolsa_santiago_bot.py`. Por defecto apunta a la carpeta `src/scripts` del proyecto.
-- **BOLSA_LOGS_DIR**: (opcional) directorio donde el bot almacenará sus logs y archivos JSON. Si no se especifica se utiliza `logs_bolsa` dentro de la carpeta `src` del proyecto.
-- **DATABASE_URL**: cadena de conexión para PostgreSQL/TimescaleDB. Ejemplo: `postgresql://postgres:postgres@localhost:5432/bolsa`.
-- **BOLSA_NON_INTERACTIVE**: si se establece en `1`, permite ejecutar `bolsa_santiago_bot.py` sin confirmación de usuario. Útil para automatización y pruebas.
-  Para ejecutar el bot de forma interactiva (por ejemplo si se presenta un CAPTCHA),
-  omite esta variable o envía `{"non_interactive": false}` al endpoint `/api/stocks/update`.
-  Si el parámetro `non_interactive` no se especifica en el endpoint, se empleará
-  el valor actual de `BOLSA_NON_INTERACTIVE`. Si la variable no está definida, al
-  iniciar la aplicación con `python src/main.py` se preguntará si se desea habilitar
-  la ejecución no interactiva.
+-   `BOLSA_USERNAME`: Usuario para el sitio de la Bolsa de Santiago.
+-   `BOLSA_PASSWORD`: Contraseña para el sitio de la Bolsa de Santiago.
+-   `DATABASE_URL`: Cadena de conexión para la base de datos. Por defecto, si usas `docker-compose.yml`, será `postgresql://postgres:postgres@localhost:5432/bolsa`.
 
 ## Instalación y Ejecución
 
-1. **Preparación del entorno**:
-   ```bash
-   # Descomprimir el archivo o clonar el repositorio
-   # Ubicarse en la raíz del proyecto (donde se encuentra este README)
-   
-   # Crear y activar entorno virtual
-   python -m venv venv
-   # En Windows:
-   venv\Scripts\activate
-   # En Linux/Mac:
-   source venv/bin/activate
-   
-    # Instalar dependencias (incluye pytest)
+1.  **Clonar y preparar el entorno**:
+    ```bash
+    # Clonar el repositorio
+    git clone <url_del_repositorio>
+    cd <directorio_del_proyecto>
+
+    # Crear y activar un entorno virtual
+    python -m venv venv
+    # En Windows:
+    venv\Scripts\activate
+    # En Linux/macOS:
+    source venv/bin/activate
+
+    # Instalar dependencias de Python
     pip install -r requirements.txt
-    # Instalar dependencias de sistema para Playwright
-    npx playwright install-deps
-    # Instalar los navegadores de Playwright
-   python -m playwright install
-   # Iniciar TimescaleDB con docker-compose
+    ```
 
-   docker-compose up -d db
-   ```
+2.  **Instalar dependencias de Playwright**:
+    ```bash
+    # Instalar las dependencias del sistema operativo para los navegadores
+    python -m playwright install-deps
+    # Instalar los navegadores que usará Playwright (Chromium, etc.)
+    python -m playwright install
+    ```
 
-### Instalación paso a paso en PowerShell
+3.  **Iniciar la Base de Datos**:
+    Asegúrate de que Docker esté en ejecución.
+    ```bash
+    docker-compose up -d db
+    ```
+    La primera vez, esto descargará la imagen de TimescaleDB y creará un contenedor con una base de datos persistente.
 
-Al usar PowerShell 5.x no está disponible el operador `&&`. Ejecuta cada comando por separado:
+4.  **Configurar las variables de entorno**:
+    Crea un archivo `.env` en la raíz del proyecto o exporta las variables directamente en tu terminal.
+    ```
+    BOLSA_USERNAME="tu_usuario"
+    BOLSA_PASSWORD="tu_contraseña"
+    DATABASE_URL="postgresql://postgres:postgres@localhost:5432/bolsa"
+    ```
 
-```powershell
-python -m venv venv
-venv\Scripts\activate
-pip install -r requirements.txt  # incluye pytest
-npx playwright install-deps
-python -m playwright install
-docker-compose up -d db
-```
+5.  **Ejecutar la aplicación**:
+    ```bash
+    # Cargar variables de entorno si usas un archivo .env (necesitas python-dotenv)
+    # pip install python-dotenv
+    # (El main.py ya lo carga si existe)
+    
+    python src/main.py
+    ```
 
-2. **Ejecución de la aplicación**:
-   ```bash
-   # Desde la raíz del proyecto donde se configuró el entorno virtual
-   # En Windows:
-   venv\Scripts\activate
-   # En Linux/Mac:
-   source venv/bin/activate
-   
-   python src/main.py
-   ```
+6.  **Acceder a la aplicación**:
+    -   Abre tu navegador y ve a `http://localhost:5000`.
+    -   La primera vez, serás redirigido a `login.html` para ingresar y guardar tus credenciales. Si marcas "Recordar", se almacenarán en la base de datos y se cargarán automáticamente en futuros inicios.
+    -   Una vez configuradas las credenciales, podrás acceder directamente a la página principal.
 
-3. **Acceso a la aplicación**:
-   - Abrir un navegador web
-   - Visitar `http://localhost:5000/login.html` la primera vez para registrar las credenciales
-   - Ingresar el usuario y contraseña que se utilizarán para el bot. Si se marca
-     "Recordar credenciales" se almacenarán en la base de datos y se cargarán automáticamente en reinicios posteriores.
-   - Tras un inicio exitoso se redirige a `index.html`. Si las credenciales ya están guardadas se puede acceder directamente a `http://localhost:5000`.
+## Uso
 
-## Uso de la Aplicación
-
-1. **Filtrar Acciones**:
-   - Ingresar hasta 5 códigos de acciones en los campos de texto
-   - Hacer clic en "Filtrar" para mostrar los resultados
-   - Los códigos se guardan automáticamente para futuras sesiones
-
-2. **Actualización de Datos**:
-   - Hacer clic en "Actualizar" para ejecutar el script bolsa_santiago_bot.py y obtener datos recientes
-   - Durante la actualización se muestra un indicador de progreso (puede tardar hasta 20 segundos)
-   - Si es necesario resolver un CAPTCHA manualmente, realiza la petición POST a `/api/stocks/update` enviando `{"non_interactive": false}` para ejecutar el bot de forma interactiva. Si no se incluye este campo, se tomará el valor configurado en `BOLSA_NON_INTERACTIVE`.
-   - Seleccionar un modo de actualización automática en el desplegable:
-     - Desactivado: Sin actualización automática
-     - Random 1-3 minutos: Actualización aleatoria entre 1 y 3 minutos
-     - Random 1-5 minutos: Actualización aleatoria entre 1 y 5 minutos
-
-3. **Visualización de Resultados**:
-   - La tabla muestra los datos de las acciones filtradas
-   - Las variaciones positivas se muestran en verde con flecha hacia arriba
-   - Las variaciones negativas se muestran en rojo con flecha hacia abajo
-   - El timestamp de la última actualización se muestra en la parte superior de la tabla
-
-## Notas Técnicas
-
-- La aplicación utiliza Flask como backend y JavaScript puro para el frontend
-- El scraping se realiza mediante el script bolsa_santiago_bot.py existente
-- Los datos se leen directamente desde los archivos JSON generados en la ubicación especificada
-- La actualización automática se gestiona tanto en el servidor como en el cliente
-- Los datos se almacenan en PostgreSQL/TimescaleDB y se notifican mediante SocketIO
-- El cliente web carga la librería de Socket.IO desde un CDN (`https://cdn.socket.io`)
-- La aplicación detecta automáticamente la estructura del JSON y normaliza los campos
-- El analizador HAR también revisa la respuesta de `getEstadoSesionUsuario` y, si contiene fecha o duración de expiración, calcula el tiempo restante de la sesión.
-
-## API de Usuarios
-
-Los endpoints para gestionar usuarios se encuentran bajo la ruta `/api/users`.
-Las operaciones disponibles incluyen:
-
-- `GET /api/users` para obtener todos los usuarios.
-- `POST /api/users` para crear un usuario nuevo.
-- `GET /api/users/<id>` para consultar un usuario por su identificador.
-- `PUT /api/users/<id>` para actualizarlo.
-- `DELETE /api/users/<id>` para eliminarlo.
-
-## Solución de Problemas
-
-- **Error de acceso a archivos**: Verificar que las rutas configuradas en bolsa_service.py sean correctas
-- **Datos no actualizados**: Hacer clic en "Actualizar" para ejecutar manualmente el script de scraping
-- **Errores de scraping**: Revisar los logs generados por el script bolsa_santiago_bot.py
-
-## Personalización Adicional
-
-Si necesitas usar rutas diferentes a las predeterminadas puedes definir las
-variables de entorno `BOLSA_SCRIPTS_DIR` y `BOLSA_LOGS_DIR` antes de ejecutar la
-aplicación. De esta forma no es necesario modificar `src/config.py`.
-
-## Futuras Mejoras
-
-- **Persistencia en la nube con TimescaleDB**: Los precios que actualmente se
-  almacenan únicamente en archivos JSON también se guardarán en una base de datos
-  TimescaleDB (sobre PostgreSQL). Esta solución está optimizada para series de
-  tiempo y permitirá consultas históricas y análisis más avanzados.
-- **Actualización en tiempo real de la interfaz**: Se incorporará un servidor
-  WebSocket (por ejemplo mediante Flask‑SocketIO) para notificar a los clientes
-  cada vez que nuevos registros se inserten en la base de datos. Así, la tabla se
-  actualizará inmediatamente sin necesidad de recargar la página.
-- **Refactorización del servicio**: `bolsa_service.py` y `bolsa_santiago_bot.py`
-  se modificarán para escribir de forma simultánea en JSON y en TimescaleDB.
-    También se prepararán scripts de despliegue (por ejemplo `docker-compose`) para
-    facilitar el uso de TimescaleDB en entornos cloud.
-
-## Ejecución de Pruebas
-
-Para ejecutar las pruebas automatizadas de la aplicación (todas las dependencias se instalan desde `requirements.txt`, incluido `pytest`):
-
-```bash
-pip install -r requirements.txt
-npx playwright install-deps
-python -m playwright install
-pytest -q
-```
-
-Al establecer `BOLSA_NON_INTERACTIVE=1` las pruebas podrán ejecutar el bot de forma
-no interactiva. De manera equivalente, puede invocar `/api/stocks/update` con
-`{"non_interactive": true}`.
-
-Para comprobar que la base de datos configurada es accesible se puede ejecutar
-el siguiente comando después de completar la instalación:
-
-```bash
-pytest tests/test_database_connection.py
-```
-
-## Consulta rápida con PowerShell
-
-Los siguientes pasos permiten conectarse a la base de datos de TimescaleDB y
-revisar el contenido de la tabla `stock_prices` desde PowerShell:
-
-1. Verifica que el contenedor de la base de datos esté en ejecución:
-
-   ```powershell
-   docker-compose up -d db
-   ```
-
-2. Conéctate utilizando `psql` (la contraseña por defecto es `postgres`):
-
-   ```powershell
-   psql -h localhost -U postgres -d bolsa
-   ```
-
-   Dentro de la consola de `psql` puedes consultar algunos registros:
-
-   ```sql
-   SELECT * FROM stock_prices LIMIT 5;
-   ```
-
-3. Para finalizar la sesión escribe `\q`.
-
-Si prefieres conectarte directamente al contenedor sin instalar `psql` en tu
-sistema, ejecuta:
-
-```powershell
-docker-compose exec db psql -U postgres -d bolsa
-```
-
+-   **Filtrar Acciones**: Ingresa hasta 5 códigos de acciones y haz clic en "Filtrar".
+-   **Actualizar Datos**: Haz clic en "Actualizar" para forzar una nueva ejecución del bot. El proceso se ejecuta en segundo plano.
+-   **Actualización Automática**: Selecciona un intervalo en el menú desplegable para que la aplicación busque nuevos datos periódicamente.
+-   **Historial**: Ve a la página de "Histórico" para ver un resumen de las cargas de datos y una comparación detallada entre las dos últimas.
+-   **Arquitectura**: Visita la página de "Arquitectura" para ver diagramas del flujo de datos y componentes de la aplicación.

@@ -1,4 +1,4 @@
-from . import db
+from src.extensions import db
 
 class ColumnPreference(db.Model):
     __tablename__ = 'column_preferences'

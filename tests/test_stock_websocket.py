@@ -4,7 +4,7 @@ from flask import has_app_context
 
 import pytest
 
-from src.extensions import socketio
+from src.utils.extensions import socketio
 from src.models.stock_price import StockPrice
 from src.scripts import bolsa_service
 

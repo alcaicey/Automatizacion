@@ -5,7 +5,7 @@ import pytest
 os.environ.setdefault('DATABASE_URL', 'sqlite:///:memory:')
 
 from src import main
-from src.models import db
+from src.extensions import db
 
 
 @pytest.fixture

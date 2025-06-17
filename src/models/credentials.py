@@ -1,4 +1,6 @@
-from . import db
+# --- INICIO DE LA CORRECCIÓN: Importar db desde extensions ---
+from src.extensions import db
+# --- FIN DE LA CORRECCIÓN ---
 
 class Credential(db.Model):
     __tablename__ = 'credentials'

@@ -4,7 +4,7 @@ from datetime import datetime
 from src.scripts import bolsa_service
 from src.models.last_update import LastUpdate
 from src.models.stock_price import StockPrice
-from src.extensions import socketio
+from src.utils.extensions import socketio
 
 
 def test_last_update_sync(app, tmp_path):

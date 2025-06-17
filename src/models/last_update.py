@@ -1,4 +1,4 @@
-from . import db
+from src.extensions import db
 from datetime import datetime
 
 class LastUpdate(db.Model):

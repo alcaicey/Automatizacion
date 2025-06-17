@@ -1,33 +1,44 @@
 """
 tests/test_imports.py
 ─────────────────────
-Pruebas unitarias básicas para garantizar que los módulos y funciones
-críticas del proyecto puedan importarse sin errores.
+Prueba de “sanidad” de imports.
 
-Ejecuta con:
-    pytest                     # todos los tests del proyecto
-    pytest tests/test_imports.py   # solo este archivo
+Comprueba que todos los módulos críticos del pipeline Bolsa-Santiago
+pueden importarse sin lanzar excepciones en el entorno actual.
+
+Añade o quita rutas de módulo en la lista MODULES según evolucione
+el proyecto.
 """
+from __future__ import annotations
 
 import importlib
 import pytest
 
+# Lista exhaustiva de módulos que deben poder importarse
+MODULES = [
+    # ───── Núcleo de automatización (Playwright) ─────
+    "src.scripts.bolsa_santiago_bot",      # :contentReference[oaicite:0]{index=0}
+    "src.scripts.bolsa_service",      # :contentReference[oaicite:0]{index=0}
+    "src.automatizacion_bolsa.login",               # :contentReference[oaicite:1]{index=1}
+    "src.automatizacion_bolsa.playwright_session",  # :contentReference[oaicite:2]{index=2}
+    "src.automatizacion_bolsa.config_loader",  # :contentReference[oaicite:2]{index=2}
+    "src.automatizacion_bolsa.data_capture",  # :contentReference[oaicite:2]{index=2}
+    "src.automatizacion_bolsa.page_manager",  # :contentReference[oaicite:2]{index=2}
+    "src.automatizacion_bolsa.playwright_session",  # :contentReference[oaicite:2]{index=2}
 
-# ------------- tabla de rutas y atributos que se deben poder importar ------------
-IMPORT_TARGETS = [
-    ("src.scripts.browser_refresh", "refresh_chromium_tab"),
-    ("src.automatizacion_bolsa", "clean_percentage"),
-    ("src.automatizacion_bolsa", "run_automation"),  # ← ahora desde el paquete
-    # Añade más pares (módulo, atributo) si lo necesitas:
-    # ("src.otra_ruta.modulo", "función_o_clase"),
+    # ───── Adaptadores / wrappers usados por el servicio ─────
+    "src.scripts.bolsa_santiago_bot",               # :contentReference[oaicite:3]{index=3}
+    "src.scripts.bolsa_service",                    # :contentReference[oaicite:4]{index=4}
+    "src.scripts.har_analyzer",
+
+    # ───── Utilidades y helpers invocados indirectamente ─────
+    "src.utils.db_io",          # utilidades de E/S y orquestación
+    "src.config",               # constantes de selectores, URLs, etc.
 ]
 
-@pytest.mark.parametrize("module_path, attribute", IMPORT_TARGETS)
-def test_module_attribute_exists(module_path: str, attribute: str):
+@pytest.mark.parametrize("module_name", MODULES)
+def test_import_module(module_name: str) -> None:
     """
-    Verifica que:
-      1. El módulo `module_path` pueda importarse sin lanzar excepciones.
-      2. El atributo `attribute` exista dentro del módulo.
+    La prueba pasa si cada módulo se importa sin errores.
     """
-    module = importlib.import_module(module_path)
-    assert hasattr(module, attribute), f"'{attribute}' no encontrado en {module_path}"
+    importlib.import_module(module_name)

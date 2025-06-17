@@ -37,15 +37,19 @@ from typing import Any, Dict, List, Optional, Tuple
 from flask import current_app
 from sqlalchemy.dialects.postgresql import insert
 
+bot_lock = threading.Lock()
+update_thread = None
+
 # ───────────────────────────────────────── imports de terceros añadidos ──────────
-from .browser_refresh import (
+# ───────────────────────────────────────── imports de terceros añadidos ──────────
+from src.utils.browser_utils import (
     find_chromium_process,
     refresh_chromium_tab,
 )
 # ──────────────────────────────────────────── imports internos del proyecto ─────
 from src.config import BASE_DIR, LOGS_DIR, PROJECT_SRC_DIR, SCRIPTS_DIR
-from src.extensions import socketio
-from src.models import db
+from src.utils.extensions import socketio
+from src.extensions import db
 from src.models.last_update import LastUpdate
 from src.models.stock_price import StockPrice
 
@@ -71,7 +75,7 @@ def _safe_log(level: str, msg: str, *args, **kwargs):
         return getattr(h, "stream", None) and getattr(h.stream, "closed", False)
     if any(_closed(h) for h in logger.handlers) or any(_closed(h) for h in root.handlers):
         return
-    getattr(logger, level)(msg, *args, **kwargs) True
+    getattr(logger, level)(msg, *args, **kwargs)
 
     if os.getenv("BOLSA_USERNAME") and os.getenv("BOLSA_PASSWORD"):
         return True
@@ -94,6 +98,7 @@ def get_last_update_timestamp(app=None):
 
 def is_bot_running() -> bool:
     """True si el bot de Playwright está corriendo."""
+    global bot_lock
     with bot_lock:
         return bot_running
 
@@ -407,6 +412,7 @@ def get_session_remaining_seconds() -> Optional[int]:
 def run_bolsa_bot(app=None, *, non_interactive=None, keep_open=True, force_update=False):
     """Ejecuta el bot Playwright o reutiliza navegador existente."""
     global bot_running
+    global bot_lock
     ctx = app.app_context() if app else nullcontext()
     with ctx:
         if not _ensure_env_credentials(app):
@@ -435,7 +441,9 @@ def run_bolsa_bot(app=None, *, non_interactive=None, keep_open=True, force_updat
             # si hay página activa → recargar; si no → ejecutar flujo completo
             if bot.get_active_page():
                 logger.info("Recargando navegador activo con Playwright.")
-                bot.configure_run_specific_logging(bot.logger_instance_global)
+                logger = logging.getLogger(__name__)
+                logger.setLevel(logging.INFO)
+                configure_run_specific_logging(logger)
                 success, json_path = bot.refresh_active_page(bot.logger_instance_global)
             else:
                 try:
