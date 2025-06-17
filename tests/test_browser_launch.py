@@ -1,5 +1,6 @@
 import json
 import threading
+from datetime import datetime
 
 import pytest
 
@@ -22,7 +23,7 @@ def test_filter_endpoint_launches_browser(app, tmp_path, monkeypatch):
         calls.append(True)
         if app:
             with app.app_context():
-                bolsa_service.store_prices_in_db(str(json_path), app=app)
+                bolsa_service.store_prices_in_db(str(json_path), datetime(2025, 1, 4, 0, 0, 0), app=app)
         return str(json_path)
 
     monkeypatch.setattr("src.routes.api.run_bolsa_bot", fake_run)
@@ -47,7 +48,7 @@ def test_update_endpoint_launches_browser(app, tmp_path, monkeypatch):
         calls.append(True)
         if app:
             with app.app_context():
-                bolsa_service.store_prices_in_db(str(json_path), app=app)
+                bolsa_service.store_prices_in_db(str(json_path), datetime(2025, 1, 5, 0, 0, 0), app=app)
         return str(json_path)
 
     monkeypatch.setattr("src.routes.api.run_bolsa_bot", fake_run)

@@ -1,5 +1,6 @@
 import json
 import threading
+from datetime import datetime
 from flask import has_app_context
 
 import pytest
@@ -23,8 +24,9 @@ def test_store_prices_emits_event_and_saves(app, tmp_path):
     json_path = tmp_path / "acciones-precios-plus_20240101_000000.json"
     json_path.write_text(json.dumps(data), encoding="utf-8")
 
+    ts = datetime(2025, 1, 1, 0, 0, 0)
     with app.app_context():
-        bolsa_service.store_prices_in_db(str(json_path))
+        bolsa_service.store_prices_in_db(str(json_path), ts)
         prices = StockPrice.query.all()
 
     assert len(prices) == 1
@@ -45,8 +47,9 @@ def test_update_endpoint_triggers_websocket(app, tmp_path, monkeypatch):
 
     def fake_run(app=None, non_interactive=True, keep_open=True):
         calls.append(True)
+        ts = datetime(2025, 1, 2, 0, 0, 0)
         with app.app_context():
-            bolsa_service.store_prices_in_db(str(json_path), app=app)
+            bolsa_service.store_prices_in_db(str(json_path), ts, app=app)
         return str(json_path)
 
     monkeypatch.setattr("src.routes.api.run_bolsa_bot", fake_run)
@@ -101,7 +104,7 @@ def test_update_endpoint_uses_context(app, tmp_path, monkeypatch):
     def wrapped_store(path, app=None):
         calls["called"] = True
         assert has_app_context()
-        original_store(path, app=app)
+        original_store(path, datetime(2025, 1, 3, 0, 0, 0), app=app)
 
     monkeypatch.setattr(bolsa_service, "get_latest_json_file", fake_get_latest_json_file)
     monkeypatch.setattr(bolsa_service.subprocess, "run", fake_run_subprocess)

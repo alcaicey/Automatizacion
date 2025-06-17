@@ -9,6 +9,7 @@ from flask import Blueprint, jsonify, request, current_app
 
 from src.scripts.bolsa_service import run_bolsa_bot
 from src.utils.db_io import get_latest_data, filter_stocks, compare_last_two_db_entries
+from src.models import Alert
 from src.utils.scheduler import start_periodic_updates, stop_periodic_updates
 from src.models import Credential, LogEntry, ColumnPreference, StockFilter
 from src.extensions import db
@@ -64,6 +65,20 @@ def history_list():
 def history_compare():
     with current_app.app_context():
         return jsonify(compare_last_two_db_entries() or history_view.compare_latest() or {})
+
+@api_bp.route("/stocks/history/<symbol>", methods=["GET"])
+def stock_history(symbol):
+    """Retorna el historial completo de precios para un símbolo."""
+    with current_app.app_context():
+        prices = (
+            db.session.query(StockPrice)
+            .filter_by(symbol=symbol.upper())
+            .order_by(StockPrice.timestamp)
+            .all()
+        )
+        labels = [p.timestamp.strftime("%d/%m/%Y %H:%M:%S") for p in prices]
+        data = [p.price for p in prices]
+        return jsonify({"labels": labels, "data": data})
 
 @api_bp.route("/columns", methods=["GET", "POST"])
 def handle_columns():
@@ -159,3 +174,25 @@ def handle_logs():
             if search:
                 query = query.filter(LogEntry.message.ilike(f"%{search}%"))
             return jsonify([l.to_dict() for l in query.limit(200).all()])
+
+@api_bp.route("/alerts", methods=["POST"])
+def create_alert():
+    """Crea una nueva alerta de precios."""
+    with current_app.app_context():
+        data = request.get_json() or {}
+        symbol = data.get("symbol", "").upper()
+        target_price = data.get("target_price")
+        condition = data.get("condition")
+        if not symbol or target_price is None or condition not in {"above", "below"}:
+            return jsonify({"error": "Datos de alerta incompletos."}), 400
+        alert = Alert(symbol=symbol, target_price=float(target_price), condition=condition)
+        db.session.add(alert)
+        db.session.commit()
+        return jsonify(alert.to_dict()), 201
+
+@api_bp.route("/alerts", methods=["GET"])
+def list_alerts():
+    """Obtiene alertas pendientes."""
+    with current_app.app_context():
+        alerts = Alert.query.filter_by(triggered=False).all()
+        return jsonify([a.to_dict() for a in alerts])

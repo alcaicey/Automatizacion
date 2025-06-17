@@ -15,7 +15,7 @@ def test_last_update_sync(app, tmp_path):
 
     client = socketio.test_client(app)
     with app.app_context():
-        bolsa_service.store_prices_in_db(str(json_path), app=app)
+        bolsa_service.store_prices_in_db(str(json_path), ts, app=app)
         lu = LastUpdate.query.get(1)
         assert lu is not None
         assert lu.timestamp == ts

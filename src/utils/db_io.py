@@ -9,7 +9,7 @@ from contextlib import nullcontext
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy.dialects.postgresql import insert
+from src.models.alert import Alert
 
 from src.models import LastUpdate, StockPrice
 from src.extensions import db
@@ -41,11 +41,14 @@ def store_prices_in_db(json_path: str, market_timestamp: datetime, app=None) -> 
             # Ya no extraemos el timestamp del nombre del archivo, usamos el del mercado
             ts = market_timestamp
 
+            new_records = []
             for item in rows:
-                if not isinstance(item, dict): continue
-                
+                if not isinstance(item, dict):
+                    continue
+
                 symbol = item.get('NEMO')
-                if not symbol: continue
+                if not symbol:
+                    continue
 
                 def safe_float(value):
                     if value is None: return None
@@ -71,32 +74,44 @@ def store_prices_in_db(json_path: str, market_timestamp: datetime, app=None) -> 
                     'green_bond': item.get('BONO_VERDE')
                 }
                 
-                bind = db.session.get_bind()
-                if bind.dialect.name == "postgresql":
-                    stmt = insert(StockPrice).values(**stock_price_obj)
-                    update_dict = {k: v for k, v in stock_price_obj.items() if k not in ['symbol', 'timestamp'] and v is not None}
-                    if update_dict:
-                        update_stmt = stmt.on_conflict_do_update(
-                            index_elements=['symbol', 'timestamp'],
-                            set_=update_dict
-                        )
-                        db.session.execute(update_stmt)
-                    else:
-                        db.session.execute(stmt.on_conflict_do_nothing(index_elements=['symbol', 'timestamp']))
-                else:
-                    db.session.merge(StockPrice(**stock_price_obj))
+                new_records.append(StockPrice(**stock_price_obj))
+
+            if new_records:
+                db.session.add_all(new_records)
 
             lu = db.session.get(LastUpdate, 1) or LastUpdate(id=1)
             lu.timestamp = ts
             db.session.add(lu)
             db.session.commit()
-            
+
+            check_alerts(new_records)
             socketio.emit("new_data", {'message': 'Datos actualizados!'})
             logger.info(f"Datos guardados con timestamp del mercado {ts.strftime('%Y-%m-%d %H:%M:%S')} y evento 'new_data' emitido.")
 
         except Exception as e:
             logger.exception("Error al guardar precios en la DB o emitir evento: %s", e)
             db.session.rollback()
+
+def check_alerts(new_prices: List[StockPrice]) -> None:
+    """Verifica si alguna alerta se cumple con los nuevos precios."""
+    alerts = Alert.query.filter_by(triggered=False).all()
+    if not alerts:
+        return
+
+    for alert in alerts:
+        for price in new_prices:
+            if price.symbol.upper() != alert.symbol.upper():
+                continue
+            if price.price is None:
+                continue
+            if alert.condition == 'above' and price.price >= alert.target_price:
+                socketio.emit('alert_triggered', {"message": f"\u00a1Alerta! {alert.symbol} ha superado los ${alert.target_price}"})
+                alert.triggered = True
+            if alert.condition == 'below' and price.price <= alert.target_price:
+                socketio.emit('alert_triggered', {"message": f"\u00a1Alerta! {alert.symbol} ha bajado de ${alert.target_price}"})
+                alert.triggered = True
+
+    db.session.commit()
 
 # El resto del archivo (get_latest_data, filter_stocks, etc.) se mantiene igual.
 def get_latest_data() -> Dict[str, Any]:
