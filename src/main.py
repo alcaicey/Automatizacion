@@ -52,6 +52,10 @@ def home():
 def historico():
     return render_template("historico.html")
 
+@app.route("/dashboard")
+def dashboard():
+    return render_template("dashboard.html")
+
 @app.route("/logs")
 def logs():
     return render_template("logs.html")

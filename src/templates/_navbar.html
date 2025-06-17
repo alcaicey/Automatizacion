@@ -23,6 +23,11 @@
           </a>
         </li>
         <li class="nav-item">
+          <a class="nav-link {{ 'active' if request.path == url_for('dashboard') else '' }}" href="{{ url_for('dashboard') }}">
+            <i class="fas fa-chart-line me-1"></i>Dashboard
+          </a>
+        </li>
+        <li class="nav-item">
           <a class="nav-link {{ 'active' if request.path == url_for('logs') else '' }}" href="{{ url_for('logs') }}">
             <i class="fas fa-clipboard-list me-1"></i>Logs
           </a>
