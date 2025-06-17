@@ -173,18 +173,17 @@ def load_history(logs_dir: Optional[str] = None) -> List[Dict[str, Any]]:
 
 
 def compare_latest(logs_dir: Optional[str] = None) -> Dict[str, Any]:
-    """
-    Compara los dos últimos estados de datos, priorizando la base de datos.
-    """
+    """Compara los dos últimos estados de datos, priorizando la base de datos."""
+    def is_valid_entry(obj):
+        return isinstance(obj, dict) and "price" in obj and isinstance(obj["price"], (int, float))
+
     try:
-        # Prioridad 1: Comparar desde la base de datos
         db_comparison = compare_last_two_db_entries()
         if db_comparison:
             return db_comparison
     except Exception as e:
         logger.warning(f"No se pudo comparar desde la DB. Recurriendo a archivos. Error: {e}")
 
-    # Fallback: Comparar desde archivos JSON
     logs_dir = logs_dir or LOGS_DIR
     pattern = os.path.join(logs_dir, 'acciones-precios-plus_*.json')
     files = sorted(glob.glob(pattern), key=os.path.getmtime)
@@ -194,25 +193,34 @@ def compare_latest(logs_dir: Optional[str] = None) -> Dict[str, Any]:
     prev_file, curr_file = files[-2], files[-1]
     prev_data = _parse_file(prev_file)
     curr_data = _parse_file(curr_file)
-    
+
     prev_map = prev_data['map']
     curr_map = curr_data['map']
     prev_symbols = set(prev_map.keys())
     curr_symbols = set(curr_map.keys())
-    
-    new_syms = [curr_map[s] for s in curr_symbols - prev_symbols]
-    removed_syms = [prev_map[s] for s in prev_symbols - curr_symbols]
-    
-    changes, unchanged = [], []
+
+    new_syms = [curr_map[s] for s in curr_symbols - prev_symbols if is_valid_entry(curr_map[s])]
+    removed_syms = [prev_map[s] for s in prev_symbols - curr_symbols if is_valid_entry(prev_map[s])]
+
+    changes, unchanged, invalid = [], [], []
+
     for sym in curr_symbols & prev_symbols:
-        curr_item, prev_item = curr_map[sym], prev_map[sym]
+        curr_item = curr_map.get(sym)
+        prev_item = prev_map.get(sym)
+
+        if not is_valid_entry(curr_item) or not is_valid_entry(prev_item):
+            invalid.append({'symbol': sym, 'curr': curr_item, 'prev': prev_item})
+            continue
+
         if curr_item['price'] != prev_item['price'] or curr_item['variation'] != prev_item['variation']:
             diff = curr_item['price'] - prev_item['price']
             pct = (diff / prev_item['price'] * 100) if prev_item['price'] != 0 else 0.0
             changes.append({'symbol': sym, 'old': prev_item, 'new': curr_item, 'abs_diff': diff, 'pct_diff': pct})
         else:
             unchanged.append(curr_item)
-            
+
+    logger.info(f"[COMPARACIÓN] Nuevos: {len(new_syms)} | Eliminados: {len(removed_syms)} | Cambios: {len(changes)} | Sin cambios: {len(unchanged)} | Inválidos: {len(invalid)}")
+
     return {
         'current_timestamp': curr_data['timestamp'],
         'previous_timestamp': prev_data['timestamp'],
@@ -220,5 +228,5 @@ def compare_latest(logs_dir: Optional[str] = None) -> Dict[str, Any]:
         'removed': removed_syms,
         'changes': changes,
         'unchanged': unchanged,
-        'errors': curr_data['errors'] + prev_data['errors'],
-    }
+        'errors': curr_data['errors'] + prev_data['errors'] + [{'invalid_symbols': invalid}]
+    }    

@@ -11,7 +11,7 @@ from src.scripts.bolsa_service import run_bolsa_bot
 from src.utils.db_io import get_latest_data, filter_stocks, compare_last_two_db_entries
 from src.models import Alert
 from src.utils.scheduler import start_periodic_updates, stop_periodic_updates
-from src.models import Credential, LogEntry, ColumnPreference, StockFilter
+from src.models import Credential, LogEntry, ColumnPreference, StockFilter, StockPrice
 from src.extensions import db
 from src import history_view
 
