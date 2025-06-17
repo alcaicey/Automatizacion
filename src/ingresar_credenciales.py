@@ -42,6 +42,7 @@ def add_credentials_to_db():
 if __name__ == "__main__":
     if BOLSA_USERNAME == "alcaicey@gmail.com" or BOLSA_PASSWORD == "Carlosirenee13#":
         print("Igresadas correctamente.")
+        add_credentials_to_db()
     else:
         print("❌ Por favor, edita el script ingresar_credenciales.py y añade tus credenciales reales.")
         add_credentials_to_db()
