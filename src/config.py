@@ -35,3 +35,7 @@ DEFAULT_DB_URL = 'postgresql://postgres:postgres@localhost:5432/bolsa'
 DATABASE_URL = os.environ.get('DATABASE_URL', DEFAULT_DB_URL)
 SQLALCHEMY_DATABASE_URI = DATABASE_URL
 SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+# Selectores utilizados por pruebas para cerrar sesiones activas
+MIS_CONEXIONES_TITLE_SELECTOR = "#mis-conexiones-title"
+CERRAR_TODAS_SESIONES_SELECTOR = "#cerrar-sesiones"

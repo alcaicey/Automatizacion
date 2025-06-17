@@ -17,6 +17,7 @@ from src.routes.api import api_bp
 from src.routes.architecture import architecture_bp
 from src.routes.errors import errors_bp
 from src.routes.user import user_bp
+from src.routes.crud_api import crud_bp
 from src.utils.scheduler import stop_periodic_updates
 from src.scripts.bot_page_manager import close_browser
 
@@ -60,6 +61,10 @@ def dashboard():
 def logs():
     return render_template("logs.html")
 
+@app.route("/mantenedores")
+def mantenedores():
+    return render_template("mantenedores.html")
+
 @app.route("/login")
 def login():
     return render_template("login.html")
@@ -68,6 +73,7 @@ app.register_blueprint(api_bp, url_prefix="/api")
 app.register_blueprint(user_bp, url_prefix="/api")
 app.register_blueprint(errors_bp, url_prefix="/api")
 app.register_blueprint(architecture_bp)
+app.register_blueprint(crud_bp, url_prefix="/api")
 
 @app.route("/static/<path:path>")
 def static_files(path):
