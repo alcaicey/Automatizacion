@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy.dialects.postgresql import insert
 
-# --- INICIO DE LA CORRECCIÓN: Importar 'db' desde 'extensions' ---
+# --- INICIO DE LA CORRECCIÓN: Importar 'db' y 'socketio' desde 'extensions' ---
 from src.extensions import db, socketio
 from src.models import LastUpdate, StockPrice
 # --- FIN DE LA CORRECCIÓN ---
@@ -141,8 +141,11 @@ def filter_stocks(stock_codes: List[str]) -> Dict[str, Any]:
         return {"error": str(e), "data": [], "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S")}
 
 
-def compare_last_two_db_entries() -> Optional[Dict[str, Any]]:
-    """Compara los dos últimos registros de precios en la base de datos."""
+def compare_last_two_db_entries(stock_codes: Optional[List[str]] = None) -> Optional[Dict[str, Any]]:
+    """
+    Compara los dos últimos registros de precios en la base de datos,
+    filtrando por códigos de acción si se proporcionan.
+    """
     try:
         timestamps = (
             db.session.query(StockPrice.timestamp)
@@ -154,8 +157,16 @@ def compare_last_two_db_entries() -> Optional[Dict[str, Any]]:
         if len(timestamps) < 2: return None
 
         ts_curr, ts_prev = timestamps[0][0], timestamps[1][0]
-        curr_rows = StockPrice.query.filter_by(timestamp=ts_curr).all()
-        prev_rows = StockPrice.query.filter_by(timestamp=ts_prev).all()
+        
+        query_curr = StockPrice.query.filter_by(timestamp=ts_curr)
+        query_prev = StockPrice.query.filter_by(timestamp=ts_prev)
+
+        if stock_codes:
+            query_curr = query_curr.filter(StockPrice.symbol.in_(stock_codes))
+            query_prev = query_prev.filter(StockPrice.symbol.in_(stock_codes))
+        
+        curr_rows = query_curr.all()
+        prev_rows = query_prev.all()
 
         curr_map = {r.symbol: {'symbol': r.symbol, 'price': r.price, 'variation': r.variation} for r in curr_rows}
         prev_map = {r.symbol: {'symbol': r.symbol, 'price': r.price, 'variation': r.variation} for r in prev_rows}

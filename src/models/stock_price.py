@@ -4,23 +4,18 @@ from datetime import datetime
 
 class StockPrice(db.Model):
     __tablename__ = 'stock_prices'
-    # Claves primarias compuestas
     symbol = db.Column(db.String(50), primary_key=True)
     timestamp = db.Column(db.DateTime, primary_key=True, default=datetime.utcnow, index=True)
 
-    # Columnas de datos principales (traducidas de JSON)
-    price = db.Column(db.Float) # PRECIO_CIERRE
-    variation = db.Column(db.Float) # VARIACION
-    
-    # --- INICIO DE LA CORRECCIÓN: Añadir todas las columnas del JSON ---
-    buy_price = db.Column(db.Float) # PRECIO_COMPRA
-    sell_price = db.Column(db.Float) # PRECIO_VENTA
-    amount = db.Column(db.BigInteger) # MONTO
-    traded_units = db.Column(db.BigInteger) # UN_TRANSADAS
-    currency = db.Column(db.String(10)) # MONEDA
-    isin = db.Column(db.String(50)) # ISIN
-    green_bond = db.Column(db.String(5)) # BONO_VERDE
-    # --- FIN DE LA CORRECCIÓN ---
+    price = db.Column(db.Float)
+    variation = db.Column(db.Float)
+    buy_price = db.Column(db.Float)
+    sell_price = db.Column(db.Float)
+    amount = db.Column(db.BigInteger)
+    traded_units = db.Column(db.BigInteger)
+    currency = db.Column(db.String(10))
+    isin = db.Column(db.String(50))
+    green_bond = db.Column(db.String(5))
 
     __table_args__ = (
         db.PrimaryKeyConstraint('symbol', 'timestamp'),
@@ -29,8 +24,13 @@ class StockPrice(db.Model):
 
     def to_dict(self):
         """
-        Devuelve el objeto como un diccionario, usando los nombres de clave del JSON original.
+        Devuelve el objeto como un diccionario, usando los nombres de clave del JSON original
+        y formateando el timestamp.
         """
+        # --- INICIO DE LA CORRECCIÓN: Formatear el timestamp ---
+        formatted_timestamp = self.timestamp.strftime('%d/%m/%Y %H:%M:%S') if self.timestamp else None
+        # --- FIN DE LA CORRECCIÓN ---
+
         return {
             'NEMO': self.symbol,
             'PRECIO_CIERRE': self.price,
@@ -42,14 +42,18 @@ class StockPrice(db.Model):
             'MONEDA': self.currency,
             'ISIN': self.isin,
             'BONO_VERDE': self.green_bond,
-            # El timestamp no está en el JSON original por fila, pero lo añadimos para consistencia
-            'timestamp': self.timestamp.isoformat() if self.timestamp else None
+            # Usamos la variable formateada
+            'timestamp': formatted_timestamp
         }
 
 @event.listens_for(StockPrice.__table__, 'after_create')
 def create_timescale_hypertable(target, connection, **kw):
     if connection.dialect.name == "postgresql":
-        connection.execute(DDL("CREATE EXTENSION IF NOT EXISTS timescaledb;"))
-        connection.execute(
-            DDL("SELECT create_hypertable('stock_prices', 'timestamp', if_not_exists => TRUE);")
-        )
+        try:
+            connection.execute(DDL("CREATE EXTENSION IF NOT EXISTS timescaledb;"))
+            connection.execute(
+                DDL("SELECT create_hypertable('stock_prices', 'timestamp', if_not_exists => TRUE);")
+            )
+        except Exception as e:
+            # En entornos de prueba o DBs sin superusuario, esto puede fallar. Lo registramos.
+            print(f"ADVERTENCIA: No se pudo crear la hypertable de TimescaleDB. Error: {e}")

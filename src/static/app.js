@@ -172,6 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isAutoUpdate) {
             stopAutoUpdate();
         }
+
         if (isUpdating) return;
         isUpdating = true;
         updateRefreshButtonState();
@@ -201,8 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await saveFilterPreferences();
         await fetchAndDisplayStocks();
     }
-
-    // --- INICIO DE LA CORRECCIÓN: Lógica de Auto-Update con ciclo y cuenta regresiva ---
+    
     function startCountdown(totalSeconds) {
         if (countdownInterval) clearInterval(countdownInterval);
         let remaining = totalSeconds;
@@ -256,10 +256,12 @@ document.addEventListener('DOMContentLoaded', () => {
             updateStatus('Auto-Update desactivado.', 'info');
         } else {
             sessionStorage.setItem('autoUpdateInterval', intervalValue);
-            scheduleNextUpdate();
+            // Iniciar el ciclo solo si no es la primera ejecución del bot
+            if (!isFirstRun) {
+                scheduleNextUpdate();
+            }
         }
     }
-    // --- FIN DE LA CORRECCIÓN ---
 
     // --- 6. INICIALIZACIÓN Y WEBSOCKETS ---
     async function initializeApp() {
@@ -271,11 +273,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const savedInterval = sessionStorage.getItem('autoUpdateInterval');
         if (savedInterval) {
             dom.autoUpdateSelect.value = savedInterval;
-            // Si no es la primera ejecución (es decir, la página se recargó con una sesión activa),
-            // iniciar el ciclo de auto-update inmediatamente.
-            if (!isFirstRun) {
-                 handleAutoUpdateChange();
-            }
         }
     }
 
@@ -300,8 +297,8 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleLoading(false);
         updateRefreshButtonState();
         updateStatus("¡Datos recibidos! Actualizando tabla...", 'success');
-        await fetchAndDisplayStocks(); // Actualizar la tabla sin recargar la página
-        scheduleNextUpdate(); // Programar la siguiente actualización para continuar el ciclo
+        await fetchAndDisplayStocks();
+        scheduleNextUpdate(); 
     });
 
     socket.on('bot_error', (data) => {
