@@ -2,7 +2,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const tableSelect = document.getElementById('tableSelect');
     const recordsTableContainer = document.getElementById('recordsTableContainer');
     const paginationContainer = document.getElementById('paginationContainer');
+    const recordCounter = document.getElementById('recordCounter');
+    const searchContainer = document.getElementById('searchContainer');
+    const searchForm = document.getElementById('searchForm');
+    const searchInput = document.getElementById('searchInput');
     const addBtn = document.getElementById('addRecordBtn');
+    const deleteAllBtn = document.getElementById('deleteAllBtn');
     const modalEl = document.getElementById('recordModal');
     const modal = new bootstrap.Modal(modalEl);
     const form = document.getElementById('recordForm');
@@ -12,6 +17,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentTable = null;
     let currentData = [];
     let pkColumns = [];
+    let currentSearchTerm = '';
+    
+    const allowedForMassDelete = ['log_entries', 'stock_prices'];
 
     function getRecordId(row) {
         if (pkColumns.length === 1) {
@@ -33,10 +41,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function loadTable(name, page = 1) {
+    async function loadTable(name, page = 1, searchTerm = '') {
+        currentTable = name;
+        currentSearchTerm = searchTerm;
         try {
-            const res = await fetch(`/api/mantenedores/${name}?page=${page}&per_page=50`);
-            if (!res.ok) throw new Error(`No se pudieron cargar los datos de '${name}'.`);
+            const params = new URLSearchParams({ page, per_page: 50 });
+            if (searchTerm) {
+                params.append('q', searchTerm);
+            }
+            const res = await fetch(`/api/mantenedores/${name}?${params.toString()}`);
+            if (!res.ok) throw new Error(`Error al cargar datos de '${name}'.`);
             
             const responseData = await res.json();
             pkColumns = responseData.pk_columns || [];
@@ -44,6 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             renderTable(currentData);
             renderPagination(responseData.pagination);
+            recordCounter.textContent = `Mostrando ${currentData.length} de ${responseData.pagination.total_records} registros.`;
         } catch (error) {
             alert(error.message);
         }
@@ -90,18 +105,14 @@ document.addEventListener('DOMContentLoaded', () => {
         let html = '<nav><ul class="pagination">';
         html += `<li class="page-item ${pagination.has_prev ? '' : 'disabled'}"><a class="page-link" href="#" data-page="${pagination.current_page - 1}">Anterior</a></li>`;
         
-        // Lógica para mostrar un número limitado de páginas
         const startPage = Math.max(1, pagination.current_page - 2);
         const endPage = Math.min(pagination.total_pages, pagination.current_page + 2);
         
         if (startPage > 1) html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
-
         for (let i = startPage; i <= endPage; i++) {
             html += `<li class="page-item ${i === pagination.current_page ? 'active' : ''}"><a class="page-link" href="#" data-page="${i}">${i}</a></li>`;
         }
-
         if (endPage < pagination.total_pages) html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
-
         html += `<li class="page-item ${pagination.has_next ? '' : 'disabled'}"><a class="page-link" href="#" data-page="${pagination.current_page + 1}">Siguiente</a></li>`;
         html += '</ul></nav>';
         paginationContainer.innerHTML = html;
@@ -129,19 +140,48 @@ document.addEventListener('DOMContentLoaded', () => {
 
     tableSelect.addEventListener('change', () => {
         currentTable = tableSelect.value;
+        searchInput.value = '';
         if (currentTable) {
             addBtn.style.display = 'inline-block';
+            searchContainer.style.display = 'block';
+            deleteAllBtn.style.display = allowedForMassDelete.includes(currentTable) ? 'inline-block' : 'none';
             loadTable(currentTable, 1);
         } else {
             addBtn.style.display = 'none';
+            searchContainer.style.display = 'none';
+            deleteAllBtn.style.display = 'none';
             recordsTableContainer.innerHTML = '';
             paginationContainer.innerHTML = '';
+            recordCounter.textContent = '';
         }
     });
 
     addBtn.addEventListener('click', () => {
         if (!currentTable) return;
         openForm();
+    });
+
+    deleteAllBtn.addEventListener('click', async () => {
+        if (!currentTable || !allowedForMassDelete.includes(currentTable)) return;
+        if (confirm(`¿Estás SEGURO de que quieres borrar TODOS los registros de la tabla '${currentTable}'? Esta acción no se puede deshacer.`)) {
+            try {
+                const res = await fetch(`/api/mantenedores/${currentTable}/all`, { method: 'DELETE' });
+                const result = await res.json();
+                if (res.ok) {
+                    alert(result.message);
+                    loadTable(currentTable);
+                } else {
+                    throw new Error(result.description || 'Error desconocido.');
+                }
+            } catch (error) {
+                alert(`Error al borrar los registros: ${error.message}`);
+            }
+        }
+    });
+    
+    searchForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        loadTable(currentTable, 1, searchInput.value);
     });
 
     recordsTableContainer.addEventListener('click', async (e) => {
@@ -156,12 +196,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (e.target.classList.contains('delete-btn')) {
             if (confirm(`¿Borrar registro con ID ${recordId}?`)) {
                 const url = `/api/mantenedores/${currentTable}/${encodeURIComponent(recordId)}`;
-                const res = await fetch(url, { method: 'DELETE' });
-                if (res.ok) {
-                    loadTable(currentTable);
-                } else {
-                    alert('Error al borrar el registro.');
-                }
+                await fetch(url, { method: 'DELETE' });
+                loadTable(currentTable);
             }
         }
     });
@@ -169,20 +205,19 @@ document.addEventListener('DOMContentLoaded', () => {
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const formData = new FormData(form);
-        const data = Object.fromEntries(formData.entries());
-        for(const key in data) {
-            if (!isNaN(data[key]) && data[key].trim() !== '' && !key.includes('date')) {
-                data[key] = Number(data[key]);
+        const data = {};
+        for (let [key, value] of formData.entries()) {
+            if (!isNaN(value) && value.trim() !== '' && !key.includes('date')) {
+                data[key] = Number(value);
+            } else {
+                data[key] = value;
             }
         }
         const id = form.dataset.id;
         const method = id ? 'PUT' : 'POST';
         const url = id ? `/api/mantenedores/${currentTable}/${encodeURIComponent(id)}` : `/api/mantenedores/${currentTable}`;
-        const res = await fetch(url, {
-            method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
+        
+        const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
         if (res.ok) {
             modal.hide();
             loadTable(currentTable);
@@ -197,7 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target.tagName === 'A' && e.target.dataset.page) {
             const page = parseInt(e.target.dataset.page, 10);
             if (page) {
-                loadTable(currentTable, page);
+                loadTable(currentTable, page, currentSearchTerm);
             }
         }
     });

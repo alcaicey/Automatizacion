@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request, abort, current_app
 from src.extensions import db
 from datetime import datetime
 import json
+from sqlalchemy import or_, String, Text
 
 crud_bp = Blueprint('crud', __name__)
 
@@ -25,7 +26,6 @@ def cast_value(value: str, col_type):
         if pytype is bool:
             return str(value).lower() in ('1', 'true', 't', 'yes', 'on')
         if pytype is datetime:
-            # Manejar diferentes formatos ISO que pueden venir del frontend/DB
             return datetime.fromisoformat(str(value).replace('Z', '+00:00'))
         return pytype(value)
     except (ValueError, TypeError):
@@ -51,25 +51,33 @@ def get_pk_values(model, record_id_str):
 @crud_bp.route('/mantenedores/models', methods=['GET'])
 def list_models():
     """Devuelve una lista de todos los nombres de tablas/modelos disponibles."""
-    model_map = current_app.model_map
-    return jsonify(sorted(model_map.keys()))
+    return jsonify(sorted(current_app.model_map.keys()))
 
 
 @crud_bp.route('/mantenedores/<table_name>', methods=['GET'])
 def list_records(table_name):
-    """Devuelve una lista paginada de registros para una tabla específica."""
-    model_map = current_app.model_map
-    model = model_map.get(table_name)
+    """Devuelve una lista paginada de registros para una tabla específica, con opción de búsqueda."""
+    model = current_app.model_map.get(table_name)
     if not model: abort(404, description=f"Tabla '{table_name}' no encontrada.")
     
-    # --- INICIO DE LA CORRECCIÓN: Paginación del lado del servidor ---
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 50, type=int)
-    
+    search_term = request.args.get('q', None, type=str)
+
     pk_column_names = [c.name for c in model.__table__.primary_key.columns]
     
-    # Usar paginate de SQLAlchemy para obtener solo una página de resultados
-    pagination = model.query.order_by(*pk_column_names).paginate(page=page, per_page=per_page, error_out=False)
+    query = model.query
+
+    if search_term:
+        search_filters = []
+        for column in model.__table__.columns:
+            if isinstance(column.type, (String, Text)):
+                search_filters.append(column.ilike(f"%{search_term}%"))
+        
+        if search_filters:
+            query = query.filter(or_(*search_filters))
+
+    pagination = query.order_by(*pk_column_names).paginate(page=page, per_page=per_page, error_out=False)
     records = pagination.items
     
     return jsonify({
@@ -84,14 +92,11 @@ def list_records(table_name):
             "has_prev": pagination.has_prev
         }
     })
-    # --- FIN DE LA CORRECCIÓN ---
-
 
 @crud_bp.route('/mantenedores/<table_name>', methods=['POST'])
 def create_record(table_name):
     """Crea un nuevo registro en una tabla."""
-    model_map = current_app.model_map
-    model = model_map.get(table_name)
+    model = current_app.model_map.get(table_name)
     if not model: abort(404)
     
     data = request.get_json()
@@ -108,8 +113,7 @@ def create_record(table_name):
 @crud_bp.route('/mantenedores/<table_name>/<path:record_id>', methods=['PUT'])
 def update_record(table_name, record_id):
     """Actualiza un registro existente."""
-    model_map = current_app.model_map
-    model = model_map.get(table_name)
+    model = current_app.model_map.get(table_name)
     if not model: abort(404)
     
     key_values = get_pk_values(model, record_id)
@@ -117,7 +121,7 @@ def update_record(table_name, record_id):
     if not record: abort(404, f"Registro con ID '{record_id}' no encontrado.")
     
     data = request.get_json()
-    if not data: abort(400, "No se recibieron datos para actualizar.")
+    if not data: abort(400)
 
     for key, value in data.items():
         if key not in record.__table__.primary_key.columns.keys() and hasattr(record, key):
@@ -130,14 +134,37 @@ def update_record(table_name, record_id):
 @crud_bp.route('/mantenedores/<table_name>/<path:record_id>', methods=['DELETE'])
 def delete_record(table_name, record_id):
     """Elimina un registro existente."""
-    model_map = current_app.model_map
-    model = model_map.get(table_name)
+    model = current_app.model_map.get(table_name)
     if not model: abort(404)
 
     key_values = get_pk_values(model, record_id)
     record = db.session.get(model, key_values)
-    if not record: abort(404, f"Registro con ID '{record_id}' no encontrado.")
+    if not record: abort(404)
     
     db.session.delete(record)
     db.session.commit()
     return '', 204
+
+@crud_bp.route('/mantenedores/<table_name>/all', methods=['DELETE'])
+def delete_all_records(table_name):
+    """Borra todos los registros de una tabla específica y permitida."""
+    
+    allowed_tables_for_deletion = ['log_entries', 'stock_prices']
+    
+    if table_name not in allowed_tables_for_deletion:
+        abort(403, description=f"El borrado masivo no está permitido para la tabla '{table_name}'.")
+
+    model = current_app.model_map.get(table_name)
+    if not model:
+        abort(404, description=f"Tabla '{table_name}' no encontrada.")
+
+    try:
+        rows_deleted = db.session.query(model).delete()
+        db.session.commit()
+        return jsonify({
+            "success": True,
+            "message": f"Se eliminaron {rows_deleted} registros de la tabla '{table_name}'."
+        })
+    except Exception as e:
+        db.session.rollback()
+        abort(500, description=f"Error al borrar los registros: {e}")

@@ -30,6 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 3. FUNCIONES DE UI ---
     function updateStatus(message, type = 'info') {
+        // Detener la cuenta regresiva si se va a mostrar otro mensaje
         if (countdownInterval) {
             clearInterval(countdownInterval);
             countdownInterval = null;
@@ -167,8 +168,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- 5. LÓGICA DE CONTROL DEL BOT Y AUTO-UPDATE ---
-    async function handleUpdateClick() {
-        autoUpdater.stop(); 
+    async function handleUpdateClick(isAutoUpdate = false) {
+        if (!isAutoUpdate) {
+            stopAutoUpdate();
+        }
         if (isUpdating) return;
         isUpdating = true;
         updateRefreshButtonState();
@@ -199,13 +202,64 @@ document.addEventListener('DOMContentLoaded', () => {
         await fetchAndDisplayStocks();
     }
 
-    function handleAutoUpdateChange() {
-        autoUpdater.start(
-            dom.autoUpdateSelect.value, 
-            () => dom.refreshBtn.click(),
-            (text) => { if(dom.countdownTimer) dom.countdownTimer.textContent = text; }
-        );
+    // --- INICIO DE LA CORRECCIÓN: Lógica de Auto-Update con ciclo y cuenta regresiva ---
+    function startCountdown(totalSeconds) {
+        if (countdownInterval) clearInterval(countdownInterval);
+        let remaining = totalSeconds;
+        
+        const updateCountdown = () => {
+            if (remaining <= 0) {
+                clearInterval(countdownInterval);
+                dom.countdownTimer.textContent = 'Actualizando...';
+                return;
+            }
+            const minutes = Math.floor(remaining / 60);
+            const seconds = remaining % 60;
+            dom.countdownTimer.textContent = `(Próxima en ${minutes}:${seconds < 10 ? '0' : ''}${seconds})`;
+            remaining--;
+        };
+
+        updateCountdown();
+        countdownInterval = setInterval(updateCountdown, 1000);
     }
+    
+    function stopAutoUpdate() {
+        if (autoUpdateTimer) clearTimeout(autoUpdateTimer);
+        if (countdownInterval) clearInterval(countdownInterval);
+        if (dom.countdownTimer) dom.countdownTimer.textContent = '';
+        sessionStorage.removeItem('autoUpdateInterval');
+        console.log('[AutoUpdater] Ciclo detenido.');
+    }
+
+    function scheduleNextUpdate() {
+        const intervalValue = sessionStorage.getItem('autoUpdateInterval');
+        if (!intervalValue || intervalValue === 'off' || isFirstRun) {
+            return;
+        }
+
+        const [min, max] = intervalValue.split('-').map(Number);
+        const randomSeconds = Math.floor(Math.random() * (max * 60 - min * 60 + 1)) + (min * 60);
+        
+        console.log(`[AutoUpdater] Próxima actualización programada en ${randomSeconds} segundos.`);
+        startCountdown(randomSeconds);
+
+        autoUpdateTimer = setTimeout(() => {
+            console.log('[AutoUpdater] Disparando actualización automática.');
+            if (!isUpdating) handleUpdateClick(true);
+        }, randomSeconds * 1000);
+    }
+    
+    function handleAutoUpdateChange() {
+        const intervalValue = dom.autoUpdateSelect.value;
+        if (intervalValue === "off") {
+            stopAutoUpdate();
+            updateStatus('Auto-Update desactivado.', 'info');
+        } else {
+            sessionStorage.setItem('autoUpdateInterval', intervalValue);
+            scheduleNextUpdate();
+        }
+    }
+    // --- FIN DE LA CORRECCIÓN ---
 
     // --- 6. INICIALIZACIÓN Y WEBSOCKETS ---
     async function initializeApp() {
@@ -213,12 +267,22 @@ document.addEventListener('DOMContentLoaded', () => {
         updateRefreshButtonState();
         await loadPreferences();
         await fetchAndDisplayStocks();
+        
+        const savedInterval = sessionStorage.getItem('autoUpdateInterval');
+        if (savedInterval) {
+            dom.autoUpdateSelect.value = savedInterval;
+            // Si no es la primera ejecución (es decir, la página se recargó con una sesión activa),
+            // iniciar el ciclo de auto-update inmediatamente.
+            if (!isFirstRun) {
+                 handleAutoUpdateChange();
+            }
+        }
     }
 
     const socket = io();
     socket.on('connect', () => updateStatus('Conectado al servidor.', 'success'));
     socket.on('disconnect', () => {
-        autoUpdater.stop();
+        stopAutoUpdate();
         updateStatus('Desconectado.', 'danger');
     });
 
@@ -231,9 +295,13 @@ document.addEventListener('DOMContentLoaded', () => {
         handleAutoUpdateChange();
     });
 
-    socket.on('new_data', () => {
-        updateStatus("¡Datos recibidos! Actualizando la página...", 'success');
-        setTimeout(() => location.reload(), 1500);
+    socket.on('new_data', async () => {
+        isUpdating = false;
+        toggleLoading(false);
+        updateRefreshButtonState();
+        updateStatus("¡Datos recibidos! Actualizando tabla...", 'success');
+        await fetchAndDisplayStocks(); // Actualizar la tabla sin recargar la página
+        scheduleNextUpdate(); // Programar la siguiente actualización para continuar el ciclo
     });
 
     socket.on('bot_error', (data) => {
@@ -242,10 +310,11 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleLoading(false);
         updateRefreshButtonState();
         updateStatus(`Error del bot: ${data.message}`, 'danger');
+        stopAutoUpdate();
     });
 
     // --- 7. ASIGNACIÓN DE EVENT LISTENERS ---
-    if (dom.refreshBtn) dom.refreshBtn.addEventListener('click', handleUpdateClick);
+    if (dom.refreshBtn) dom.refreshBtn.addEventListener('click', () => handleUpdateClick(false));
     if (dom.stockFilterForm) dom.stockFilterForm.addEventListener('submit', handleFilterSubmit);
     if (dom.saveColumnPrefsBtn) dom.saveColumnPrefsBtn.addEventListener('click', saveColumnPreferences);
     if (dom.autoUpdateSelect) dom.autoUpdateSelect.addEventListener('change', handleAutoUpdateChange);
