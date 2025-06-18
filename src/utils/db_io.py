@@ -11,10 +11,8 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy.dialects.postgresql import insert
 
-# --- INICIO DE LA CORRECCIÓN: Importar 'db' y 'socketio' desde 'extensions' ---
 from src.extensions import db, socketio
 from src.models import LastUpdate, StockPrice
-# --- FIN DE LA CORRECCIÓN ---
 from src.routes.errors import log_error
 from src.utils.json_utils import (
     extract_timestamp_from_filename,
@@ -24,17 +22,18 @@ from src.utils.json_utils import (
 logger = logging.getLogger(__name__)
 
 
-def store_prices_in_db(json_path: str, market_timestamp: datetime, app=None) -> None:
-    """Guarda precios de un archivo JSON en la DB y emite un evento `new_data`."""
+def store_prices_in_db(data_object: Dict | List, market_timestamp: datetime, app=None) -> None:
+    """
+    Guarda precios desde un objeto de datos en memoria directamente en la DB
+    y emite un evento `new_data`.
+    """
     ctx = app.app_context() if app else nullcontext()
     with ctx:
         try:
-            with open(json_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-
-            rows = data.get("listaResult") if isinstance(data, dict) else data
+            # Los datos ya no se leen de un archivo, se reciben en 'data_object'
+            rows = data_object.get("listaResult") if isinstance(data_object, dict) else data_object
             if not isinstance(rows, list):
-                logger.warning("El JSON no contiene una lista de resultados válida.")
+                logger.warning("El objeto de datos no contiene una lista de resultados válida.")
                 return
 
             ts = market_timestamp
@@ -99,7 +98,8 @@ def store_prices_in_db(json_path: str, market_timestamp: datetime, app=None) -> 
 
 def get_latest_data() -> Dict[str, Any]:
     """
-    Devuelve los datos más recientes. Los datos de la DB se traducen al formato JSON.
+    Devuelve los datos más recientes. Prioriza la base de datos.
+    Como fallback, busca el último archivo JSON si existe.
     """
     try:
         latest_update = db.session.query(db.func.max(StockPrice.timestamp)).scalar()
@@ -108,12 +108,13 @@ def get_latest_data() -> Dict[str, Any]:
             translated_data = [p.to_dict() for p in prices]
             return {"data": translated_data, "timestamp": latest_update.strftime("%d/%m/%Y %H:%M:%S"), "source": "database"}
 
+        # Fallback a archivos si la base de datos está vacía
         latest_json_path = get_latest_json_file()
         if latest_json_path and os.path.exists(latest_json_path):
             with open(latest_json_path, encoding="utf-8") as f:
                 data_content = json.load(f)
             rows = data_content.get("listaResult", data_content if isinstance(data_content, list) else [])
-            return { "data": rows, "timestamp": extract_timestamp_from_filename(latest_json_path), "source": os.path.basename(latest_json_path) }
+            return { "data": rows, "timestamp": extract_timestamp_from_filename(latest_json_path), "source": f"file_fallback:{os.path.basename(latest_json_path)}" }
 
         return {"error": "No hay datos disponibles.", "data": [], "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S")}
     except Exception as exc:

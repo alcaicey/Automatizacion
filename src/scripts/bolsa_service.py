@@ -9,7 +9,8 @@ from .bot_page_manager import get_page
 from .bot_login import auto_login, LoginError, TARGET_DATA_PAGE_URL
 from .bot_data_capture import capture_market_time, capture_premium_data_via_network, validate_premium_data, DataCaptureError
 from src.utils.db_io import store_prices_in_db
-from src.utils.json_utils import save_json_with_timestamp
+# Se elimina la importación de 'save_json_with_timestamp' ya que no se usará
+# from src.utils.json_utils import save_json_with_timestamp
 from src.extensions import socketio
 from src.routes.errors import log_error
 
@@ -65,7 +66,7 @@ async def run_bolsa_bot(app=None, username=None, password=None, **kwargs) -> str
         time_task = asyncio.create_task(capture_market_time(page, logger))
         data_task = asyncio.create_task(capture_premium_data_via_network(page, logger))
         
-        await asyncio.sleep(1)  # Pequeña pausa para asegurar que los listeners están activos
+        await asyncio.sleep(1)
         logger.info("Recargando página para disparar APIs...")
         await page.reload(wait_until="networkidle")
         
@@ -78,10 +79,15 @@ async def run_bolsa_bot(app=None, username=None, password=None, **kwargs) -> str
         if not validate_premium_data(raw_data):
             raise DataCaptureError("Formato de datos no válido.")
         
-        logger.info("✓ Hora y datos capturados.")
-        json_path = save_json_with_timestamp(raw_data, log_instance=logger)
+        logger.info("✓ Hora y datos capturados. Pasando directamente a la base de datos...")
+        
+        # Se elimina la creación del archivo intermedio.
+        # json_path = save_json_with_timestamp(raw_data, log_instance=logger)
+        
+        # Se llama a la función de guardado con el objeto de datos en memoria.
         with (app or current_app).app_context():
-            store_prices_in_db(json_path, market_time, app=app)
+            store_prices_in_db(raw_data, market_time, app=app)
+            
         return "phase_2_complete"
 
     except Exception as e:
