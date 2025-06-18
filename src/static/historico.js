@@ -48,7 +48,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         { data: 'new', title: 'Nuevas' }, { data: 'removed', title: 'Eliminadas' },
                         { data: 'error_count', title: 'Errores' }, { data: 'status', title: 'Estado' }
                     ],
-                    order: [[1, 'desc']], dom: 'Bfrtip', buttons: ['excelHtml5', 'csvHtml5'], responsive: true
+                    order: [[1, 'desc']], dom: 'Bfrtip', buttons: ['excelHtml5', 'csvHtml5'], responsive: true,
+                    language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' }
                 });
             }).catch(error => console.error("Error en loadHistory:", error));
     }
@@ -65,21 +66,36 @@ document.addEventListener('DOMContentLoaded', () => {
             .catch(error => console.error("Error en loadComparison:", error));
     }
 
+    function coloredNumberRender(isPercent = false) {
+        return function(data, type, row) {
+            if (type === 'display') {
+                if (data === null || data === undefined) return '<i>N/A</i>';
+                const number = parseFloat(data);
+                if (isNaN(number)) return '<i>N/A</i>';
+
+                const colorClass = number > 0 ? 'text-success' : (number < 0 ? 'text-danger' : 'text-muted');
+                let formatted = $.fn.dataTable.render.number('.', ',', 2, '', isPercent ? '%' : '').display(number);
+                return `<span class="fw-bold ${colorClass}">${formatted}</span>`;
+            }
+            return data;
+        };
+    }
     function renderComparison(data) {
         const columnsDefinition = [
             { data: 'symbol', title: 'Símbolo' },
-            { data: 'old.price', title: 'Precio Anterior', defaultContent: '<i>N/A</i>', render: $.fn.dataTable.render.number('.', ',', 2) },
-            { data: 'new.price', title: 'Precio Nuevo', defaultContent: '<i>N/A</i>', render: $.fn.dataTable.render.number('.', ',', 2) },
-            { data: 'new.variation', title: 'Variación', defaultContent: '', render: v => v ? `${v}%` : '' },
-            { data: 'abs_diff', title: 'Diferencia', defaultContent: '', render: $.fn.dataTable.render.number('.', ',', 2) },
-            { data: 'pct_diff', title: '% Cambio', defaultContent: '', render: v => v && typeof v === 'number' ? `${$.fn.dataTable.render.number('.', ',', 2).display(v)}%` : '' },
+            { data: 'old.price', title: 'Precio Anterior', defaultContent: '<i>N/A</i>', render: coloredNumberRender() },
+            { data: 'new.price', title: 'Precio Nuevo', defaultContent: '<i>N/A</i>', render: coloredNumberRender() },
+            { data: 'new.variation', title: 'Variación', defaultContent: '<i>N/A</i>', render: coloredNumberRender(true) },
+            { data: 'abs_diff', title: 'Diferencia', defaultContent: '<i>N/A</i>', render: coloredNumberRender() },
+            { data: 'pct_diff', title: '% Cambio', defaultContent: '<i>N/A</i>', render: coloredNumberRender(true) },
             { data: 'type', title: 'Tipo' },
         ];
 
         if (!data || Object.keys(data).length === 0 || (!data.changes && !data.new && !data.removed)) {
             comparisonTable = initDataTable('#comparisonTable', {
                 columns: columnsDefinition.map(c => ({ title: c.title })),
-                data: [], dom: 'Bfrtip', buttons: ['excelHtml5', 'csvHtml5'], responsive: true
+                data: [], dom: 'Bfrtip', buttons: ['excelHtml5', 'csvHtml5'], responsive: true,
+                language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' }
             });
             $('#comparisonTable tbody').html(`<tr><td colspan="${columnsDefinition.length}" class="text-center">No se encontraron diferencias.</td></tr>`);
             return;
@@ -95,9 +111,10 @@ document.addEventListener('DOMContentLoaded', () => {
             data: rows, columns: columnsDefinition,
             createdRow: function(row, data) {
                 const typeClasses = {'nueva': 'table-primary', 'eliminada': 'table-secondary', 'cambio': data.abs_diff > 0 ? 'table-success' : 'table-danger'};
-                if (typeClasses[data.type]) row.classList.add(typeClasses[data.type]);
+                if (typeClasses[data.type]) $(row).addClass(typeClasses[data.type]);
             },
-            dom: 'Bfrtip', buttons: ['excelHtml5', 'csvHtml5'], responsive: true
+            dom: 'Bfrtip', buttons: ['excelHtml5', 'csvHtml5'], responsive: true,
+            language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' }
         });
         
         initializeComparisonFilter();

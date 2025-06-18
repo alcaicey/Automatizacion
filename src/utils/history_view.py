@@ -4,10 +4,11 @@ import glob
 import logging
 from typing import List, Dict, Any, Optional
 from datetime import datetime
+from itertools import groupby
 
 from src.config import LOGS_DIR
 from src.utils.db_io import compare_last_two_db_entries
-from src.utils.json_utils import extract_timestamp_from_filename
+from src.utils.json_utils import extract_timestamp_from_filename, get_latest_json_file
 from src.extensions import db
 from src.models.stock_price import StockPrice
 
@@ -15,31 +16,62 @@ logger = logging.getLogger(__name__)
 
 
 def _parse_file(path: str) -> Dict[str, Any]:
-    # (Esta función parece correcta, la dejamos como está)
-    # ...
-    return {} # Placeholder
+    """
+    Parsea un archivo JSON de precios. Esta es una función de fallback si la DB falla.
+    NOTA: La implementación completa de esta función dependería del formato exacto
+    de los archivos JSON guardados si se decidiera usarla.
+    """
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        # Asume que el JSON es una lista de diccionarios o un dict con 'listaResult'
+        rows = data.get("listaResult") if isinstance(data, dict) else data
+        if not isinstance(rows, list):
+            return {'map': {}, 'errors': ['Formato de JSON no válido'], 'timestamp': ''}
+
+        price_map = {item.get('NEMO'): {'price': item.get('PRECIO_CIERRE')} for item in rows if item.get('NEMO')}
+        return {
+            'map': price_map,
+            'errors': [],
+            'timestamp': extract_timestamp_from_filename(path)
+        }
+    except Exception as e:
+        logger.error(f"Error parseando archivo {path}: {e}")
+        return {'map': {}, 'errors': [str(e)], 'timestamp': ''}
+
 
 def _history_from_db() -> List[Dict[str, Any]]:
-    """Construye un resumen del historial de cargas utilizando los registros de la base de datos."""
+    """
+    Construye un resumen del historial de cargas de forma eficiente, haciendo una
+    sola consulta a la base de datos.
+    """
     try:
-        timestamps_query = db.session.query(StockPrice.timestamp).distinct().order_by(StockPrice.timestamp).all()
-        if len(timestamps_query) < 2:
+        # 1. Obtener todos los registros de una vez, ordenados por fecha
+        all_prices = StockPrice.query.order_by(StockPrice.timestamp).all()
+        if not all_prices:
             return []
 
-        timestamps = [ts[0] for ts in timestamps_query]
+        # 2. Agrupar los registros por timestamp en un diccionario
+        data_by_ts = {
+            ts: list(items) for ts, items in groupby(all_prices, key=lambda p: p.timestamp)
+        }
+        
+        timestamps = sorted(data_by_ts.keys())
+        if len(timestamps) < 2:
+            return []
+
         history: List[Dict[str, Any]] = []
 
+        # 3. Iterar sobre los timestamps para comparar los datos ya cargados en memoria
         for i in range(1, len(timestamps)):
-            ts_curr = timestamps[i]
-            ts_prev = timestamps[i-1]
+            ts_curr, ts_prev = timestamps[i], timestamps[i-1]
             
-            curr_rows = StockPrice.query.filter_by(timestamp=ts_curr).all()
-            prev_rows = StockPrice.query.filter_by(timestamp=ts_prev).all()
+            curr_rows = data_by_ts[ts_curr]
+            prev_rows = data_by_ts[ts_prev]
 
-            # --- INICIO DE LA CORRECCIÓN: Usar los nombres de atributo del modelo, no del diccionario ---
             curr_map = {r.symbol: r for r in curr_rows}
             prev_map = {r.symbol: r for r in prev_rows}
-            # --- FIN DE LA CORRECCIÓN ---
             
             curr_symbols = set(curr_map.keys())
             prev_symbols = set(prev_map.keys())
@@ -49,10 +81,9 @@ def _history_from_db() -> List[Dict[str, Any]]:
             
             changes = 0
             for sym in curr_symbols & prev_symbols:
-                # --- INICIO DE LA CORRECCIÓN: Comparar atributos del objeto, no claves del diccionario ---
+                # Comparamos los atributos directamente desde los objetos del modelo
                 if curr_map[sym].price != prev_map[sym].price or curr_map[sym].variation != prev_map[sym].variation:
                     changes += 1
-                # --- FIN DE LA CORRECCIÓN ---
 
             status = "OK"
             if not new and not removed and not changes:
@@ -68,9 +99,11 @@ def _history_from_db() -> List[Dict[str, Any]]:
                 "error_count": 0,
                 "status": status,
             })
-
-        history.sort(key=lambda x: datetime.fromisoformat(x["file"]), reverse=True)
+        
+        # Ordenar el resultado final para mostrar lo más reciente primero
+        history.sort(key=lambda x: x["file"], reverse=True)
         return history
+
     except Exception as e:
         logger.error(f"Error al construir historial desde DB: {e}", exc_info=True)
         return []
@@ -79,14 +112,17 @@ def _history_from_db() -> List[Dict[str, Any]]:
 def load_history(logs_dir: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     Devuelve una lista de resúmenes del historial de cargas, priorizando la base de datos.
+    Si la base de datos falla, recurre a los archivos JSON como fallback.
     """
     try:
         db_history = _history_from_db()
+        # Solo usamos la historia de la DB si tiene contenido
         if db_history:
             return db_history
     except Exception as e:
         logger.warning(f"No se pudo cargar el historial desde la DB. Recurriendo a archivos. Error: {e}")
 
+    # --- Fallback a archivos JSON si la DB no devuelve historial ---
     logs_dir = logs_dir or LOGS_DIR
     pattern = os.path.join(logs_dir, 'acciones-precios-plus_*.json')
     files = sorted(glob.glob(pattern), key=os.path.getmtime)
@@ -129,19 +165,21 @@ def load_history(logs_dir: Optional[str] = None) -> List[Dict[str, Any]]:
     return history
 
 
-def compare_latest(logs_dir: Optional[str] = None) -> Dict[str, Any]:
+def compare_latest(stock_codes: Optional[List[str]] = None) -> Dict[str, Any]:
     """
     Compara los dos últimos estados de datos, priorizando la base de datos.
+    Si la DB falla, recurre a archivos JSON.
     """
     try:
-        db_comparison = compare_last_two_db_entries()
+        # Pasa los códigos de acciones a la función de comparación de la DB
+        db_comparison = compare_last_two_db_entries(stock_codes=stock_codes)
         if db_comparison:
             return db_comparison
     except Exception as e:
         logger.warning(f"No se pudo comparar desde la DB. Recurriendo a archivos. Error: {e}")
 
-    logs_dir = logs_dir or LOGS_DIR
-    pattern = os.path.join(logs_dir, 'acciones-precios-plus_*.json')
+    # --- Fallback a archivos JSON ---
+    pattern = os.path.join(LOGS_DIR, 'acciones-precios-plus_*.json')
     files = sorted(glob.glob(pattern), key=os.path.getmtime)
     if len(files) < 2:
         return {}
@@ -152,6 +190,13 @@ def compare_latest(logs_dir: Optional[str] = None) -> Dict[str, Any]:
     
     prev_map = prev_data['map']
     curr_map = curr_data['map']
+
+    # Filtrar por códigos si se proporcionan
+    if stock_codes:
+        wanted = {c.upper().strip() for c in stock_codes}
+        prev_map = {k: v for k, v in prev_map.items() if k in wanted}
+        curr_map = {k: v for k, v in curr_map.items() if k in wanted}
+
     prev_symbols = set(prev_map.keys())
     curr_symbols = set(curr_map.keys())
     
@@ -162,8 +207,10 @@ def compare_latest(logs_dir: Optional[str] = None) -> Dict[str, Any]:
     for sym in curr_symbols & prev_symbols:
         curr_item, prev_item = curr_map[sym], prev_map[sym]
         if curr_item['price'] != prev_item['price']:
-            diff = curr_item['price'] - prev_item['price']
-            pct = (diff / prev_item['price'] * 100) if prev_item['price'] != 0 else 0.0
+            price_curr = curr_item.get('price') or 0
+            price_prev = prev_item.get('price') or 0
+            diff = price_curr - price_prev
+            pct = (diff / price_prev * 100) if price_prev != 0 else 0.0
             changes.append({'symbol': sym, 'old': prev_item, 'new': curr_item, 'abs_diff': diff, 'pct_diff': pct})
         else:
             unchanged.append(curr_item)

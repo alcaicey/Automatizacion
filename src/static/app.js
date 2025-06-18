@@ -1,13 +1,11 @@
 // src/static/app.js
 
-document.addEventListener('DOMContentLoaded', () => {
+$(document).ready(function() {
     // --- 1. ESTADO DE LA APLICACIÓN ---
     let isUpdating = false;
     let isFirstRun = true;
     let dataTable = null;
     let autoUpdateTimer = null;
-    let countdownInterval = null;
-    let columnPreferences = { all: [], visible: [] };
     let stockFilters = { codes: [], all: true };
 
     // --- 2. REFERENCIAS A ELEMENTOS DEL DOM ---
@@ -25,24 +23,37 @@ document.addEventListener('DOMContentLoaded', () => {
         allStocksCheck: document.getElementById('allStocksCheck'),
         clearFilterBtn: document.getElementById('clearBtn'),
         autoUpdateSelect: document.getElementById('autoUpdateSelect'),
-        countdownTimer: document.getElementById('countdownTimer')
+        countdownTimer: document.getElementById('countdownTimer'),
+        lastUpdate: document.getElementById('lastUpdate')
+    };
+
+    // --- 2.5 LÓGICA DE PREFERENCIAS DE COLUMNAS ---
+    let columnPreferences = {
+        all: [],
+        visible: [],
+        config: {
+            'NEMO': { title: 'Símbolo' },
+            'PRECIO_CIERRE': { title: 'Precio', render: createNumberRenderer() },
+            'VARIACION': { title: 'Var. %', render: createNumberRenderer(true) },
+            'PRECIO_COMPRA': { title: 'P. Compra', render: createNumberRenderer() },
+            'PRECIO_VENTA': { title: 'P. Venta', render: createNumberRenderer() },
+            'MONTO': { title: 'Monto Transado', render: createNumberRenderer(false, 'es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }) },
+            'UN_TRANSADAS': { title: 'Unidades', render: createNumberRenderer() },
+            'MONEDA': { title: 'Moneda' },
+            'ISIN': { title: 'ISIN' },
+            'BONO_VERDE': { title: 'Bono Verde' },
+            'timestamp': { title: 'Timestamp' }
+        }
     };
 
     // --- 3. FUNCIONES DE UI ---
     function updateStatus(message, type = 'info') {
-        // Detener la cuenta regresiva si se va a mostrar otro mensaje
-        if (countdownInterval) {
-            clearInterval(countdownInterval);
-            countdownInterval = null;
-            if (dom.countdownTimer) dom.countdownTimer.textContent = '';
-        }
         if (!dom.statusMessage) return;
         const icons = { info: 'info-circle', success: 'check-circle', warning: 'exclamation-triangle', danger: 'x-circle' };
         const alertClass = `alert-${type}`;
         dom.statusMessage.innerHTML = `<i class="fas fa-${icons[type]} me-2"></i><span>${message}</span>`;
         dom.statusMessage.className = `alert ${alertClass} small py-2`;
     }
-
     function toggleLoading(show, message = 'Cargando...') {
         if (!dom.loadingOverlay || !dom.loadingMessage) return;
         dom.loadingMessage.textContent = message;
@@ -67,7 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
         dom.columnConfigForm.innerHTML = '';
         columnPreferences.all.forEach(col => {
             const isChecked = columnPreferences.visible.includes(col);
-            dom.columnConfigForm.innerHTML += `<div class="col-6"><div class="form-check"><input class="form-check-input" type="checkbox" value="${col}" id="col-check-${col}" ${isChecked ? 'checked' : ''}><label class="form-check-label" for="col-check-${col}">${col.replace(/_/g, ' ')}</label></div></div>`;
+            dom.columnConfigForm.innerHTML += `<div class="col-6"><div class="form-check"><input class="form-check-input" type="checkbox" value="${col}" id="col-check-${col}" ${isChecked ? 'checked' : ''}><label class="form-check-label" for="col-check-${col}">${columnPreferences.config[col]?.title || col.replace(/_/g, ' ')}</label></div></div>`;
         });
     }
 
@@ -77,47 +88,63 @@ document.addEventListener('DOMContentLoaded', () => {
         dom.stockCodeInputs.forEach((input, index) => { input.value = stockFilters.codes[index] || ''; });
     }
 
-    function renderTable(stocks, timestamp) {
-        if (!dom.stocksTable) return;
-        if (dataTable) dataTable.destroy();
-        
-        const tableContainer = dom.stocksTable.parentElement;
-        tableContainer.innerHTML = '<table id="stocksTable" class="table table-striped table-hover"></table>';
-        dom.stocksTable = document.getElementById('stocksTable');
+    function renderTable(stocks, timestamp, source) {
+        if (dataTable) {
+            dataTable.destroy();
+            $(dom.stocksTable).empty();
+        }
 
         if (!stocks || stocks.length === 0) {
             updateStatus('No hay datos para mostrar con el filtro actual.', 'warning');
             return;
         }
 
-        const headings = Object.keys(stocks[0]);
-        let visibleHeadings = columnPreferences.visible.filter(h => headings.includes(h));
-        if (visibleHeadings.length === 0) visibleHeadings = headings;
+        const allHeadings = Object.keys(stocks[0]);
+        let visibleHeadings = columnPreferences.visible.length > 0
+            ? columnPreferences.visible.filter(h => allHeadings.includes(h))
+            : allHeadings;
 
-        const tableData = stocks.map(stock =>
-            visibleHeadings.map(header => {
-                const value = stock[header];
-                if (typeof value === 'number') return value.toLocaleString('es-CL');
-                return value !== undefined && value !== null ? value : 'N/A';
-            })
-        );
+        if (visibleHeadings.length === 0) visibleHeadings = allHeadings;
+
+        const dtColumns = visibleHeadings.map(key => ({
+            data: key,
+            title: columnPreferences.config[key]?.title || key.replace(/_/g, ' '),
+            render: columnPreferences.config[key]?.render || null
+        }));
         
-        dataTable = new simpleDatatables.DataTable(dom.stocksTable, {
-            data: { headings: visibleHeadings.map(h => h.replace(/_/g, ' ')), data: tableData },
-            perPage: 50, perPageSelect: [25, 50, 100],
-            searchable: true, sortable: true, fixedHeight: true,
+        dataTable = $(dom.stocksTable).DataTable({
+            data: stocks,
+            columns: dtColumns,
+            responsive: true,
+            language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' },
+            dom: 'Bfrtip',
+            buttons: ['excelHtml5', 'csvHtml5'],
+            order: []
         });
-        updateStatus(`Mostrando ${stocks.length} acciones. Última actualización: ${timestamp}`, 'success');
+
+        updateStatus(`Mostrando ${stocks.length} acciones. Fuente: ${source}`, 'success');
+        if (dom.lastUpdate) {
+            dom.lastUpdate.innerHTML = `<i class="fas fa-clock me-1"></i>Última act: ${timestamp}`;
+        }
     }
 
     // --- 4. LÓGICA DE DATOS Y PREFERENCIAS ---
+
     async function loadPreferences() {
         try {
             const [colsRes, filtersRes] = await Promise.all([fetch('/api/columns'), fetch('/api/filters')]);
             if (!colsRes.ok || !filtersRes.ok) throw new Error('No se pudieron cargar las preferencias.');
             const colsData = await colsRes.json();
             const filtersData = await filtersRes.json();
-            columnPreferences = { all: colsData.all_columns, visible: colsData.visible_columns };
+            columnPreferences = {
+                ...columnPreferences,
+                all: colsData.all_columns,
+                visible: colsData.visible_columns,
+            };
+            columnPreferences.visible = columnPreferences.visible.filter(c => columnPreferences.all.includes(c));
+            if (columnPreferences.visible.length === 0) {
+                columnPreferences.visible = ['NEMO', 'PRECIO_CIERRE', 'VARIACION'];
+            }
             stockFilters = { codes: filtersData.codes, all: filtersData.all !== false };
             renderColumnModal();
             renderFilterInputs();
@@ -133,7 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(url);
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || 'Error del servidor');
-            renderTable(result.data, result.timestamp);
+            renderTable(result.data, result.timestamp, result.source);
         } catch (error) {
             console.error(error);
             updateStatus(`Error al cargar datos: ${error.message}`, 'danger');
@@ -141,14 +168,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function saveColumnPreferences() {
-        columnPreferences.visible = Array.from(dom.columnConfigForm.querySelectorAll('input:checked')).map(input => input.value);
+        const selectedColumns = Array.from(dom.columnConfigForm.querySelectorAll('input:checked')).map(input => input.value);
         try {
             await fetch('/api/columns', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ columns: columnPreferences.visible })
+                body: JSON.stringify({ columns: selectedColumns })
             });
-            bootstrap.Modal.getInstance(dom.columnConfigModal).hide();
+            columnPreferences.visible = selectedColumns;
+            bootstrap.Modal.getInstance(dom.columnConfigModal)?.hide();
             await fetchAndDisplayStocks();
         } catch (error) {
             updateStatus('Error al guardar preferencias.', 'danger');
@@ -168,13 +196,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- 5. LÓGICA DE CONTROL DEL BOT Y AUTO-UPDATE ---
-    async function handleUpdateClick(isAutoUpdate = false) {
-        if (!isAutoUpdate) {
-            stopAutoUpdate();
-        }
+    let countdownInterval = null;
 
+    async function handleUpdateClick(isAutoUpdate = false) {
         if (isUpdating) return;
         isUpdating = true;
+        if (!isAutoUpdate) stopAutoUpdate();
         updateRefreshButtonState();
         toggleLoading(true, isFirstRun ? 'Iniciando navegador...' : 'Actualizando datos...');
         try {
@@ -187,6 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
             isUpdating = false;
             toggleLoading(false);
             updateRefreshButtonState();
+            if (isAutoUpdate) scheduleNextUpdate();
         }
     }
 
@@ -225,17 +253,18 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function stopAutoUpdate() {
         if (autoUpdateTimer) clearTimeout(autoUpdateTimer);
-        if (countdownInterval) clearInterval(countdownInterval);
+        if (countdownInterval) clearInterval(countdownInterval); countdownInterval = null;
         if (dom.countdownTimer) dom.countdownTimer.textContent = '';
-        sessionStorage.removeItem('autoUpdateInterval');
         console.log('[AutoUpdater] Ciclo detenido.');
     }
 
     function scheduleNextUpdate() {
         const intervalValue = sessionStorage.getItem('autoUpdateInterval');
-        if (!intervalValue || intervalValue === 'off' || isFirstRun) {
+        // --- INICIO DE CORRECCIÓN: Se elimina la condición 'isFirstRun' ---
+        if (!intervalValue || intervalValue === 'off') {
             return;
         }
+        // --- FIN DE CORRECCIÓN ---
 
         const [min, max] = intervalValue.split('-').map(Number);
         const randomSeconds = Math.floor(Math.random() * (max * 60 - min * 60 + 1)) + (min * 60);
@@ -251,15 +280,18 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function handleAutoUpdateChange() {
         const intervalValue = dom.autoUpdateSelect.value;
+        sessionStorage.setItem('autoUpdateInterval', intervalValue);
         if (intervalValue === "off") {
             stopAutoUpdate();
             updateStatus('Auto-Update desactivado.', 'info');
         } else {
-            sessionStorage.setItem('autoUpdateInterval', intervalValue);
-            // Iniciar el ciclo solo si no es la primera ejecución del bot
+            // --- INICIO DE CORRECCIÓN: Inicia el ciclo inmediatamente si es posible ---
+            // Si el bot ya está listo, inicia la actualización.
+            // Si no, se iniciará cuando llegue el evento 'initial_session_ready'.
             if (!isFirstRun) {
-                scheduleNextUpdate();
+                handleUpdateClick(true);
             }
+            // --- FIN DE CORRECCIÓN ---
         }
     }
 
@@ -276,52 +308,76 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    const socket = io();
-    socket.on('connect', () => updateStatus('Conectado al servidor.', 'success'));
-    socket.on('disconnect', () => {
-        stopAutoUpdate();
-        updateStatus('Desconectado.', 'danger');
-    });
+    function setupWebSocket() {
+        const socket = io();
+        socket.on('connect', () => updateStatus('Conectado al servidor.', 'success'));
+        socket.on('disconnect', () => updateStatus('Desconectado.', 'danger'));
 
-    socket.on('initial_session_ready', () => {
-        isUpdating = false;
-        isFirstRun = false;
-        toggleLoading(false);
-        updateRefreshButtonState();
-        updateStatus("Navegador listo. Presione 'Actualizar Ahora' para capturar datos.", 'warning');
-        handleAutoUpdateChange();
-    });
+        socket.on('initial_session_ready', () => {
+            isUpdating = false;
+            isFirstRun = false;
+            toggleLoading(false);
+            updateRefreshButtonState();
+            updateStatus("Navegador listo. Presione 'Actualizar Ahora' para capturar datos.", 'success');
+            // --- INICIO DE CORRECCIÓN: Activa el ciclo si hay un intervalo seleccionado ---
+            if (dom.autoUpdateSelect.value !== 'off') {
+                 handleUpdateClick(true);
+            }
+            // --- FIN DE CORRECCIÓN ---
+        });
+        
+        socket.on('new_data', async () => {
+            isUpdating = false;
+            toggleLoading(false);
+            updateRefreshButtonState();
+            updateStatus("¡Datos recibidos! Actualizando tabla...", 'success');
+            await fetchAndDisplayStocks();
+            scheduleNextUpdate(); 
+        });
 
-    socket.on('new_data', async () => {
-        isUpdating = false;
-        toggleLoading(false);
-        updateRefreshButtonState();
-        updateStatus("¡Datos recibidos! Actualizando tabla...", 'success');
-        await fetchAndDisplayStocks();
-        scheduleNextUpdate(); 
-    });
-
-    socket.on('bot_error', (data) => {
-        isUpdating = false;
-        isFirstRun = true; 
-        toggleLoading(false);
-        updateRefreshButtonState();
-        updateStatus(`Error del bot: ${data.message}`, 'danger');
-        stopAutoUpdate();
-    });
-
-    // --- 7. ASIGNACIÓN DE EVENT LISTENERS ---
-    if (dom.refreshBtn) dom.refreshBtn.addEventListener('click', () => handleUpdateClick(false));
-    if (dom.stockFilterForm) dom.stockFilterForm.addEventListener('submit', handleFilterSubmit);
-    if (dom.saveColumnPrefsBtn) dom.saveColumnPrefsBtn.addEventListener('click', saveColumnPreferences);
-    if (dom.autoUpdateSelect) dom.autoUpdateSelect.addEventListener('change', handleAutoUpdateChange);
-    if (dom.clearFilterBtn) {
-        dom.clearFilterBtn.addEventListener('click', async () => {
-            if(dom.stockFilterForm) dom.stockFilterForm.reset();
-            if(dom.allStocksCheck) dom.allStocksCheck.checked = true;
-            await handleFilterSubmit(new Event('submit', { bubbles: true, cancelable: true }));
+        socket.on('bot_error', (data) => {
+            isUpdating = false;
+            isFirstRun = false;
+            toggleLoading(false);
+            updateRefreshButtonState();
+            updateStatus(`Error del bot: ${data.message}`, 'danger');
+            scheduleNextUpdate();
         });
     }
+
+    // --- 7. ASIGNACIÓN DE EVENT LISTENERS ---
+    function attachEventListeners() {
+        $(dom.refreshBtn).on('click', () => handleUpdateClick(false));
+        $(dom.stockFilterForm).on('submit', handleFilterSubmit);
+        $(dom.saveColumnPrefsBtn).on('click', saveColumnPreferences);
+        $(dom.autoUpdateSelect).on('change', handleAutoUpdateChange);
+        $(dom.clearFilterBtn).on('click', async () => {
+            dom.stockFilterForm.reset();
+            dom.allStocksCheck.checked = true;
+            const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+            dom.stockFilterForm.dispatchEvent(submitEvent);
+        });
+    }
+
+    // --- Helper para renderizar números ---
+    function createNumberRenderer(isPercent = false, locale = 'es-CL', options = {}) {
+        return function(data, type, row) {
+            if (type === 'display') {
+                if (data === null || data === undefined || data === '') return 'N/A';
+                const number = parseFloat(String(data).replace(",", "."));
+                if (isNaN(number)) return data;
     
+                const colorClass = number > 0 ? 'text-success' : (number < 0 ? 'text-danger' : '');
+                let formattedNumber = number.toLocaleString(locale, options);
+                if (isPercent) formattedNumber += '%';
+                
+                return `<span class="fw-bold ${colorClass}">${formattedNumber}</span>`;
+            }
+            return data;
+        };
+    }
+
     initializeApp();
+    setupWebSocket();
+    attachEventListeners();
 });

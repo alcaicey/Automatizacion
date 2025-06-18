@@ -7,12 +7,14 @@ from sqlalchemy import or_, String, Text
 crud_bp = Blueprint('crud', __name__)
 
 def model_to_dict(obj):
-    """Convierte un objeto SQLAlchemy en un diccionario serializable."""
-    if hasattr(obj, 'to_dict'):
-        return obj.to_dict()
+    """
+    Convierte un objeto SQLAlchemy en un diccionario serializable,
+    iterando directamente sobre las columnas de la tabla para asegurar consistencia.
+    """
     d = {}
     for c in obj.__table__.columns:
         val = getattr(obj, c.name)
+        # Convertir datetime a formato estándar ISO para compatibilidad
         if isinstance(val, datetime):
             val = val.isoformat()
         d[c.name] = val
@@ -77,6 +79,8 @@ def list_records(table_name):
         if search_filters:
             query = query.filter(or_(*search_filters))
 
+    # --- INICIO DE LA CORRECCIÓN: Usar siempre el model_to_dict genérico ---
+    # La paginación se mantiene igual, pero ahora la conversión de datos será consistente.
     pagination = query.order_by(*pk_column_names).paginate(page=page, per_page=per_page, error_out=False)
     records = pagination.items
     
@@ -92,6 +96,7 @@ def list_records(table_name):
             "has_prev": pagination.has_prev
         }
     })
+    # --- FIN DE LA CORRECCIÓN ---
 
 @crud_bp.route('/mantenedores/<table_name>', methods=['POST'])
 def create_record(table_name):

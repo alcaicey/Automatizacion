@@ -1,7 +1,6 @@
-document.addEventListener('DOMContentLoaded', () => {
+$(document).ready(function() {
     const tableSelect = document.getElementById('tableSelect');
     const recordsTableContainer = document.getElementById('recordsTableContainer');
-    const paginationContainer = document.getElementById('paginationContainer');
     const recordCounter = document.getElementById('recordCounter');
     const searchContainer = document.getElementById('searchContainer');
     const searchForm = document.getElementById('searchForm');
@@ -15,10 +14,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalTitle = document.getElementById('recordModalLabel');
 
     let currentTable = null;
-    let currentData = [];
+    let recordsDataTable = null;
     let pkColumns = [];
-    let currentSearchTerm = '';
-    
+    let allRecords = [];
+
+    const createGenericRenderer = () => (data, type, row) => {
+        if (type === 'display') {
+            if (typeof data === 'number') {
+                const colorClass = data > 0 ? 'text-success' : (data < 0 ? 'text-danger' : 'text-muted');
+                return `<span class="fw-bold ${colorClass}">${data.toLocaleString('es-CL')}</span>`;
+            }
+            if (typeof data === 'string' && data.length > 70) return `<span title="${data}">${data.substring(0, 70)}...</span>`;
+        }
+        return data;
+    };
+
     const allowedForMassDelete = ['log_entries', 'stock_prices'];
 
     function getRecordId(row) {
@@ -41,98 +51,84 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function loadTable(name, page = 1, searchTerm = '') {
+    async function loadTable(name) {
         currentTable = name;
-        currentSearchTerm = searchTerm;
         try {
-            const params = new URLSearchParams({ page, per_page: 50 });
-            if (searchTerm) {
-                params.append('q', searchTerm);
-            }
-            const res = await fetch(`/api/mantenedores/${name}?${params.toString()}`);
+            // Se asume que la API puede devolver todos los registros para tablas de mantenedores.
+            // Si las tablas son muy grandes, se necesitaría server-side processing.
+            const res = await fetch(`/api/mantenedores/${name}?per_page=10000`);
             if (!res.ok) throw new Error(`Error al cargar datos de '${name}'.`);
             
             const responseData = await res.json();
             pkColumns = responseData.pk_columns || [];
-            currentData = responseData.records || [];
+            allRecords = responseData.records || [];
             
-            renderTable(currentData);
-            renderPagination(responseData.pagination);
-            recordCounter.textContent = `Mostrando ${currentData.length} de ${responseData.pagination.total_records} registros.`;
+            renderDataTable(allRecords);
         } catch (error) {
             alert(error.message);
         }
     }
 
-    function renderTable(records) {
+    function renderDataTable(records) {
+        if (recordsDataTable) {
+            recordsDataTable.destroy();
+        }
         recordsTableContainer.innerHTML = '<table id="recordsTable" class="table table-striped table-bordered table-hover w-100"></table>';
-        const recordsTable = document.getElementById('recordsTable');
         
         if (!records || records.length === 0) {
-            recordsTable.innerHTML = '<thead><tr><th>Mensaje</th></tr></thead><tbody><tr><td>No hay datos para mostrar.</td></tr></tbody>';
+            recordsTableContainer.innerHTML = '<div class="alert alert-warning">No hay datos para mostrar.</div>';
+            recordCounter.textContent = '0 registros.';
             return;
         }
 
         const headings = Object.keys(records[0]);
-        const thead = document.createElement('thead');
-        thead.innerHTML = '<tr>' + headings.map(h => `<th>${h}</th>`).join('') + '<th>Acciones</th></tr>';
-        
-        const tbody = document.createElement('tbody');
-        records.forEach(row => {
-            const tr = document.createElement('tr');
-            tr.dataset.id = getRecordId(row);
-            
-            let cells = '';
-            headings.forEach(h => {
-                let value = row[h];
-                if (typeof value === 'string' && value.length > 50) value = value.substring(0, 50) + '...';
-                cells += `<td>${value ?? ''}</td>`;
-            });
-            
-            cells += `<td><button class="btn btn-sm btn-warning edit-btn">Editar</button> <button class="btn btn-sm btn-danger delete-btn">Borrar</button></td>`;
-            tr.innerHTML = cells;
-            tbody.appendChild(tr);
+        const dtColumns = headings.map(h => ({
+            data: h,
+            title: h.replace(/_/g, ' '),
+            render: createGenericRenderer()
+        }));
+        dtColumns.push({
+            data: null,
+            title: 'Acciones',
+            orderable: false,
+            searchable: false,
+            render: () => `<button class="btn btn-sm btn-warning edit-btn">Editar</button> <button class="btn btn-sm btn-danger delete-btn">Borrar</button>`
         });
 
-        recordsTable.appendChild(thead);
-        recordsTable.appendChild(tbody);
-    }
-
-    function renderPagination(pagination) {
-        paginationContainer.innerHTML = '';
-        if (!pagination || pagination.total_pages <= 1) return;
-
-        let html = '<nav><ul class="pagination">';
-        html += `<li class="page-item ${pagination.has_prev ? '' : 'disabled'}"><a class="page-link" href="#" data-page="${pagination.current_page - 1}">Anterior</a></li>`;
-        
-        const startPage = Math.max(1, pagination.current_page - 2);
-        const endPage = Math.min(pagination.total_pages, pagination.current_page + 2);
-        
-        if (startPage > 1) html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
-        for (let i = startPage; i <= endPage; i++) {
-            html += `<li class="page-item ${i === pagination.current_page ? 'active' : ''}"><a class="page-link" href="#" data-page="${i}">${i}</a></li>`;
-        }
-        if (endPage < pagination.total_pages) html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
-        html += `<li class="page-item ${pagination.has_next ? '' : 'disabled'}"><a class="page-link" href="#" data-page="${pagination.current_page + 1}">Siguiente</a></li>`;
-        html += '</ul></nav>';
-        paginationContainer.innerHTML = html;
+        recordsDataTable = $('#recordsTable').DataTable({
+            data: records,
+            columns: dtColumns,
+            responsive: true,
+            language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' },
+            "initComplete": function(settings, json) {
+                recordCounter.textContent = `${settings.fnRecordsDisplay()} de ${settings.fnRecordsTotal()} registros.`;
+            },
+            "drawCallback": function(settings) {
+                 recordCounter.textContent = `${settings.fnRecordsDisplay()} de ${settings.fnRecordsTotal()} registros.`;
+            }
+        });
     }
 
     function openForm(data = null) {
         const isEditing = data !== null;
         modalTitle.textContent = isEditing ? `Editar Registro en ${currentTable}` : `Añadir Registro a ${currentTable}`;
         
-        const columns = currentData.length > 0 ? Object.keys(currentData[0]) : (data ? Object.keys(data) : []);
+        const columns = allRecords.length > 0 ? Object.keys(allRecords[0]) : (data ? Object.keys(data) : []);
         
         form.dataset.id = isEditing ? getRecordId(data) : '';
         formBody.innerHTML = '';
         columns.forEach(col => {
             const isPk = pkColumns.includes(col);
-            const value = data ? (data[col] ?? '') : '';
+            let value = data ? (data[col] ?? '') : '';
+            // Formatear fechas para el input si es necesario
+            if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
+                value = value.substring(0, 16); // Formato YYYY-MM-DDTHH:MM
+            }
+            const inputType = typeof value === 'number' ? 'number' : 'text';
             formBody.innerHTML += `
                 <div class="mb-3">
                     <label class="form-label">${col}</label>
-                    <input class="form-control" name="${col}" value="${value}" ${isEditing && isPk ? 'readonly' : ''}>
+                    <input type="${inputType}" class="form-control" name="${col}" value="${value}" ${isEditing && isPk ? 'readonly' : ''}>
                 </div>`;
         });
         modal.show();
@@ -145,13 +141,12 @@ document.addEventListener('DOMContentLoaded', () => {
             addBtn.style.display = 'inline-block';
             searchContainer.style.display = 'block';
             deleteAllBtn.style.display = allowedForMassDelete.includes(currentTable) ? 'inline-block' : 'none';
-            loadTable(currentTable, 1);
+            loadTable(currentTable);
         } else {
             addBtn.style.display = 'none';
             searchContainer.style.display = 'none';
             deleteAllBtn.style.display = 'none';
             recordsTableContainer.innerHTML = '';
-            paginationContainer.innerHTML = '';
             recordCounter.textContent = '';
         }
     });
@@ -181,19 +176,21 @@ document.addEventListener('DOMContentLoaded', () => {
     
     searchForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        loadTable(currentTable, 1, searchInput.value);
+        if(recordsDataTable) {
+            recordsDataTable.search(searchInput.value).draw();
+        }
     });
 
-    recordsTableContainer.addEventListener('click', async (e) => {
-        const recordRow = e.target.closest('tr');
-        if (!recordRow) return;
+    $('#recordsTableContainer').on('click', '.edit-btn, .delete-btn', async function() {
+        const tr = $(this).closest('tr');
+        const rowData = recordsDataTable.row(tr).data();
+        if (!rowData) return;
         
-        const recordId = recordRow.dataset.id;
-        const recordData = currentData.find(row => getRecordId(row) == recordId);
+        const recordId = getRecordId(rowData);
 
-        if (e.target.classList.contains('edit-btn')) {
-            openForm(recordData);
-        } else if (e.target.classList.contains('delete-btn')) {
+        if ($(this).hasClass('edit-btn')) {
+            openForm(rowData);
+        } else if ($(this).hasClass('delete-btn')) {
             if (confirm(`¿Borrar registro con ID ${recordId}?`)) {
                 const url = `/api/mantenedores/${currentTable}/${encodeURIComponent(recordId)}`;
                 await fetch(url, { method: 'DELETE' });
@@ -224,16 +221,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             const error = await res.json();
             alert(`Error: ${error.description || 'Ocurrió un error.'}`);
-        }
-    });
-    
-    paginationContainer.addEventListener('click', (e) => {
-        e.preventDefault();
-        if (e.target.tagName === 'A' && e.target.dataset.page) {
-            const page = parseInt(e.target.dataset.page, 10);
-            if (page) {
-                loadTable(currentTable, page, currentSearchTerm);
-            }
         }
     });
 
