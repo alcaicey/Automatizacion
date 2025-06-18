@@ -1,7 +1,7 @@
 import argparse
 import json
 from typing import Any
-from src import history_view
+from src.utils import history_view
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Comparar últimos archivos de precios")

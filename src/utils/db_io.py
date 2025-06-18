@@ -9,12 +9,13 @@ from contextlib import nullcontext
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from src.models.alert import Alert
+from sqlalchemy.dialects.postgresql import insert
 
+# --- INICIO DE LA CORRECCIÓN: Importar 'db' desde 'extensions' ---
+from src.extensions import db, socketio
 from src.models import LastUpdate, StockPrice
-from src.extensions import db
+# --- FIN DE LA CORRECCIÓN ---
 from src.routes.errors import log_error
-from src.extensions import socketio
 from src.utils.json_utils import (
     extract_timestamp_from_filename,
     get_latest_json_file,
@@ -23,9 +24,7 @@ from src.utils.json_utils import (
 logger = logging.getLogger(__name__)
 
 
-# --- INICIO DE LA CORRECCIÓN: Aceptar el timestamp como argumento ---
 def store_prices_in_db(json_path: str, market_timestamp: datetime, app=None) -> None:
-# --- FIN DE LA CORRECCIÓN ---
     """Guarda precios de un archivo JSON en la DB y emite un evento `new_data`."""
     ctx = app.app_context() if app else nullcontext()
     with ctx:
@@ -38,17 +37,13 @@ def store_prices_in_db(json_path: str, market_timestamp: datetime, app=None) -> 
                 logger.warning("El JSON no contiene una lista de resultados válida.")
                 return
 
-            # Ya no extraemos el timestamp del nombre del archivo, usamos el del mercado
             ts = market_timestamp
 
-            new_records = []
             for item in rows:
-                if not isinstance(item, dict):
-                    continue
-
+                if not isinstance(item, dict): continue
+                
                 symbol = item.get('NEMO')
-                if not symbol:
-                    continue
+                if not symbol: continue
 
                 def safe_float(value):
                     if value is None: return None
@@ -62,7 +57,7 @@ def store_prices_in_db(json_path: str, market_timestamp: datetime, app=None) -> 
 
                 stock_price_obj = {
                     'symbol': symbol,
-                    'timestamp': ts, # Usamos el timestamp del mercado
+                    'timestamp': ts,
                     'price': safe_float(item.get('PRECIO_CIERRE')),
                     'variation': safe_float(item.get('VARIACION')),
                     'buy_price': safe_float(item.get('PRECIO_COMPRA')),
@@ -74,17 +69,26 @@ def store_prices_in_db(json_path: str, market_timestamp: datetime, app=None) -> 
                     'green_bond': item.get('BONO_VERDE')
                 }
                 
-                new_records.append(StockPrice(**stock_price_obj))
-
-            if new_records:
-                db.session.add_all(new_records)
+                bind = db.session.get_bind()
+                if bind.dialect.name == "postgresql":
+                    stmt = insert(StockPrice).values(**stock_price_obj)
+                    update_dict = {k: v for k, v in stock_price_obj.items() if k not in ['symbol', 'timestamp'] and v is not None}
+                    if update_dict:
+                        update_stmt = stmt.on_conflict_do_update(
+                            index_elements=['symbol', 'timestamp'],
+                            set_=update_dict
+                        )
+                        db.session.execute(update_stmt)
+                    else:
+                        db.session.execute(stmt.on_conflict_do_nothing(index_elements=['symbol', 'timestamp']))
+                else:
+                    db.session.merge(StockPrice(**stock_price_obj))
 
             lu = db.session.get(LastUpdate, 1) or LastUpdate(id=1)
             lu.timestamp = ts
             db.session.add(lu)
             db.session.commit()
-
-            check_alerts(new_records)
+            
             socketio.emit("new_data", {'message': 'Datos actualizados!'})
             logger.info(f"Datos guardados con timestamp del mercado {ts.strftime('%Y-%m-%d %H:%M:%S')} y evento 'new_data' emitido.")
 
@@ -92,28 +96,7 @@ def store_prices_in_db(json_path: str, market_timestamp: datetime, app=None) -> 
             logger.exception("Error al guardar precios en la DB o emitir evento: %s", e)
             db.session.rollback()
 
-def check_alerts(new_prices: List[StockPrice]) -> None:
-    """Verifica si alguna alerta se cumple con los nuevos precios."""
-    alerts = Alert.query.filter_by(triggered=False).all()
-    if not alerts:
-        return
 
-    for alert in alerts:
-        for price in new_prices:
-            if price.symbol.upper() != alert.symbol.upper():
-                continue
-            if price.price is None:
-                continue
-            if alert.condition == 'above' and price.price >= alert.target_price:
-                socketio.emit('alert_triggered', {"message": f"\u00a1Alerta! {alert.symbol} ha superado los ${alert.target_price}"})
-                alert.triggered = True
-            if alert.condition == 'below' and price.price <= alert.target_price:
-                socketio.emit('alert_triggered', {"message": f"\u00a1Alerta! {alert.symbol} ha bajado de ${alert.target_price}"})
-                alert.triggered = True
-
-    db.session.commit()
-
-# El resto del archivo (get_latest_data, filter_stocks, etc.) se mantiene igual.
 def get_latest_data() -> Dict[str, Any]:
     """
     Devuelve los datos más recientes. Los datos de la DB se traducen al formato JSON.
@@ -159,27 +142,48 @@ def filter_stocks(stock_codes: List[str]) -> Dict[str, Any]:
 
 
 def compare_last_two_db_entries() -> Optional[Dict[str, Any]]:
-    # (Sin cambios en esta función)
+    """Compara los dos últimos registros de precios en la base de datos."""
     try:
-        timestamps = db.session.query(StockPrice.timestamp).distinct().order_by(StockPrice.timestamp.desc()).limit(2).all()
+        timestamps = (
+            db.session.query(StockPrice.timestamp)
+            .distinct()
+            .order_by(StockPrice.timestamp.desc())
+            .limit(2)
+            .all()
+        )
         if len(timestamps) < 2: return None
+
         ts_curr, ts_prev = timestamps[0][0], timestamps[1][0]
         curr_rows = StockPrice.query.filter_by(timestamp=ts_curr).all()
         prev_rows = StockPrice.query.filter_by(timestamp=ts_prev).all()
-        curr_map = {r.symbol: r.to_dict() for r in curr_rows}
-        prev_map = {r.symbol: r.to_dict() for r in prev_rows}
+
+        curr_map = {r.symbol: {'symbol': r.symbol, 'price': r.price, 'variation': r.variation} for r in curr_rows}
+        prev_map = {r.symbol: {'symbol': r.symbol, 'price': r.price, 'variation': r.variation} for r in prev_rows}
+
         new_syms = set(curr_map) - set(prev_map)
         removed_syms = set(prev_map) - set(curr_map)
+
         changes, unchanged = [], []
         for sym in curr_map.keys() & prev_map.keys():
             curr, prev = curr_map[sym], prev_map[sym]
-            if any(curr.get(k) != prev.get(k) for k in curr if k not in ['timestamp', 'NEMO']):
-                diff = (curr.get('PRECIO_CIERRE') or 0) - (prev.get('PRECIO_CIERRE') or 0)
-                pct = (diff / prev['PRECIO_CIERRE'] * 100) if prev.get('PRECIO_CIERRE') else 0.0
-                changes.append({"symbol": sym, "old": prev, "new": curr, "abs_diff": diff, "pct_diff": pct})
+            if curr.get("price") != prev.get("price") or curr.get("variation") != prev.get("variation"):
+                diff = (curr.get('price') or 0) - (prev.get('price') or 0)
+                pct = (diff / prev["price"] * 100) if prev.get("price") and prev.get("price") != 0 else 0.0
+                changes.append({
+                    "symbol": sym, "old": prev, "new": curr,
+                    "abs_diff": diff, "pct_diff": pct,
+                })
             else:
                 unchanged.append(curr)
-        return {"current_timestamp": ts_curr.strftime("%d/%m/%Y %H:%M:%S"), "previous_timestamp": ts_prev.strftime("%d/%m/%Y %H:%M:%S"), "new": [curr_map[s] for s in new_syms], "removed": [prev_map[s] for s in removed_syms], "changes": changes, "unchanged": unchanged}
+
+        return {
+            "current_timestamp": ts_curr.strftime("%d/%m/%Y %H:%M:%S"),
+            "previous_timestamp": ts_prev.strftime("%d/%m/%Y %H:%M:%S"),
+            "new": [curr_map[s] for s in new_syms],
+            "removed": [prev_map[s] for s in removed_syms],
+            "changes": changes,
+            "unchanged": unchanged,
+        }
     except Exception as exc:
         logger.exception("Error comparando históricos desde la DB: %s", exc)
         return None

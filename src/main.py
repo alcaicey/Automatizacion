@@ -10,18 +10,18 @@ from flask import Flask, send_from_directory, render_template
 from flask_cors import CORS
 from dotenv import load_dotenv
 
+load_dotenv()
+
 from src.config import SQLALCHEMY_DATABASE_URI, SQLALCHEMY_TRACK_MODIFICATIONS
 from src.extensions import db, socketio
-from src.models.credentials import Credential
+from src.models import Credential, User, StockPrice, LogEntry, ColumnPreference, StockFilter, LastUpdate
 from src.routes.api import api_bp
 from src.routes.architecture import architecture_bp
 from src.routes.errors import errors_bp
 from src.routes.user import user_bp
-from src.routes.crud_api import crud_bp
+from src.routes.crud_api import crud_bp  # Importar el nuevo blueprint
 from src.utils.scheduler import stop_periodic_updates
 from src.scripts.bot_page_manager import close_browser
-
-load_dotenv()
 
 logging.basicConfig(
     level=logging.INFO,
@@ -45,6 +45,19 @@ CORS(app)
 db.init_app(app)
 socketio.init_app(app, cors_allowed_origins="*", async_mode="threading")
 
+# --- INICIO DE LA CORRECCIÓN: Crear el mapeo de modelos al inicio ---
+with app.app_context():
+    # Es necesario importar todos los modelos aquí para que se registren
+    # antes de intentar mapearlos.
+    app.model_map = {
+        model.__tablename__: model 
+        for model in db.Model.__subclasses__() 
+        if hasattr(model, '__tablename__')
+    }
+    logger.info(f"Modelos mapeados para el CRUD: {list(app.model_map.keys())}")
+# --- FIN DE LA CORRECCIÓN ---
+
+
 @app.route("/")
 def home():
     return render_template("index.html")
@@ -55,6 +68,7 @@ def historico():
 
 @app.route("/dashboard")
 def dashboard():
+    # Asumiendo que tienes un dashboard.html
     return render_template("dashboard.html")
 
 @app.route("/logs")
@@ -69,11 +83,12 @@ def mantenedores():
 def login():
     return render_template("login.html")
 
+# Registrar Blueprints
 app.register_blueprint(api_bp, url_prefix="/api")
 app.register_blueprint(user_bp, url_prefix="/api")
 app.register_blueprint(errors_bp, url_prefix="/api")
 app.register_blueprint(architecture_bp)
-app.register_blueprint(crud_bp, url_prefix="/api")
+app.register_blueprint(crud_bp, url_prefix="/api") # Registrar el blueprint del CRUD
 
 @app.route("/static/<path:path>")
 def static_files(path):
@@ -82,24 +97,18 @@ def static_files(path):
 def _cleanup_resources():
     logger.info("Iniciando cierre limpio de la aplicación...")
     stop_periodic_updates()
-    
-    # --- INICIO DE LA CORRECCIÓN ---
-    # Detenemos el hilo y cerramos el navegador de forma más directa
     if BOT_THREAD.is_alive():
         logger.info("Solicitando detención del bucle de eventos del bot...")
-        # Simplemente corremos la corutina de cierre.
-        # No es necesario `run_coroutine_threadsafe` aquí.
         try:
-            asyncio.run(close_browser())
-        except RuntimeError:
-            # Puede que el bucle ya esté cerrado, es seguro ignorarlo.
-            pass
-        
-        LOOP.call_soon_threadsafe(LOOP.stop)
-        BOT_THREAD.join(timeout=5)
-        if not BOT_THREAD.is_alive():
-            logger.info("✓ Hilo del bot finalizado correctamente.")
-    # --- FIN DE LA CORRECCIÓN ---
+            future = asyncio.run_coroutine_threadsafe(close_browser(), LOOP)
+            future.result(timeout=10)
+        except Exception as e:
+            logger.error(f"Error al cerrar navegador: {e}")
+        finally:
+            LOOP.call_soon_threadsafe(LOOP.stop)
+            BOT_THREAD.join(timeout=5)
+            if not BOT_THREAD.is_alive():
+                logger.info("✓ Hilo del bot finalizado correctamente.")
     
 atexit.register(_cleanup_resources)
 

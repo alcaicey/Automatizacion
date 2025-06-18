@@ -13,7 +13,7 @@ from src.models import Alert
 from src.utils.scheduler import start_periodic_updates, stop_periodic_updates
 from src.models import Credential, LogEntry, ColumnPreference, StockFilter, StockPrice
 from src.extensions import db
-from src import history_view
+from ..utils import history_view
 
 logger = logging.getLogger(__name__)
 api_bp = Blueprint("api", __name__)

@@ -1,5 +1,5 @@
 import json
-from src import history_view
+from src.utils import history_view
 
 
 def test_load_and_compare(tmp_path, monkeypatch):
