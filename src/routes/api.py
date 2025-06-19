@@ -366,3 +366,60 @@ def handle_alerts():
     with current_app.app_context():
         alerts = Alert.query.filter_by(triggered=False).all()
         return jsonify([a.to_dict() for a in alerts])
+# ... (importaciones existentes al principio del archivo)
+# --- INICIO DE CORRECCIÓN: Asegúrate de importar el nuevo modelo ---
+from src.models import Alert, Credential, LogEntry, ColumnPreference, StockFilter, StockPrice, Portfolio
+# --- FIN DE CORRECCIÓN ---
+# ... (resto del código de api.py)
+
+
+# --- INICIO DE CORRECCIÓN: Nuevos Endpoints para el Portafolio ---
+
+@api_bp.route("/portfolio", methods=["GET"])
+def get_portfolio():
+    """Obtiene todas las acciones guardadas en el portafolio."""
+    with current_app.app_context():
+        holdings = Portfolio.query.order_by(Portfolio.symbol).all()
+        return jsonify([h.to_dict() for h in holdings])
+
+@api_bp.route("/portfolio", methods=["POST"])
+def add_to_portfolio():
+    """Añade una nueva acción al portafolio."""
+    with current_app.app_context():
+        data = request.get_json() or {}
+        symbol = data.get("symbol", "").upper()
+        quantity = data.get("quantity")
+        purchase_price = data.get("purchase_price")
+
+        if not symbol or quantity is None or purchase_price is None:
+            return jsonify({"error": "Datos incompletos: se requiere símbolo, cantidad y precio."}), 400
+
+        try:
+            holding = Portfolio(
+                symbol=symbol,
+                quantity=float(quantity),
+                purchase_price=float(purchase_price)
+            )
+            db.session.add(holding)
+            db.session.commit()
+            return jsonify(holding.to_dict()), 201
+        except (ValueError, TypeError):
+            return jsonify({"error": "Cantidad y precio deben ser números válidos."}), 400
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"error": f"Error de base de datos: {e}"}), 500
+
+
+@api_bp.route("/portfolio/<int:holding_id>", methods=["DELETE"])
+def delete_from_portfolio(holding_id):
+    """Elimina una acción del portafolio por su ID."""
+    with current_app.app_context():
+        holding = db.session.get(Portfolio, holding_id)
+        if not holding:
+            return jsonify({"error": "Registro no encontrado."}), 404
+
+        db.session.delete(holding)
+        db.session.commit()
+        return '', 204
+
+# --- FIN DE CORRECCIÓN ---

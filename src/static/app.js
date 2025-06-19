@@ -7,6 +7,8 @@ $(document).ready(function() {
     let dataTable = null;
     let autoUpdateTimer = null;
     let stockFilters = { codes: [], all: true };
+    let portfolioHoldings = [];
+    let stockPriceMap = new Map();
 
     // --- 2. REFERENCIAS A ELEMENTOS DEL DOM ---
     const dom = {
@@ -24,7 +26,9 @@ $(document).ready(function() {
         clearFilterBtn: document.getElementById('clearBtn'),
         autoUpdateSelect: document.getElementById('autoUpdateSelect'),
         countdownTimer: document.getElementById('countdownTimer'),
-        lastUpdate: document.getElementById('lastUpdate')
+        lastUpdate: document.getElementById('lastUpdate'),
+        portfolioForm: document.getElementById('portfolioForm'),
+        portfolioTableBody: document.getElementById('portfolioTableBody')
     };
 
     // --- 2.5 LÓGICA DE PREFERENCIAS DE COLUMNAS ---
@@ -88,16 +92,74 @@ $(document).ready(function() {
         dom.stockCodeInputs.forEach((input, index) => { input.value = stockFilters.codes[index] || ''; });
     }
 
+    function formatColoredNumber(number, isCurrency = false) {
+        if (isNaN(number) || number === null) return 'N/A';
+        const options = isCurrency ? { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 } : {minimumFractionDigits: 2, maximumFractionDigits: 2};
+        const colorClass = number > 0 ? 'text-success' : (number < 0 ? 'text-danger' : 'text-muted');
+        return `<span class="fw-bold ${colorClass}">${number.toLocaleString('es-CL', options)}</span>`;
+    }
+
+    function renderPortfolioTable() {
+        if (!dom.portfolioTableBody) return;
+        dom.portfolioTableBody.innerHTML = '';
+
+        if (portfolioHoldings.length === 0) {
+            dom.portfolioTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Aún no has añadido acciones a tu portafolio.</td></tr>';
+            return;
+        }
+
+        portfolioHoldings.forEach(holding => {
+            const currentPriceData = stockPriceMap.get(holding.symbol);
+            let currentPrice = null;
+            if(currentPriceData && currentPriceData.PRECIO_CIERRE !== undefined) {
+                 currentPrice = parseFloat(String(currentPriceData.PRECIO_CIERRE).replace(",", "."));
+            }
+            
+            const totalPaid = holding.quantity * holding.purchase_price;
+            const currentValue = currentPrice !== null && !isNaN(currentPrice) ? holding.quantity * currentPrice : null;
+            const gainLoss = currentValue !== null ? currentValue - totalPaid : null;
+            let gainLossPercent = null;
+            if (gainLoss !== null && totalPaid > 0) {
+                gainLossPercent = (gainLoss / totalPaid) * 100;
+            }
+
+            const row = `
+                <tr>
+                    <td><strong>${holding.symbol}</strong></td>
+                    <td>${holding.quantity.toLocaleString('es-CL')}</td>
+                    <td>${holding.purchase_price.toLocaleString('es-CL', {style:'currency', currency:'CLP'})}</td>
+                    <td>${totalPaid.toLocaleString('es-CL', {style:'currency', currency:'CLP'})}</td>
+                    <td>${currentPrice !== null && !isNaN(currentPrice) ? currentPrice.toLocaleString('es-CL', {style:'currency', currency:'CLP'}) : '<em>Esperando datos...</em>'}</td>
+                    <td>${currentValue !== null ? formatColoredNumber(currentValue, true) : 'N/A'}</td>
+                    <td>${gainLoss !== null ? formatColoredNumber(gainLoss, true) : 'N/A'}</td>
+                    <td>${gainLossPercent !== null ? formatColoredNumber(gainLossPercent) + '%' : 'N/A'}</td>
+                    <td>
+                        <button class="btn btn-danger btn-sm delete-holding-btn" data-id="${holding.id}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+            dom.portfolioTableBody.innerHTML += row;
+        });
+    }
+
     function renderTable(stocks, timestamp, source) {
         if (dataTable) {
             dataTable.destroy();
             $(dom.stocksTable).empty();
         }
 
+        stockPriceMap.clear();
         if (!stocks || stocks.length === 0) {
             updateStatus('No hay datos para mostrar con el filtro actual.', 'warning');
+            renderPortfolioTable();
             return;
         }
+        
+        stocks.forEach(stock => {
+            stockPriceMap.set(stock.NEMO, stock);
+        });
 
         const allHeadings = Object.keys(stocks[0]);
         let visibleHeadings = columnPreferences.visible.length > 0
@@ -126,9 +188,23 @@ $(document).ready(function() {
         if (dom.lastUpdate) {
             dom.lastUpdate.innerHTML = `<i class="fas fa-clock me-1"></i>Última act: ${timestamp}`;
         }
+        
+        renderPortfolioTable();
     }
 
     // --- 4. LÓGICA DE DATOS Y PREFERENCIAS ---
+
+    async function loadPortfolio() {
+        try {
+            const response = await fetch('/api/portfolio');
+            if (!response.ok) throw new Error('Error al cargar el portafolio');
+            portfolioHoldings = await response.json();
+            renderPortfolioTable();
+        } catch (error) {
+            console.error(error);
+            updateStatus('No se pudo cargar tu portafolio.', 'danger');
+        }
+    }
 
     async function loadPreferences() {
         try {
@@ -203,7 +279,7 @@ $(document).ready(function() {
         isUpdating = true;
         if (!isAutoUpdate) stopAutoUpdate();
         updateRefreshButtonState();
-        toggleLoading(true, isFirstRun ? 'Iniciando navegador...' : 'Actualizando datos...');
+        toggleLoading(true, isFirstRun ? 'Iniciando Navegador...' : 'Actualizando datos...');
         try {
             const response = await fetch('/api/stocks/update', { method: 'POST' });
             const data = await response.json();
@@ -286,7 +362,6 @@ $(document).ready(function() {
             if (!isFirstRun) {
                 handleUpdateClick(true);
             }
-            // Si es isFirstRun, la lógica del websocket 'initial_session_ready' se encargará de iniciarlo.
         }
     }
 
@@ -294,23 +369,16 @@ $(document).ready(function() {
     async function initializeApp() {
         updateStatus('Inicializando...', 'info');
         updateRefreshButtonState();
-        await loadPreferences();
+        await Promise.all([loadPreferences(), loadPortfolio()]);
         await fetchAndDisplayStocks();
         
         const savedInterval = sessionStorage.getItem('autoUpdateInterval');
         if (savedInterval) {
             dom.autoUpdateSelect.value = savedInterval;
-            
-            // --- INICIO DE LA CORRECCIÓN CLAVE ---
-            // Si al cargar la página, ya había un intervalo guardado en la sesión
-            // (y no es 'off'), disparamos el manejador del cambio para que inicie
-            // el proceso de auto-actualización. Esto asegura que el ciclo
-            // se reactive al navegar de vuelta a esta página.
             if (savedInterval !== 'off') {
                 console.log('[Init] Intervalo de auto-update detectado en sesión. Reactivando ciclo...');
                 handleAutoUpdateChange();
             }
-            // --- FIN DE LA CORRECCIÓN CLAVE ---
         }
     }
 
@@ -361,6 +429,50 @@ $(document).ready(function() {
             dom.allStocksCheck.checked = true;
             const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
             dom.stockFilterForm.dispatchEvent(submitEvent);
+        });
+
+        $(dom.portfolioForm).on('submit', async (e) => {
+            e.preventDefault();
+            const symbol = $('#portfolioSymbol').val().trim().toUpperCase();
+            const quantity = $('#portfolioQuantity').val();
+            const price = $('#portfolioPrice').val();
+
+            if (!symbol || !quantity || !price) {
+                alert('Todos los campos son obligatorios.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/portfolio', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ symbol, quantity: parseFloat(quantity), purchase_price: parseFloat(price) })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Error del servidor');
+                }
+
+                dom.portfolioForm.reset();
+                await loadPortfolio();
+
+            } catch (error) {
+                alert(`Error al añadir la acción: ${error.message}`);
+            }
+        });
+        
+        $(dom.portfolioTableBody).on('click', '.delete-holding-btn', async function() {
+            const holdingId = $(this).data('id');
+            if (confirm(`¿Estás seguro de que quieres eliminar esta acción de tu portafolio?`)) {
+                try {
+                    const response = await fetch(`/api/portfolio/${holdingId}`, { method: 'DELETE' });
+                    if (!response.ok) throw new Error('No se pudo eliminar el registro.');
+                    await loadPortfolio();
+                } catch (error) {
+                    alert(`Error: ${error.message}`);
+                }
+            }
         });
     }
 
