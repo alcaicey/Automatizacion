@@ -40,7 +40,7 @@ window.uiManager = {
     
     updateRefreshButton(text, isDisabled) {
         if (!this.dom.refreshBtn) return;
-        this.dom.refreshBtn.innerHTML = text;
+        this.dom.refreshBtn.innerHTML = text; // No se necesita el icono aquí, app.js lo añade
         this.dom.refreshBtn.disabled = isDisabled;
     },
 
@@ -85,17 +85,16 @@ window.uiManager = {
             }
             return data;
         };
-    }, // <--- ¡AQUÍ FALTABA UNA COMA!
+    },
 
     renderTable(stocks, timestamp, visibleColumns, columnConfig) {
-        console.log(`[UI] Renderizando tabla principal con ${stocks.length} acciones.`);
         if (this.dataTable) {
             this.dataTable.destroy();
             $(this.dom.stocksTable).empty();
         }
 
         if (!stocks || stocks.length === 0) {
-            this.updateStatus('No hay datos para mostrar con el filtro actual.', 'warning');
+            this.updateStatus('No hay datos de mercado para mostrar.', 'warning');
             return;
         }
 
@@ -116,7 +115,7 @@ window.uiManager = {
             data: stocks,
             columns: dtColumns,
             responsive: true,
-            language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' },
+            language: { url: 'https:/cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' },
             dom: 'Bfrtip',
             buttons: ['excelHtml5', 'csvHtml5'],
             order: []

@@ -19,53 +19,59 @@ _bot_running_lock = asyncio.Lock()
 _is_first_run_since_startup = True
 
 async def check_if_logged_in(page: Page) -> bool:
-    # ... (sin cambios)
-    pass
-
-# --- INICIO DE CORRECCIÓN: Estrategia "Health Check" ---
-async def perform_session_health_check(page: Page) -> bool:
-    """
-    Navega a una página protegida para verificar si la sesión sigue activa.
-    Devuelve True si la sesión está viva, False si ha expirado.
-    """
-    logger.info("[Health Check] Verificando estado de la sesión...")
-    health_check_url = "https://www.bolsadesantiago.com/plus_portafolio"
+    logger.info("[Service] Verificando si existe una sesión activa en la página actual...")
     try:
-        await page.goto(health_check_url, wait_until="domcontentloaded", timeout=20000)
-        
-        # Si la URL actual contiene la URL de login, la sesión ha expirado.
-        if LOGIN_PAGE_URL_FRAGMENT in page.url:
-            logger.warning("[Health Check] Sesión expirada: Redirección a página de login detectada.")
-            return False
-        
-        # Si no fuimos redirigidos, la sesión está activa.
-        logger.info("[Health Check] ✓ Sesión activa confirmada.")
+        await page.locator("span.badge:has-text('Tiempo Real')").first.wait_for(state="visible", timeout=10000)
+        logger.info("[Service] ✓ Sesión activa encontrada (indicador 'Tiempo Real').")
         return True
     except PlaywrightTimeoutError:
-        logger.error("[Health Check] Timeout durante la verificación de sesión. Asumiendo que expiró.")
+        logger.warning("[Service] No se encontró indicador de sesión activa.")
         return False
-# --- FIN DE CORRECCIÓN ---
 
+async def perform_session_health_check(page: Page, username: str, password: str) -> None:
+    """
+    Verifica la salud de la sesión. Si no es válida, fuerza un re-login.
+    """
+    logger.info("[Health Check] Verificando estado de la sesión...")
+    await page.goto(TARGET_DATA_PAGE_URL, wait_until="domcontentloaded", timeout=20000)
+    
+    is_logged_in = await check_if_logged_in(page)
+    
+    if not is_logged_in:
+        logger.warning("[Health Check] Sesión no válida. Forzando re-login...")
+        await auto_login(page, username, password)
+        if not await check_if_logged_in(page):
+            raise LoginError("El re-login forzado falló.")
+        logger.info("[Health Check] ✓ Re-login exitoso, sesión renovada.")
+    else:
+        logger.info("[Health Check] ✓ La sesión existente es válida.")
 
-async def force_relogin(page: Page, username: str, password: str):
-    """Fuerza un nuevo proceso de login."""
-    logger.warning("Forzando re-login para renovar la sesión...")
-    # Asegurarnos de estar en la página de datos antes de intentar el login
-    await page.goto(TARGET_DATA_PAGE_URL, wait_until="networkidle")
-    
-    # auto_login ahora devuelve una tupla, pero solo nos interesa el éxito aquí.
-    login_success, _ = await auto_login(page, username, password)
-    
-    if not login_success:
-        raise LoginError("El re-login forzado ha fallado durante el proceso de auto_login.")
+# --- INICIO DE CORRECCIÓN ---
 
-    await page.wait_for_url(f"**{TARGET_DATA_PAGE_URL}**", timeout=45000)
+async def _attempt_data_capture(page: Page) -> tuple[datetime | None, dict | None]:
+    """
+    Función interna que realiza un único intento de captura de datos.
+    Separa la lógica de captura para poder reintentarla.
+    """
+    logger.info("Preparando captura concurrente y recarga de página...")
     
-    if not await check_if_logged_in(page):
-        raise LoginError("Re-login pareció exitoso, pero no se encontró indicador de sesión activa post-login.")
+    # Iniciar las tareas de escucha
+    time_task = asyncio.create_task(capture_market_time(page, logger))
+    data_task = asyncio.create_task(capture_premium_data_via_network(page, logger))
     
-    logger.info("✓ Re-login forzado completado exitosamente.")
+    # Darle un instante a los listeners para que se registren
+    await asyncio.sleep(0.1)
 
+    # Disparar la recarga de la página
+    logger.info("Disparando recarga de página...")
+    # Usamos wait_for_load_state para asegurarnos de que la página termina de cargar
+    # antes de que los timeouts de los listeners expiren.
+    await page.reload(wait_until="domcontentloaded", timeout=30000)
+
+    # Esperar por las tareas de captura de datos.
+    market_time, raw_data = await asyncio.gather(time_task, data_task)
+    
+    return market_time, raw_data
 
 async def run_bolsa_bot(app=None, username=None, password=None, **kwargs) -> str | None:
     global _is_first_run_since_startup
@@ -79,53 +85,66 @@ async def run_bolsa_bot(app=None, username=None, password=None, **kwargs) -> str
         logger.info(f"=== INICIO DE EJECUCIÓN (Primera vez: {_is_first_run_since_startup}) ===")
         page = await get_page()
 
-        # --- INICIO DE CORRECCIÓN: Lógica de Health Check ---
-        session_is_active = await perform_session_health_check(page)
-
-        if _is_first_run_since_startup or not session_is_active:
-            if _is_first_run_since_startup:
-                logger.info("🚀 Fase 1: Establecimiento de Sesión Inicial.")
-            else:
-                logger.warning("La sesión ha caducado. Forzando re-login.")
-            
-            await force_relogin(page, username, password)
-            is_first_run_flag = _is_first_run_since_startup
+        if _is_first_run_since_startup:
+            logger.info("🚀 Fase 1: Establecimiento de Sesión Inicial.")
+            await perform_session_health_check(page, username, password)
             _is_first_run_since_startup = False
-            
-            if is_first_run_flag:
-                 socketio.emit("initial_session_ready")
-                 return "phase_1_complete"
-        # --- FIN DE CORRECCIÓN ---
+            socketio.emit("initial_session_ready")
+            # En el primer run, el frontend inicia la fase 2.
+            # Aquí la corrección es que si el primer run es automático, debería continuar
+            if not kwargs.get('is_manual_trigger', True):
+                 logger.info("El primer run fue automático, procediendo a Fase 2.")
+            else:
+                return "phase_1_complete"
 
         logger.info("🎬 Fase 2: Captura de Datos.")
+        await perform_session_health_check(page, username, password)
+
         if not await _ensure_target_page(page, logger):
-             raise DataCaptureError("No se pudo asegurar la página de destino.")
+             raise DataCaptureError("No se pudo asegurar la página de destino para la captura.")
 
-        if not await check_if_logged_in(page):
-            _is_first_run_since_startup = True
-            raise LoginError("La sesión no está activa a pesar de los chequeos y re-logins.")
+        # --- Lógica de Reintentos ---
+        max_attempts = 3
+        market_time, raw_data = None, None
+        
+        for attempt in range(1, max_attempts + 1):
+            logger.info(f"--- Intento de captura {attempt}/{max_attempts} ---")
+            try:
+                market_time, raw_data = await _attempt_data_capture(page)
+                
+                # Si ambos datos se capturan, salimos del bucle
+                if market_time and raw_data:
+                    logger.info(f"✓ Captura exitosa en el intento {attempt}.")
+                    break
+                
+                # Si falta alguno, lo registramos y preparamos para el reintento
+                missing = []
+                if not market_time: missing.append("hora del mercado")
+                if not raw_data: missing.append("datos de precios")
+                logger.warning(f"Intento {attempt} fallido. Faltan datos: {', '.join(missing)}.")
+                
+            except Exception as e:
+                logger.error(f"Error grave en el intento de captura {attempt}: {e}", exc_info=True)
 
-        logger.info("Preparando captura concurrente de hora y precios...")
-        time_task = asyncio.create_task(capture_market_time(page, logger))
-        data_task = asyncio.create_task(capture_premium_data_via_network(page, logger))
-        
-        await asyncio.sleep(0.5)
-        logger.info("Recargando página para disparar APIs...")
-        try:
-            await page.reload(wait_until="networkidle", timeout=30000)
-        except PlaywrightTimeoutError:
-            raise LoginError("Timeout en page.reload(). La sesión probablemente expiró y el re-login falló.")
-        
-        market_time, raw_data = await asyncio.gather(time_task, data_task)
+            # Si no fue el último intento, esperamos antes de reintentar
+            if attempt < max_attempts:
+                wait_time = attempt * 2  # Espera exponencial: 2s, 4s
+                logger.info(f"Esperando {wait_time} segundos antes del próximo intento...")
+                await asyncio.sleep(wait_time)
+            else:
+                 logger.error("Se agotaron los reintentos de captura.")
+
+        # --- Fin Lógica de Reintentos ---
 
         if not market_time:
-            raise DataCaptureError("No se pudo interceptar la hora del mercado.")
+            raise DataCaptureError("No se pudo interceptar la hora del mercado después de varios intentos.")
         if not raw_data:
-            raise DataCaptureError("No se pudo interceptar los datos de precios.")
+            raise DataCaptureError("No se pudo interceptar los datos de precios después de varios intentos.")
+        
         if not validate_premium_data(raw_data):
             raise DataCaptureError("Formato de datos no válido.")
         
-        logger.info("✓ Hora y datos capturados. Pasando directamente a la base de datos...")
+        logger.info("✓ Hora y datos capturados. Pasando a la base de datos...")
         
         with (app or current_app).app_context():
             store_prices_in_db(raw_data, market_time, app=app)
@@ -133,12 +152,16 @@ async def run_bolsa_bot(app=None, username=None, password=None, **kwargs) -> str
         return "phase_2_complete"
 
     except Exception as e:
-        if isinstance(e, LoginError):
-            _is_first_run_since_startup = True
+        # Resetear el estado si el bot falla para que el próximo intento sea un "primer run" completo
+        if isinstance(e, (LoginError, DataCaptureError)):
+            _is_first_run_since_startup = True 
         logger.error(f"Error en la ejecución del bot: {e}", exc_info=True)
         socketio.emit("bot_error", {"message": str(e)})
         with (app or current_app).app_context(): log_error("bot_automation", str(e), traceback.format_exc())
         return f"error: {e}"
     finally:
-        _bot_running_lock.release()
+        if _bot_running_lock.locked():
+             _bot_running_lock.release()
         logger.info("=== FIN DE EJECUCIÓN ===")
+
+# --- FIN DE CORRECCIÓN ---
