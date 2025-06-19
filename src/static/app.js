@@ -103,8 +103,12 @@ $(document).ready(function() {
         if (!dom.portfolioTableBody) return;
         dom.portfolioTableBody.innerHTML = '';
 
+        let portfolioTotalPaid = 0;
+        let portfolioTotalCurrentValue = 0;
+
         if (portfolioHoldings.length === 0) {
             dom.portfolioTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Aún no has añadido acciones a tu portafolio.</td></tr>';
+            $('#totalPaid, #totalCurrentValue, #totalGainLoss, #totalGainLossPercent').html('');
             return;
         }
 
@@ -121,6 +125,11 @@ $(document).ready(function() {
             let gainLossPercent = null;
             if (gainLoss !== null && totalPaid > 0) {
                 gainLossPercent = (gainLoss / totalPaid) * 100;
+            }
+
+            portfolioTotalPaid += totalPaid;
+            if (currentValue !== null) {
+                portfolioTotalCurrentValue += currentValue;
             }
 
             const row = `
@@ -142,6 +151,16 @@ $(document).ready(function() {
             `;
             dom.portfolioTableBody.innerHTML += row;
         });
+
+        const portfolioTotalGainLoss = portfolioTotalCurrentValue - portfolioTotalPaid;
+        const portfolioTotalGainLossPercent = (portfolioTotalPaid > 0) 
+            ? (portfolioTotalGainLoss / portfolioTotalPaid) * 100 
+            : 0;
+
+        $('#totalPaid').html(`<strong>${portfolioTotalPaid.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 })}</strong>`);
+        $('#totalCurrentValue').html(`<strong>${formatColoredNumber(portfolioTotalCurrentValue, true)}</strong>`);
+        $('#totalGainLoss').html(`<strong>${formatColoredNumber(portfolioTotalGainLoss, true)}</strong>`);
+        $('#totalGainLossPercent').html(`<strong>${formatColoredNumber(portfolioTotalGainLossPercent) + '%'}</strong>`);
     }
 
     function renderTable(stocks, timestamp, source) {
