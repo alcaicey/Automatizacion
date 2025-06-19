@@ -260,11 +260,9 @@ $(document).ready(function() {
 
     function scheduleNextUpdate() {
         const intervalValue = sessionStorage.getItem('autoUpdateInterval');
-        // --- INICIO DE CORRECCIÓN: Se elimina la condición 'isFirstRun' ---
         if (!intervalValue || intervalValue === 'off') {
             return;
         }
-        // --- FIN DE CORRECCIÓN ---
 
         const [min, max] = intervalValue.split('-').map(Number);
         const randomSeconds = Math.floor(Math.random() * (max * 60 - min * 60 + 1)) + (min * 60);
@@ -285,13 +283,10 @@ $(document).ready(function() {
             stopAutoUpdate();
             updateStatus('Auto-Update desactivado.', 'info');
         } else {
-            // --- INICIO DE CORRECCIÓN: Inicia el ciclo inmediatamente si es posible ---
-            // Si el bot ya está listo, inicia la actualización.
-            // Si no, se iniciará cuando llegue el evento 'initial_session_ready'.
             if (!isFirstRun) {
                 handleUpdateClick(true);
             }
-            // --- FIN DE CORRECCIÓN ---
+            // Si es isFirstRun, la lógica del websocket 'initial_session_ready' se encargará de iniciarlo.
         }
     }
 
@@ -305,6 +300,17 @@ $(document).ready(function() {
         const savedInterval = sessionStorage.getItem('autoUpdateInterval');
         if (savedInterval) {
             dom.autoUpdateSelect.value = savedInterval;
+            
+            // --- INICIO DE LA CORRECCIÓN CLAVE ---
+            // Si al cargar la página, ya había un intervalo guardado en la sesión
+            // (y no es 'off'), disparamos el manejador del cambio para que inicie
+            // el proceso de auto-actualización. Esto asegura que el ciclo
+            // se reactive al navegar de vuelta a esta página.
+            if (savedInterval !== 'off') {
+                console.log('[Init] Intervalo de auto-update detectado en sesión. Reactivando ciclo...');
+                handleAutoUpdateChange();
+            }
+            // --- FIN DE LA CORRECCIÓN CLAVE ---
         }
     }
 
@@ -319,11 +325,11 @@ $(document).ready(function() {
             toggleLoading(false);
             updateRefreshButtonState();
             updateStatus("Navegador listo. Presione 'Actualizar Ahora' para capturar datos.", 'success');
-            // --- INICIO DE CORRECCIÓN: Activa el ciclo si hay un intervalo seleccionado ---
+            
             if (dom.autoUpdateSelect.value !== 'off') {
+                 console.log('[AutoUpdater] El backend está listo, iniciando el primer ciclo de auto-actualización.');
                  handleUpdateClick(true);
             }
-            // --- FIN DE CORRECCIÓN ---
         });
         
         socket.on('new_data', async () => {
@@ -337,7 +343,6 @@ $(document).ready(function() {
 
         socket.on('bot_error', (data) => {
             isUpdating = false;
-            isFirstRun = false;
             toggleLoading(false);
             updateRefreshButtonState();
             updateStatus(`Error del bot: ${data.message}`, 'danger');

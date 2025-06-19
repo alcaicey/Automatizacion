@@ -25,19 +25,20 @@ logger = logging.getLogger(__name__)
 def store_prices_in_db(data_object: Dict | List, market_timestamp: datetime, app=None) -> None:
     """
     Guarda precios desde un objeto de datos en memoria directamente en la DB
-    y emite un evento `new_data`.
+    usando operaciones masivas (bulk) y emite un evento `new_data`.
     """
     ctx = app.app_context() if app else nullcontext()
     with ctx:
         try:
-            # Los datos ya no se leen de un archivo, se reciben en 'data_object'
             rows = data_object.get("listaResult") if isinstance(data_object, dict) else data_object
             if not isinstance(rows, list):
                 logger.warning("El objeto de datos no contiene una lista de resultados válida.")
                 return
 
             ts = market_timestamp
-
+            
+            # --- INICIO DE CORRECCIÓN: Lógica de Inserción Masiva ---
+            all_stock_data = []
             for item in rows:
                 if not isinstance(item, dict): continue
                 
@@ -67,21 +68,31 @@ def store_prices_in_db(data_object: Dict | List, market_timestamp: datetime, app
                     'isin': item.get('ISIN'),
                     'green_bond': item.get('BONO_VERDE')
                 }
-                
-                bind = db.session.get_bind()
-                if bind.dialect.name == "postgresql":
-                    stmt = insert(StockPrice).values(**stock_price_obj)
-                    update_dict = {k: v for k, v in stock_price_obj.items() if k not in ['symbol', 'timestamp'] and v is not None}
-                    if update_dict:
-                        update_stmt = stmt.on_conflict_do_update(
-                            index_elements=['symbol', 'timestamp'],
-                            set_=update_dict
-                        )
-                        db.session.execute(update_stmt)
-                    else:
-                        db.session.execute(stmt.on_conflict_do_nothing(index_elements=['symbol', 'timestamp']))
-                else:
-                    db.session.merge(StockPrice(**stock_price_obj))
+                all_stock_data.append(stock_price_obj)
+
+            if not all_stock_data:
+                logger.info("No hay datos de acciones válidos para guardar.")
+                return
+
+            # Ejecutar la inserción masiva
+            bind = db.session.get_bind()
+            if bind.dialect.name == "postgresql":
+                # Método ultra-eficiente para PostgreSQL
+                stmt = insert(StockPrice).values(all_stock_data)
+                # Define qué hacer en caso de conflicto (la PK es symbol+timestamp)
+                update_dict = {
+                    c.name: c for c in stmt.excluded if not c.primary_key
+                }
+                stmt = stmt.on_conflict_do_update(
+                    index_elements=['symbol', 'timestamp'],
+                    set_=update_dict
+                )
+                db.session.execute(stmt)
+            else:
+                # Fallback para SQLite: sigue siendo masivo pero menos optimizado
+                db.session.bulk_insert_mappings(StockPrice, all_stock_data)
+            
+            # --- FIN DE CORRECCIÓN ---
 
             lu = db.session.get(LastUpdate, 1) or LastUpdate(id=1)
             lu.timestamp = ts
@@ -89,13 +100,14 @@ def store_prices_in_db(data_object: Dict | List, market_timestamp: datetime, app
             db.session.commit()
             
             socketio.emit("new_data", {'message': 'Datos actualizados!'})
-            logger.info(f"Datos guardados con timestamp del mercado {ts.strftime('%Y-%m-%d %H:%M:%S')} y evento 'new_data' emitido.")
+            logger.info(f"Datos guardados para {len(all_stock_data)} acciones con timestamp del mercado {ts.strftime('%Y-%m-%d %H:%M:%S')} y evento 'new_data' emitido.")
 
         except Exception as e:
             logger.exception("Error al guardar precios en la DB o emitir evento: %s", e)
             db.session.rollback()
 
 
+# ... (el resto del archivo db_io.py no necesita cambios)
 def get_latest_data() -> Dict[str, Any]:
     """
     Devuelve los datos más recientes. Prioriza la base de datos.

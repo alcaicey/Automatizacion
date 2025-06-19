@@ -9,10 +9,11 @@ from .bot_page_manager import get_page
 from .bot_login import auto_login, LoginError, TARGET_DATA_PAGE_URL
 from .bot_data_capture import capture_market_time, capture_premium_data_via_network, validate_premium_data, DataCaptureError
 from src.utils.db_io import store_prices_in_db
-# Se elimina la importación de 'save_json_with_timestamp' ya que no se usará
-# from src.utils.json_utils import save_json_with_timestamp
 from src.extensions import socketio
 from src.routes.errors import log_error
+# --- INICIO DE CORRECCIÓN: Importar el nuevo helper ---
+from src.utils.page_utils import _ensure_target_page
+# --- FIN DE CORRECCIÓN ---
 
 logger = logging.getLogger(__name__)
 _bot_running_lock = asyncio.Lock()
@@ -43,10 +44,17 @@ async def run_bolsa_bot(app=None, username=None, password=None, **kwargs) -> str
     try:
         logger.info(f"=== INICIO DE EJECUCIÓN (Primera vez: {_is_first_run_since_startup}) ===")
         page = await get_page()
-        await page.goto(TARGET_DATA_PAGE_URL, wait_until="networkidle")
+
+        # --- INICIO DE CORRECCIÓN: Eliminar page.goto() y usar el helper ---
+        # Ya no navegamos aquí. La navegación se maneja de forma más inteligente.
+        # await page.goto(TARGET_DATA_PAGE_URL, wait_until="networkidle") 
+        # --- FIN DE CORRECCIÓN ---
 
         if _is_first_run_since_startup:
             logger.info("🚀 Fase 1: Establecimiento de Sesión.")
+            # --- INICIO DE CORRECCIÓN: La navegación inicial se hace aquí ---
+            await page.goto(TARGET_DATA_PAGE_URL, wait_until="networkidle")
+            # --- FIN DE CORRECCIÓN ---
             if not await check_if_logged_in(page):
                 logger.info("Sesión no activa. Intentando auto-login...")
                 await auto_login(page, username, password)
@@ -58,6 +66,12 @@ async def run_bolsa_bot(app=None, username=None, password=None, **kwargs) -> str
             return "phase_1_complete"
 
         logger.info("🎬 Fase 2: Captura de Datos.")
+
+        # --- INICIO DE CORRECCIÓN: Asegurar que estamos en la página correcta ---
+        if not await _ensure_target_page(page, logger):
+             raise DataCaptureError("No se pudo asegurar la página de destino.")
+        # --- FIN DE CORRECCIÓN ---
+
         if not await check_if_logged_in(page):
             _is_first_run_since_startup = True
             raise LoginError("La sesión ha expirado.")
@@ -81,10 +95,6 @@ async def run_bolsa_bot(app=None, username=None, password=None, **kwargs) -> str
         
         logger.info("✓ Hora y datos capturados. Pasando directamente a la base de datos...")
         
-        # Se elimina la creación del archivo intermedio.
-        # json_path = save_json_with_timestamp(raw_data, log_instance=logger)
-        
-        # Se llama a la función de guardado con el objeto de datos en memoria.
         with (app or current_app).app_context():
             store_prices_in_db(raw_data, market_time, app=app)
             
