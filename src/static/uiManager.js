@@ -12,22 +12,19 @@ window.uiManager = {
             refreshBtn: document.getElementById('refreshBtn'),
             stocksTable: document.getElementById('stocksTable'),
             columnConfigForm: document.getElementById('columnConfigForm'),
-            saveColumnPrefsBtn: document.getElementById('saveColumnPrefs'), // <- Lo añadimos para que el app.js lo use
-            columnConfigModal: document.getElementById('columnConfigModal'), // <- Lo añadimos
-            stockFilterForm: document.getElementById('stockFilterForm'),   // <- Lo añadimos
-            clearFilterBtn: document.getElementById('clearBtn'),         // <- Lo añadimos
+            saveColumnPrefsBtn: document.getElementById('saveColumnPrefs'),
+            columnConfigModal: document.getElementById('columnConfigModal'),
+            stockFilterForm: document.getElementById('stockFilterForm'),
+            clearFilterBtn: document.getElementById('clearBtn'),
             countdownTimer: document.getElementById('countdownTimer'),
             allStocksCheck: document.getElementById('allStocksCheck'),
             stockCodeInputs: document.querySelectorAll('.stock-code'),
             lastUpdate: document.getElementById('lastUpdate'),
-            // --- INICIO DE CORRECCIÓN ---
             autoUpdateSelect: document.getElementById('autoUpdateSelect')
-            // --- FIN DE CORRECCIÓN ---
         };
         console.log('[UI] Módulo inicializado y DOM cacheado.');
     },
 
-    // ... (el resto del archivo no cambia)
     updateStatus(message, type = 'info') {
         if (!this.dom.statusMessage) return;
         const icons = { info: 'info-circle', success: 'check-circle', warning: 'exclamation-triangle', danger: 'x-circle' };
@@ -88,7 +85,7 @@ window.uiManager = {
             }
             return data;
         };
-    },
+    }, // <--- ¡AQUÍ FALTABA UNA COMA!
 
     renderTable(stocks, timestamp, visibleColumns, columnConfig) {
         console.log(`[UI] Renderizando tabla principal con ${stocks.length} acciones.`);

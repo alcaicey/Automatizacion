@@ -3,9 +3,10 @@ import logging
 import os
 import random
 import asyncio
-from typing import Final
+from typing import Final, Tuple
 
 from playwright.async_api import Page, Locator, TimeoutError as PlaywrightTimeoutError
+from .bot_data_capture import capture_session_time_via_network
 
 logger = logging.getLogger(__name__)
 
@@ -25,38 +26,53 @@ async def type_like_human(element: Locator, text: str):
         await element.press(char)
         await asyncio.sleep(random.uniform(0.08, 0.25))
 
-async def auto_login(page: Page, username: str, password: str) -> bool:
+async def auto_login(page: Page, username: str, password: str) -> Tuple[bool, int | None]:
     """
-    Realiza el proceso de login automático, usando las credenciales proporcionadas.
+    Realiza el proceso de login y captura el tiempo de sesión inicial.
+    Devuelve (True, session_duration_seconds) o (False, None).
     """
     if not username or not password:
-        logger.error("[Login] [Paso 3.1] Credenciales vacías recibidas.")
+        logger.error("[Login] Credenciales vacías recibidas.")
         raise LoginError("Credenciales no encontradas en el entorno.")
         
-    logger.info("[Login] [Paso 3.2] Buscando el formulario de inicio de sesión...")
+    logger.info("[Login] Buscando el formulario de inicio de sesión...")
     
     try:
         search_context: Page | Locator = page
         
         if LOGIN_PAGE_URL_FRAGMENT in page.url:
-            logger.info("[Login] [Paso 3.3.A] Redirección a página de login detectada.")
+            logger.info("[Login] Redirección a página de login detectada.")
         else:
-            logger.info("[Login] [Paso 3.3.B] Buscando iframe de login...")
+            logger.info("[Login] Buscando iframe de login...")
             iframe_locator = page.locator(LOGIN_IFRAME_SELECTOR)
             try:
                 await iframe_locator.wait_for(state="visible", timeout=5000)
                 search_context = page.frame_locator(LOGIN_IFRAME_SELECTOR)
             except PlaywrightTimeoutError:
-                logger.warning("[Login] [Paso 3.3.D] No se encontró iframe. Asumiendo sesión activa.")
-                return True
+                logger.warning("[Login] No se encontró iframe. Asumiendo sesión activa.")
+                return True, None # No hay login, no podemos capturar nuevo tiempo.
 
-        logger.info("[Login] [Paso 3.4] Rellenando credenciales...")
+        logger.info("[Login] Rellenando credenciales...")
         await type_like_human(search_context.locator(USER_SEL), username)
         await type_like_human(search_context.locator(PASS_SEL), password)
         
-        logger.info("[Login] [Paso 3.5] Enviando formulario...")
+        logger.info("[Login] Enviando formulario y escuchando APIs post-login...")
+
+        # Creamos dos tareas que correrán en paralelo:
+        # 1. La escucha de la API de sesión.
+        # 2. El click en el botón de login.
+        session_time_task = asyncio.create_task(capture_session_time_via_network(page, logger))
+        
+        # Le damos un respiro para que el listener se active
+        await asyncio.sleep(0.5)
+
+        # Hacemos click y no esperamos, dejando que la tarea de escucha capture la respuesta durante la redirección.
         await search_context.locator("input[type='submit']").click()
-        return True
+        
+        # Esperamos a que la tarea de captura de tiempo termine.
+        session_duration = await session_time_task
+
+        return True, session_duration
         
     except Exception as e:
         logger.error(f"[Login] Fallo crítico durante el proceso de login: {e}", exc_info=True)
