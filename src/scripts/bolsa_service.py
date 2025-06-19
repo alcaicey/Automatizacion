@@ -9,7 +9,7 @@ from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError
 from .bot_page_manager import get_page
 from .bot_login import auto_login, LoginError, TARGET_DATA_PAGE_URL, LOGIN_PAGE_URL_FRAGMENT
 from .bot_data_capture import capture_market_time, capture_premium_data_via_network, validate_premium_data, DataCaptureError
-from src.utils.db_io import store_prices_in_db
+from src.utils.db_io import store_prices_in_db, save_filtered_comparison_history
 from src.extensions import socketio
 from src.routes.errors import log_error
 from src.utils.page_utils import _ensure_target_page
@@ -148,6 +148,7 @@ async def run_bolsa_bot(app=None, username=None, password=None, **kwargs) -> str
         
         with (app or current_app).app_context():
             store_prices_in_db(raw_data, market_time, app=app)
+            save_filtered_comparison_history(market_timestamp=market_time, app=app)
             
         return "phase_2_complete"
 

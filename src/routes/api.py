@@ -3,17 +3,17 @@ import json
 import logging
 import os
 import threading
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from flask import Blueprint, jsonify, request, current_app
 
 from src.scripts.bolsa_service import run_bolsa_bot
 from src.utils.db_io import get_latest_data, filter_stocks, compare_last_two_db_entries
-from src.models import Alert
 from src.utils.scheduler import start_periodic_updates, stop_periodic_updates
-from src.models import Credential, LogEntry, ColumnPreference, StockFilter, StockPrice
+from src.models import Credential, LogEntry, ColumnPreference, StockFilter, StockPrice, Alert, FilteredStockHistory
 from src.extensions import db
 from ..utils import history_view
+from sqlalchemy import func
 
 logger = logging.getLogger(__name__)
 api_bp = Blueprint("api", __name__)
@@ -422,4 +422,54 @@ def delete_from_portfolio(holding_id):
         db.session.commit()
         return '', 204
 
-# --- FIN DE CORRECCIÓN ---
+@api_bp.route("/dashboard/chart-data", methods=["GET"])
+def get_dashboard_chart_data():
+    """
+    Devuelve datos históricos para las acciones y la métrica especificadas.
+    Parámetros:
+    - stock: uno o más símbolos de acciones (ej: ?stock=COPEC&stock=FALABELLA)
+    - metric: la métrica a graficar (ej: ?metric=price)
+    - days: número de días de historial a devolver (ej: ?days=30)
+    """
+    with current_app.app_context():
+        stock_symbols = request.args.getlist("stock")
+        metric = request.args.get("metric", "price")
+        days_history = request.args.get("days", 30, type=int)
+        
+        if not stock_symbols:
+            return jsonify({"error": "Debe especificar al menos un símbolo de acción."}), 400
+
+        valid_metrics = {
+            "price": FilteredStockHistory.price,
+            "price_difference": FilteredStockHistory.price_difference,
+            "percent_change": FilteredStockHistory.percent_change
+        }
+
+        if metric not in valid_metrics:
+            return jsonify({"error": f"Métrica no válida. Válidas son: {list(valid_metrics.keys())}"}), 400
+
+        metric_column = valid_metrics[metric]
+        
+        # Calcular la fecha de inicio para la consulta
+        start_date = datetime.now(timezone.utc) - timedelta(days=days_history)
+        # Consultar los datos
+        history_data = db.session.query(
+            FilteredStockHistory.symbol,
+            FilteredStockHistory.timestamp,
+            metric_column
+        ).filter(
+            FilteredStockHistory.symbol.in_(stock_symbols),
+            FilteredStockHistory.timestamp >= start_date
+        ).order_by(
+            FilteredStockHistory.timestamp
+        ).all()
+
+        # Formatear los datos para Chart.js
+        chart_data = {symbol: [] for symbol in stock_symbols}
+        for symbol, timestamp, value in history_data:
+            chart_data[symbol].append({
+                "x": timestamp.isoformat(),
+                "y": value
+            })
+
+        return jsonify(chart_data)

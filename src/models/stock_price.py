@@ -1,12 +1,11 @@
 from sqlalchemy import event, DDL
 from src.extensions import db
-from datetime import datetime
+from datetime import datetime, timezone
 
 class StockPrice(db.Model):
     __tablename__ = 'stock_prices'
     symbol = db.Column(db.String(50), primary_key=True)
-    timestamp = db.Column(db.DateTime, primary_key=True, default=datetime.utcnow, index=True)
-
+    timestamp = db.Column(db.DateTime, primary_key=True, default=lambda: datetime.now(timezone.utc), index=True)
     price = db.Column(db.Float)
     variation = db.Column(db.Float)
     buy_price = db.Column(db.Float)

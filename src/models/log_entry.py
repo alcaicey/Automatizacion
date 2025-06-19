@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from src.extensions import db
 
 class LogEntry(db.Model):
@@ -8,7 +8,7 @@ class LogEntry(db.Model):
     message = db.Column(db.Text, nullable=False)
     action = db.Column(db.String(50))
     stack = db.Column(db.Text)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
 
     def to_dict(self):
         return {

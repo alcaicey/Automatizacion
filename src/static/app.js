@@ -28,7 +28,8 @@ window.app = {
     init() {
         uiManager.init();
         portfolioManager.init();
-        autoUpdater.init(uiManager);
+        // Inicializar el autoUpdater. Esto llamará a resume() automáticamente.
+        autoUpdater.init(uiManager); 
         this.initializeApp();
         this.setupWebSocket();
         this.attachEventListeners();
@@ -40,12 +41,12 @@ window.app = {
         this.updateRefreshButton();
         await Promise.all([this.loadPreferences(), portfolioManager.loadHoldings()]);
         await this.fetchAndDisplayStocks();
+        
+        // La lógica de reanudar ya está en autoUpdater.init().
+        // Solo necesitamos asegurarnos de que el <select> muestre el valor guardado.
         const savedInterval = sessionStorage.getItem('autoUpdateInterval');
         if (savedInterval) {
             uiManager.dom.autoUpdateSelect.value = savedInterval;
-            if (savedInterval !== 'off') {
-                this.handleAutoUpdateChange();
-            }
         }
     },
     
@@ -112,7 +113,11 @@ window.app = {
     async handleUpdateClick(isAutoUpdate = false) {
         if (this.state.isUpdating) return;
         this.state.isUpdating = true;
-        if (!isAutoUpdate) autoUpdater.stop();
+        
+        // Solo detenemos el temporizador si es una actualización MANUAL.
+        if (!isAutoUpdate) {
+            autoUpdater.stop();
+        }
         
         this.updateRefreshButton();
         uiManager.toggleLoading(true, this.state.isFirstRun ? 'Iniciando navegador...' : 'Actualizando datos...');
@@ -126,19 +131,23 @@ window.app = {
             this.state.isUpdating = false;
             uiManager.toggleLoading(false);
             this.updateRefreshButton();
-            if (isAutoUpdate) autoUpdater.start(uiManager.dom.autoUpdateSelect.value, () => this.handleUpdateClick(true));
+            
+            // Si la actualización automática falló, la reiniciamos.
+            if (isAutoUpdate) {
+                 autoUpdater.start(uiManager.dom.autoUpdateSelect.value, () => this.handleUpdateClick(true));
+            }
         }
     },
     
     handleAutoUpdateChange() {
         const intervalValue = uiManager.dom.autoUpdateSelect.value;
         sessionStorage.setItem('autoUpdateInterval', intervalValue);
+        
         if (intervalValue === "off") {
             autoUpdater.stop();
         } else {
-            if (!this.state.isFirstRun) {
-                this.handleUpdateClick(true);
-            }
+            // Inicia un nuevo ciclo de actualización automática.
+            autoUpdater.start(intervalValue, () => this.handleUpdateClick(true));
         }
     },
 
@@ -178,7 +187,11 @@ window.app = {
             uiManager.toggleLoading(false);
             this.updateRefreshButton();
             uiManager.updateStatus("Navegador listo. Puede iniciar la captura de datos.", 'success');
-            if (uiManager.dom.autoUpdateSelect.value !== 'off') {
+            
+            // Si hay un intervalo seleccionado, y no hay un temporizador ya corriendo, inicia uno.
+            const intervalValue = uiManager.dom.autoUpdateSelect.value;
+            const isTimerRunning = sessionStorage.getItem('autoUpdateTarget');
+            if (intervalValue !== 'off' && !isTimerRunning) {
                 this.handleUpdateClick(true);
             }
         });
@@ -189,7 +202,12 @@ window.app = {
             this.updateRefreshButton();
             uiManager.updateStatus("¡Nuevos datos recibidos! Actualizando...", 'success');
             await this.fetchAndDisplayStocks();
-            autoUpdater.start(uiManager.dom.autoUpdateSelect.value, () => this.handleUpdateClick(true));
+            
+            // Le decimos al autoUpdater que inicie un nuevo ciclo.
+            const intervalValue = uiManager.dom.autoUpdateSelect.value;
+            if (intervalValue !== 'off') {
+                autoUpdater.start(intervalValue, () => this.handleUpdateClick(true));
+            }
         });
 
         socket.on('bot_error', (data) => {
@@ -197,13 +215,17 @@ window.app = {
             uiManager.toggleLoading(false);
             this.updateRefreshButton();
             uiManager.updateStatus(`Error del bot: ${data.message}`, 'danger');
-            autoUpdater.start(uiManager.dom.autoUpdateSelect.value, () => this.handleUpdateClick(true));
+            
+            // Reiniciar el temporizador incluso si hay un error.
+            const intervalValue = uiManager.dom.autoUpdateSelect.value;
+             if (intervalValue !== 'off') {
+                autoUpdater.start(intervalValue, () => this.handleUpdateClick(true));
+            }
         });
     },
 
     // ---- 6. ASIGNACIÓN DE EVENT LISTENERS ----
     attachEventListeners() {
-        // --- INICIO DE CORRECCIÓN: Restaurar todos los listeners ---
         $(uiManager.dom.refreshBtn).on('click', () => this.handleUpdateClick(false));
         $(uiManager.dom.autoUpdateSelect).on('change', () => this.handleAutoUpdateChange());
         
@@ -220,7 +242,6 @@ window.app = {
         $(portfolioManager.dom.tableBody).on('click', '.delete-holding-btn', function() {
             portfolioManager.handleDelete($(this).data('id'));
         });
-        // --- FIN DE CORRECCIÓN ---
     }
 };
 

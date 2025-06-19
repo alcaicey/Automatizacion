@@ -9,9 +9,8 @@ from .stock_filter import StockFilter
 from .last_update import LastUpdate
 from .log_entry import LogEntry
 from .alert import Alert
-# --- INICIO DE CORRECCIÓN ---
 from .portfolio import Portfolio
-# --- FIN DE CORRECCIÓN ---
+from .filtered_stock_history import FilteredStockHistory
 
 
 # El __all__ define qué se importa cuando se hace 'from src.models import *'
@@ -25,7 +24,7 @@ __all__ = [
     "LastUpdate",
     "LogEntry",
     "Alert",
-    # --- INICIO DE CORRECCIÓN ---
     "Portfolio",
+    "FilteredStockHistory", 
     # --- FIN DE CORRECCIÓN ---
 ]

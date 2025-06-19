@@ -8,11 +8,9 @@ import traceback
 from contextlib import nullcontext
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-
 from sqlalchemy.dialects.postgresql import insert
-
 from src.extensions import db, socketio
-from src.models import LastUpdate, StockPrice
+from src.models import LastUpdate, StockPrice, StockFilter, FilteredStockHistory
 from src.routes.errors import log_error
 from src.utils.json_utils import (
     extract_timestamp_from_filename,
@@ -211,3 +209,60 @@ def compare_last_two_db_entries(stock_codes: Optional[List[str]] = None) -> Opti
     except Exception as exc:
         logger.exception("Error comparando históricos desde la DB: %s", exc)
         return None
+
+def save_filtered_comparison_history(market_timestamp: datetime, app=None):
+    """
+    Compara los últimos datos, filtra por StockFilter y guarda los cambios
+    en la tabla FilteredStockHistory si está dentro del horario de mercado.
+    """
+    ctx = app.app_context() if app else nullcontext()
+    with ctx:
+        # 1. Verificar horario de mercado (9:30 a 16:00)
+        market_hour = market_timestamp.hour
+        market_minute = market_timestamp.minute
+        is_trading_hours = (market_hour == 9 and market_minute >= 30) or \
+                           (market_hour > 9 and market_hour < 16)
+
+        if not is_trading_hours:
+            logger.info(f"Fuera de horario de mercado ({market_timestamp.strftime('%H:%M:%S')}). No se guardará el historial filtrado.")
+            return
+
+        # 2. Obtener los filtros de acciones
+        stock_filter = StockFilter.query.first()
+        if not stock_filter or stock_filter.all or not stock_filter.codes_json:
+            logger.info("No hay filtros de acciones específicos configurados. No se guardará el historial filtrado.")
+            return
+
+        try:
+            stock_codes_to_track = json.loads(stock_filter.codes_json)
+            if not stock_codes_to_track:
+                return # No hay nada que rastrear
+
+            # 3. Comparar los últimos dos registros para los códigos filtrados
+            comparison_data = compare_last_two_db_entries(stock_codes=stock_codes_to_track)
+
+            if not comparison_data or 'changes' not in comparison_data:
+                logger.info("No se encontraron cambios para las acciones filtradas.")
+                return
+
+            # 4. Preparar y guardar los datos en la nueva tabla
+            new_history_entries = []
+            for change in comparison_data.get('changes', []):
+                entry = FilteredStockHistory(
+                    timestamp=market_timestamp,
+                    symbol=change['symbol'],
+                    price=change.get('new', {}).get('price'),
+                    previous_price=change.get('old', {}).get('price'),
+                    price_difference=change.get('abs_diff'),
+                    percent_change=change.get('pct_diff')
+                )
+                new_history_entries.append(entry)
+            
+            if new_history_entries:
+                db.session.bulk_save_objects(new_history_entries)
+                db.session.commit()
+                logger.info(f"✓ Guardados {len(new_history_entries)} registros en el historial filtrado para el timestamp {market_timestamp}.")
+
+        except Exception as e:
+            logger.error(f"Error al guardar el historial filtrado: {e}", exc_info=True)
+            db.session.rollback()
