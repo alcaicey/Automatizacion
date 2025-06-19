@@ -7,7 +7,6 @@
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
 <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap5.min.css">
 <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 {% endblock %}
 
 {% block content %}
@@ -189,6 +188,15 @@
 <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
 <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
 <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
+
+<!-- Cargar Módulos -->
+<script src="{{ url_for('static', filename='uiManager.js') }}"></script>
+<script src="{{ url_for('static', filename='portfolioManager.js') }}"></script>
+<script src="{{ url_for('static', filename='autoUpdater.js') }}"></script>
+
+<!-- Cargar el Orquestador Principal -->
 <script src="{{ url_for('static', filename='app.js') }}"></script>
+
+<!-- Otros scripts de la página -->
 <script src="{{ url_for('static', filename='alerts.js') }}"></script>
 {% endblock %}

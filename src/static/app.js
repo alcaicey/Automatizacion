@@ -1,519 +1,230 @@
-// src/static/app.js
+// src/static/js/app.js
 
-$(document).ready(function() {
-    // --- 1. ESTADO DE LA APLICACIÓN ---
-    let isUpdating = false;
-    let isFirstRun = true;
-    let dataTable = null;
-    let autoUpdateTimer = null;
-    let stockFilters = { codes: [], all: true };
-    let portfolioHoldings = [];
-    let stockPriceMap = new Map();
-
-    // --- 2. REFERENCIAS A ELEMENTOS DEL DOM ---
-    const dom = {
-        statusMessage: document.getElementById('statusMessage'),
-        loadingOverlay: document.getElementById('loadingOverlay'),
-        loadingMessage: document.getElementById('loadingMessage'),
-        refreshBtn: document.getElementById('refreshBtn'),
-        stocksTable: document.getElementById('stocksTable'),
-        stockFilterForm: document.getElementById('stockFilterForm'),
-        columnConfigModal: document.getElementById('columnConfigModal'),
-        columnConfigForm: document.getElementById('columnConfigForm'),
-        saveColumnPrefsBtn: document.getElementById('saveColumnPrefs'),
-        stockCodeInputs: document.querySelectorAll('.stock-code'),
-        allStocksCheck: document.getElementById('allStocksCheck'),
-        clearFilterBtn: document.getElementById('clearBtn'),
-        autoUpdateSelect: document.getElementById('autoUpdateSelect'),
-        countdownTimer: document.getElementById('countdownTimer'),
-        lastUpdate: document.getElementById('lastUpdate'),
-        portfolioForm: document.getElementById('portfolioForm'),
-        portfolioTableBody: document.getElementById('portfolioTableBody')
-    };
-
-    // --- 2.5 LÓGICA DE PREFERENCIAS DE COLUMNAS ---
-    let columnPreferences = {
-        all: [],
-        visible: [],
-        config: {
-            'NEMO': { title: 'Símbolo' },
-            'PRECIO_CIERRE': { title: 'Precio', render: createNumberRenderer() },
-            'VARIACION': { title: 'Var. %', render: createNumberRenderer(true) },
-            'PRECIO_COMPRA': { title: 'P. Compra', render: createNumberRenderer() },
-            'PRECIO_VENTA': { title: 'P. Venta', render: createNumberRenderer() },
-            'MONTO': { title: 'Monto Transado', render: createNumberRenderer(false, 'es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }) },
-            'UN_TRANSADAS': { title: 'Unidades', render: createNumberRenderer() },
-            'MONEDA': { title: 'Moneda' },
-            'ISIN': { title: 'ISIN' },
-            'BONO_VERDE': { title: 'Bono Verde' },
-            'timestamp': { title: 'Timestamp' }
-        }
-    };
-
-    // --- 3. FUNCIONES DE UI ---
-    function updateStatus(message, type = 'info') {
-        if (!dom.statusMessage) return;
-        const icons = { info: 'info-circle', success: 'check-circle', warning: 'exclamation-triangle', danger: 'x-circle' };
-        const alertClass = `alert-${type}`;
-        dom.statusMessage.innerHTML = `<i class="fas fa-${icons[type]} me-2"></i><span>${message}</span>`;
-        dom.statusMessage.className = `alert ${alertClass} small py-2`;
-    }
-    function toggleLoading(show, message = 'Cargando...') {
-        if (!dom.loadingOverlay || !dom.loadingMessage) return;
-        dom.loadingMessage.textContent = message;
-        dom.loadingOverlay.classList.toggle('d-none', !show);
-    }
-
-    function updateRefreshButtonState() {
-        if (!dom.refreshBtn) return;
-        if (isUpdating) {
-            const text = isFirstRun ? 'Iniciando Navegador...' : 'Actualizando...';
-            dom.refreshBtn.innerHTML = `<i class="fas fa-spinner fa-spin me-2"></i>${text}`;
-            dom.refreshBtn.disabled = true;
-        } else {
-            const text = isFirstRun ? 'Iniciar Navegador' : 'Actualizar Ahora';
-            dom.refreshBtn.innerHTML = `<i class="fas fa-sync-alt me-2"></i>${text}`;
-            dom.refreshBtn.disabled = false;
-        }
-    }
-
-    function renderColumnModal() {
-        if (!dom.columnConfigForm) return;
-        dom.columnConfigForm.innerHTML = '';
-        columnPreferences.all.forEach(col => {
-            const isChecked = columnPreferences.visible.includes(col);
-            dom.columnConfigForm.innerHTML += `<div class="col-6"><div class="form-check"><input class="form-check-input" type="checkbox" value="${col}" id="col-check-${col}" ${isChecked ? 'checked' : ''}><label class="form-check-label" for="col-check-${col}">${columnPreferences.config[col]?.title || col.replace(/_/g, ' ')}</label></div></div>`;
-        });
-    }
-
-    function renderFilterInputs() {
-        if (!dom.allStocksCheck || !dom.stockCodeInputs) return;
-        dom.allStocksCheck.checked = stockFilters.all;
-        dom.stockCodeInputs.forEach((input, index) => { input.value = stockFilters.codes[index] || ''; });
-    }
-
-    function formatColoredNumber(number, isCurrency = false) {
-        if (isNaN(number) || number === null) return 'N/A';
-        const options = isCurrency ? { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 } : {minimumFractionDigits: 2, maximumFractionDigits: 2};
-        const colorClass = number > 0 ? 'text-success' : (number < 0 ? 'text-danger' : 'text-muted');
-        return `<span class="fw-bold ${colorClass}">${number.toLocaleString('es-CL', options)}</span>`;
-    }
-
-    function renderPortfolioTable() {
-        if (!dom.portfolioTableBody) return;
-        dom.portfolioTableBody.innerHTML = '';
-
-        let portfolioTotalPaid = 0;
-        let portfolioTotalCurrentValue = 0;
-
-        if (portfolioHoldings.length === 0) {
-            dom.portfolioTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Aún no has añadido acciones a tu portafolio.</td></tr>';
-            $('#totalPaid, #totalCurrentValue, #totalGainLoss, #totalGainLossPercent').html('');
-            return;
-        }
-
-        portfolioHoldings.forEach(holding => {
-            const currentPriceData = stockPriceMap.get(holding.symbol);
-            let currentPrice = null;
-            if(currentPriceData && currentPriceData.PRECIO_CIERRE !== undefined) {
-                 currentPrice = parseFloat(String(currentPriceData.PRECIO_CIERRE).replace(",", "."));
+window.app = {
+    // ---- 1. ESTADO GLOBAL DE LA APLICACIÓN ----
+    state: {
+        isUpdating: false,
+        isFirstRun: true,
+        stockPriceMap: new Map(),
+        stockData: [],
+        timestamp: '--',
+        columnPrefs: {
+            all: [],
+            visible: [],
+            config: { // Mantener la configuración de renderizado aquí
+                'NEMO': { title: 'Símbolo' },
+                'PRECIO_CIERRE': { title: 'Precio', render: uiManager.createNumberRenderer() },
+                'VARIACION': { title: 'Var. %', render: uiManager.createNumberRenderer(true) },
+                'PRECIO_COMPRA': { title: 'P. Compra', render: uiManager.createNumberRenderer() },
+                'PRECIO_VENTA': { title: 'P. Venta', render: uiManager.createNumberRenderer() },
+                'MONTO': { title: 'Monto Transado', render: uiManager.createNumberRenderer(false, 'es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }) },
+                'UN_TRANSADAS': { title: 'Unidades', render: uiManager.createNumberRenderer() }
             }
-            
-            const totalPaid = holding.quantity * holding.purchase_price;
-            const currentValue = currentPrice !== null && !isNaN(currentPrice) ? holding.quantity * currentPrice : null;
-            const gainLoss = currentValue !== null ? currentValue - totalPaid : null;
-            let gainLossPercent = null;
-            if (gainLoss !== null && totalPaid > 0) {
-                gainLossPercent = (gainLoss / totalPaid) * 100;
+        },
+        stockFilters: { codes: [], all: true }
+    },
+    
+    // ---- 2. INICIALIZACIÓN ----
+    init() {
+        uiManager.init();
+        portfolioManager.init();
+        autoUpdater.init(uiManager);
+        this.initializeApp();
+        this.setupWebSocket();
+        this.attachEventListeners();
+        console.log('[App] Aplicación inicializada.');
+    },
+    
+    async initializeApp() {
+        uiManager.updateStatus('Inicializando...', 'info');
+        this.updateRefreshButton();
+        await Promise.all([this.loadPreferences(), portfolioManager.loadHoldings()]);
+        await this.fetchAndDisplayStocks();
+        const savedInterval = sessionStorage.getItem('autoUpdateInterval');
+        if (savedInterval) {
+            uiManager.dom.autoUpdateSelect.value = savedInterval;
+            if (savedInterval !== 'off') {
+                this.handleAutoUpdateChange();
             }
-
-            portfolioTotalPaid += totalPaid;
-            if (currentValue !== null) {
-                portfolioTotalCurrentValue += currentValue;
-            }
-
-            const row = `
-                <tr>
-                    <td><strong>${holding.symbol}</strong></td>
-                    <td>${holding.quantity.toLocaleString('es-CL')}</td>
-                    <td>${holding.purchase_price.toLocaleString('es-CL', {style:'currency', currency:'CLP'})}</td>
-                    <td>${totalPaid.toLocaleString('es-CL', {style:'currency', currency:'CLP'})}</td>
-                    <td>${currentPrice !== null && !isNaN(currentPrice) ? currentPrice.toLocaleString('es-CL', {style:'currency', currency:'CLP'}) : '<em>Esperando datos...</em>'}</td>
-                    <td>${currentValue !== null ? formatColoredNumber(currentValue, true) : 'N/A'}</td>
-                    <td>${gainLoss !== null ? formatColoredNumber(gainLoss, true) : 'N/A'}</td>
-                    <td>${gainLossPercent !== null ? formatColoredNumber(gainLossPercent) + '%' : 'N/A'}</td>
-                    <td>
-                        <button class="btn btn-danger btn-sm delete-holding-btn" data-id="${holding.id}">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-            `;
-            dom.portfolioTableBody.innerHTML += row;
-        });
-
-        const portfolioTotalGainLoss = portfolioTotalCurrentValue - portfolioTotalPaid;
-        const portfolioTotalGainLossPercent = (portfolioTotalPaid > 0) 
-            ? (portfolioTotalGainLoss / portfolioTotalPaid) * 100 
-            : 0;
-
-        $('#totalPaid').html(`<strong>${portfolioTotalPaid.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 })}</strong>`);
-        $('#totalCurrentValue').html(`<strong>${formatColoredNumber(portfolioTotalCurrentValue, true)}</strong>`);
-        $('#totalGainLoss').html(`<strong>${formatColoredNumber(portfolioTotalGainLoss, true)}</strong>`);
-        $('#totalGainLossPercent').html(`<strong>${formatColoredNumber(portfolioTotalGainLossPercent) + '%'}</strong>`);
-    }
-
-    function renderTable(stocks, timestamp, source) {
-        if (dataTable) {
-            dataTable.destroy();
-            $(dom.stocksTable).empty();
         }
-
-        stockPriceMap.clear();
-        if (!stocks || stocks.length === 0) {
-            updateStatus('No hay datos para mostrar con el filtro actual.', 'warning');
-            renderPortfolioTable();
-            return;
-        }
-        
-        stocks.forEach(stock => {
-            stockPriceMap.set(stock.NEMO, stock);
-        });
-
-        const allHeadings = Object.keys(stocks[0]);
-        let visibleHeadings = columnPreferences.visible.length > 0
-            ? columnPreferences.visible.filter(h => allHeadings.includes(h))
-            : allHeadings;
-
-        if (visibleHeadings.length === 0) visibleHeadings = allHeadings;
-
-        const dtColumns = visibleHeadings.map(key => ({
-            data: key,
-            title: columnPreferences.config[key]?.title || key.replace(/_/g, ' '),
-            render: columnPreferences.config[key]?.render || null
-        }));
-        
-        dataTable = $(dom.stocksTable).DataTable({
-            data: stocks,
-            columns: dtColumns,
-            responsive: true,
-            language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' },
-            dom: 'Bfrtip',
-            buttons: ['excelHtml5', 'csvHtml5'],
-            order: []
-        });
-
-        updateStatus(`Mostrando ${stocks.length} acciones. Fuente: ${source}`, 'success');
-        if (dom.lastUpdate) {
-            dom.lastUpdate.innerHTML = `<i class="fas fa-clock me-1"></i>Última act: ${timestamp}`;
-        }
-        
-        renderPortfolioTable();
-    }
-
-    // --- 4. LÓGICA DE DATOS Y PREFERENCIAS ---
-
-    async function loadPortfolio() {
-        try {
-            const response = await fetch('/api/portfolio');
-            if (!response.ok) throw new Error('Error al cargar el portafolio');
-            portfolioHoldings = await response.json();
-            renderPortfolioTable();
-        } catch (error) {
-            console.error(error);
-            updateStatus('No se pudo cargar tu portafolio.', 'danger');
-        }
-    }
-
-    async function loadPreferences() {
+    },
+    
+    // ---- 3. LÓGICA DE DATOS ----
+    async loadPreferences() {
         try {
             const [colsRes, filtersRes] = await Promise.all([fetch('/api/columns'), fetch('/api/filters')]);
             if (!colsRes.ok || !filtersRes.ok) throw new Error('No se pudieron cargar las preferencias.');
+            
             const colsData = await colsRes.json();
+            this.state.columnPrefs.all = colsData.all_columns;
+            this.state.columnPrefs.visible = colsData.visible_columns;
+            
             const filtersData = await filtersRes.json();
-            columnPreferences = {
-                ...columnPreferences,
-                all: colsData.all_columns,
-                visible: colsData.visible_columns,
-            };
-            columnPreferences.visible = columnPreferences.visible.filter(c => columnPreferences.all.includes(c));
-            if (columnPreferences.visible.length === 0) {
-                columnPreferences.visible = ['NEMO', 'PRECIO_CIERRE', 'VARIACION'];
-            }
-            stockFilters = { codes: filtersData.codes, all: filtersData.all !== false };
-            renderColumnModal();
-            renderFilterInputs();
+            this.state.stockFilters = { codes: filtersData.codes, all: filtersData.all !== false };
+            
+            uiManager.renderColumnModal(this.state.columnPrefs.all, this.state.columnPrefs.visible, this.state.columnPrefs.config);
+            uiManager.renderFilterInputs(this.state.stockFilters);
         } catch (error) {
-            console.error(error);
-            updateStatus('Error al cargar preferencias.', 'danger');
+            uiManager.updateStatus('Error al cargar preferencias.', 'danger');
         }
-    }
+    },
 
-    async function fetchAndDisplayStocks() {
-        const url = buildFilterUrl();
+    async fetchAndDisplayStocks() {
+        const codes = this.state.stockFilters.all ? [] : this.state.stockFilters.codes.filter(Boolean);
+        const url = new URL(window.location.origin + '/api/stocks');
+        if (codes.length > 0) {
+            codes.forEach(code => url.searchParams.append('code', code));
+        }
+        
         try {
             const response = await fetch(url);
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || 'Error del servidor');
-            renderTable(result.data, result.timestamp, result.source);
+            
+            this.state.stockData = result.data || [];
+            this.state.timestamp = result.timestamp || '--';
+            
+            this.state.stockPriceMap.clear();
+            this.state.stockData.forEach(stock => this.state.stockPriceMap.set(stock.NEMO, stock));
+
+            this.renderAllTables();
         } catch (error) {
-            console.error(error);
-            updateStatus(`Error al cargar datos: ${error.message}`, 'danger');
+            uiManager.updateStatus(`Error al cargar datos: ${error.message}`, 'danger');
         }
-    }
+    },
+    
+    renderAllTables() {
+        uiManager.renderTable(this.state.stockData, this.state.timestamp, this.state.columnPrefs.visible, this.state.columnPrefs.config);
+        portfolioManager.render(this.state.stockPriceMap);
+    },
 
-    async function saveColumnPreferences() {
-        const selectedColumns = Array.from(dom.columnConfigForm.querySelectorAll('input:checked')).map(input => input.value);
-        try {
-            await fetch('/api/columns', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ columns: selectedColumns })
-            });
-            columnPreferences.visible = selectedColumns;
-            bootstrap.Modal.getInstance(dom.columnConfigModal)?.hide();
-            await fetchAndDisplayStocks();
-        } catch (error) {
-            updateStatus('Error al guardar preferencias.', 'danger');
+    // ---- 4. MANEJO DE ESTADO Y EVENTOS ----
+    updateRefreshButton() {
+        let text = this.state.isFirstRun ? 'Iniciar Navegador' : 'Actualizar Ahora';
+        if (this.state.isUpdating) {
+            text = `<i class="fas fa-spinner fa-spin me-2"></i>` + (this.state.isFirstRun ? 'Iniciando...' : 'Actualizando...');
+        } else {
+            text = `<i class="fas fa-sync-alt me-2"></i>` + text;
         }
-    }
+        uiManager.updateRefreshButton(text, this.state.isUpdating);
+    },
 
-    async function saveFilterPreferences() {
-        stockFilters.codes = Array.from(dom.stockCodeInputs).map(input => input.value.trim().toUpperCase()).filter(Boolean);
-        stockFilters.all = dom.allStocksCheck.checked;
-        try {
-            await fetch('/api/filters', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(stockFilters)
-            });
-        } catch (error) { console.error('Error al guardar filtros:', error); }
-    }
-
-    // --- 5. LÓGICA DE CONTROL DEL BOT Y AUTO-UPDATE ---
-    let countdownInterval = null;
-
-    async function handleUpdateClick(isAutoUpdate = false) {
-        if (isUpdating) return;
-        isUpdating = true;
-        if (!isAutoUpdate) stopAutoUpdate();
-        updateRefreshButtonState();
-        toggleLoading(true, isFirstRun ? 'Iniciando Navegador...' : 'Actualizando datos...');
+    async handleUpdateClick(isAutoUpdate = false) {
+        if (this.state.isUpdating) return;
+        this.state.isUpdating = true;
+        if (!isAutoUpdate) autoUpdater.stop();
+        
+        this.updateRefreshButton();
+        uiManager.toggleLoading(true, this.state.isFirstRun ? 'Iniciando navegador...' : 'Actualizando datos...');
+        
         try {
             const response = await fetch('/api/stocks/update', { method: 'POST' });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.message || 'Fallo al iniciar el bot.');
-            updateStatus(data.message, 'info');
+            if (!response.ok) throw new Error((await response.json()).message);
+            uiManager.updateStatus('Proceso de actualización iniciado.', 'info');
         } catch (error) {
-            updateStatus(`Error: ${error.message}`, 'danger');
-            isUpdating = false;
-            toggleLoading(false);
-            updateRefreshButtonState();
-            if (isAutoUpdate) scheduleNextUpdate();
+            uiManager.updateStatus(`Error: ${error.message}`, 'danger');
+            this.state.isUpdating = false;
+            uiManager.toggleLoading(false);
+            this.updateRefreshButton();
+            if (isAutoUpdate) autoUpdater.start(uiManager.dom.autoUpdateSelect.value, () => this.handleUpdateClick(true));
         }
-    }
-
-    function buildFilterUrl() {
-        if (stockFilters.all || !stockFilters.codes || stockFilters.codes.length === 0) return '/api/stocks';
-        const queryParams = new URLSearchParams();
-        stockFilters.codes.forEach(code => queryParams.append('code', code));
-        return `/api/stocks?${queryParams.toString()}`;
-    }
-
-    async function handleFilterSubmit(event) {
-        event.preventDefault();
-        await saveFilterPreferences();
-        await fetchAndDisplayStocks();
-    }
+    },
     
-    function startCountdown(totalSeconds) {
-        if (countdownInterval) clearInterval(countdownInterval);
-        let remaining = totalSeconds;
-        
-        const updateCountdown = () => {
-            if (remaining <= 0) {
-                clearInterval(countdownInterval);
-                dom.countdownTimer.textContent = 'Actualizando...';
-                return;
-            }
-            const minutes = Math.floor(remaining / 60);
-            const seconds = remaining % 60;
-            dom.countdownTimer.textContent = `(Próxima en ${minutes}:${seconds < 10 ? '0' : ''}${seconds})`;
-            remaining--;
-        };
-
-        updateCountdown();
-        countdownInterval = setInterval(updateCountdown, 1000);
-    }
-    
-    function stopAutoUpdate() {
-        if (autoUpdateTimer) clearTimeout(autoUpdateTimer);
-        if (countdownInterval) clearInterval(countdownInterval); countdownInterval = null;
-        if (dom.countdownTimer) dom.countdownTimer.textContent = '';
-        console.log('[AutoUpdater] Ciclo detenido.');
-    }
-
-    function scheduleNextUpdate() {
-        const intervalValue = sessionStorage.getItem('autoUpdateInterval');
-        if (!intervalValue || intervalValue === 'off') {
-            return;
-        }
-
-        const [min, max] = intervalValue.split('-').map(Number);
-        const randomSeconds = Math.floor(Math.random() * (max * 60 - min * 60 + 1)) + (min * 60);
-        
-        console.log(`[AutoUpdater] Próxima actualización programada en ${randomSeconds} segundos.`);
-        startCountdown(randomSeconds);
-
-        autoUpdateTimer = setTimeout(() => {
-            console.log('[AutoUpdater] Disparando actualización automática.');
-            if (!isUpdating) handleUpdateClick(true);
-        }, randomSeconds * 1000);
-    }
-    
-    function handleAutoUpdateChange() {
-        const intervalValue = dom.autoUpdateSelect.value;
+    handleAutoUpdateChange() {
+        const intervalValue = uiManager.dom.autoUpdateSelect.value;
         sessionStorage.setItem('autoUpdateInterval', intervalValue);
         if (intervalValue === "off") {
-            stopAutoUpdate();
-            updateStatus('Auto-Update desactivado.', 'info');
+            autoUpdater.stop();
         } else {
-            if (!isFirstRun) {
-                handleUpdateClick(true);
+            if (!this.state.isFirstRun) {
+                this.handleUpdateClick(true);
             }
         }
-    }
+    },
 
-    // --- 6. INICIALIZACIÓN Y WEBSOCKETS ---
-    async function initializeApp() {
-        updateStatus('Inicializando...', 'info');
-        updateRefreshButtonState();
-        await Promise.all([loadPreferences(), loadPortfolio()]);
-        await fetchAndDisplayStocks();
-        
-        const savedInterval = sessionStorage.getItem('autoUpdateInterval');
-        if (savedInterval) {
-            dom.autoUpdateSelect.value = savedInterval;
-            if (savedInterval !== 'off') {
-                console.log('[Init] Intervalo de auto-update detectado en sesión. Reactivando ciclo...');
-                handleAutoUpdateChange();
-            }
-        }
-    }
+    async handleFilterSubmit(event) {
+        event.preventDefault();
+        this.state.stockFilters.codes = Array.from(uiManager.dom.stockCodeInputs).map(i => i.value.trim().toUpperCase());
+        this.state.stockFilters.all = uiManager.dom.allStocksCheck.checked;
+        await fetch('/api/filters', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(this.state.stockFilters)
+        });
+        await this.fetchAndDisplayStocks();
+    },
 
-    function setupWebSocket() {
+    async handleSaveColumnPrefs() {
+        const selectedColumns = Array.from(uiManager.dom.columnConfigForm.querySelectorAll('input:checked')).map(i => i.value);
+        this.state.columnPrefs.visible = selectedColumns;
+        await fetch('/api/columns', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ columns: selectedColumns })
+        });
+        bootstrap.Modal.getInstance(uiManager.dom.columnConfigModal).hide();
+        this.renderAllTables();
+    },
+
+    // ---- 5. CONFIGURACIÓN DE WEBSOCKETS ----
+    setupWebSocket() {
         const socket = io();
-        socket.on('connect', () => updateStatus('Conectado al servidor.', 'success'));
-        socket.on('disconnect', () => updateStatus('Desconectado.', 'danger'));
+        socket.on('connect', () => uiManager.updateStatus('Conectado al servidor.', 'success'));
+        socket.on('disconnect', () => uiManager.updateStatus('Desconectado.', 'danger'));
 
         socket.on('initial_session_ready', () => {
-            isUpdating = false;
-            isFirstRun = false;
-            toggleLoading(false);
-            updateRefreshButtonState();
-            updateStatus("Navegador listo. Presione 'Actualizar Ahora' para capturar datos.", 'success');
-            
-            if (dom.autoUpdateSelect.value !== 'off') {
-                 console.log('[AutoUpdater] El backend está listo, iniciando el primer ciclo de auto-actualización.');
-                 handleUpdateClick(true);
+            this.state.isUpdating = false;
+            this.state.isFirstRun = false;
+            uiManager.toggleLoading(false);
+            this.updateRefreshButton();
+            uiManager.updateStatus("Navegador listo. Puede iniciar la captura de datos.", 'success');
+            if (uiManager.dom.autoUpdateSelect.value !== 'off') {
+                this.handleUpdateClick(true);
             }
         });
         
         socket.on('new_data', async () => {
-            isUpdating = false;
-            toggleLoading(false);
-            updateRefreshButtonState();
-            updateStatus("¡Datos recibidos! Actualizando tabla...", 'success');
-            await fetchAndDisplayStocks();
-            scheduleNextUpdate(); 
+            this.state.isUpdating = false;
+            uiManager.toggleLoading(false);
+            this.updateRefreshButton();
+            uiManager.updateStatus("¡Nuevos datos recibidos! Actualizando...", 'success');
+            await this.fetchAndDisplayStocks();
+            autoUpdater.start(uiManager.dom.autoUpdateSelect.value, () => this.handleUpdateClick(true));
         });
 
         socket.on('bot_error', (data) => {
-            isUpdating = false;
-            toggleLoading(false);
-            updateRefreshButtonState();
-            updateStatus(`Error del bot: ${data.message}`, 'danger');
-            scheduleNextUpdate();
+            this.state.isUpdating = false;
+            uiManager.toggleLoading(false);
+            this.updateRefreshButton();
+            uiManager.updateStatus(`Error del bot: ${data.message}`, 'danger');
+            autoUpdater.start(uiManager.dom.autoUpdateSelect.value, () => this.handleUpdateClick(true));
         });
-    }
+    },
 
-    // --- 7. ASIGNACIÓN DE EVENT LISTENERS ---
-    function attachEventListeners() {
-        $(dom.refreshBtn).on('click', () => handleUpdateClick(false));
-        $(dom.stockFilterForm).on('submit', handleFilterSubmit);
-        $(dom.saveColumnPrefsBtn).on('click', saveColumnPreferences);
-        $(dom.autoUpdateSelect).on('change', handleAutoUpdateChange);
-        $(dom.clearFilterBtn).on('click', async () => {
-            dom.stockFilterForm.reset();
-            dom.allStocksCheck.checked = true;
-            const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
-            dom.stockFilterForm.dispatchEvent(submitEvent);
-        });
-
-        $(dom.portfolioForm).on('submit', async (e) => {
-            e.preventDefault();
-            const symbol = $('#portfolioSymbol').val().trim().toUpperCase();
-            const quantity = $('#portfolioQuantity').val();
-            const price = $('#portfolioPrice').val();
-
-            if (!symbol || !quantity || !price) {
-                alert('Todos los campos son obligatorios.');
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/portfolio', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ symbol, quantity: parseFloat(quantity), purchase_price: parseFloat(price) })
-                });
-
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || 'Error del servidor');
-                }
-
-                dom.portfolioForm.reset();
-                await loadPortfolio();
-
-            } catch (error) {
-                alert(`Error al añadir la acción: ${error.message}`);
-            }
-        });
+    // ---- 6. ASIGNACIÓN DE EVENT LISTENERS ----
+    attachEventListeners() {
+        // --- INICIO DE CORRECCIÓN: Restaurar todos los listeners ---
+        $(uiManager.dom.refreshBtn).on('click', () => this.handleUpdateClick(false));
+        $(uiManager.dom.autoUpdateSelect).on('change', () => this.handleAutoUpdateChange());
         
-        $(dom.portfolioTableBody).on('click', '.delete-holding-btn', async function() {
-            const holdingId = $(this).data('id');
-            if (confirm(`¿Estás seguro de que quieres eliminar esta acción de tu portafolio?`)) {
-                try {
-                    const response = await fetch(`/api/portfolio/${holdingId}`, { method: 'DELETE' });
-                    if (!response.ok) throw new Error('No se pudo eliminar el registro.');
-                    await loadPortfolio();
-                } catch (error) {
-                    alert(`Error: ${error.message}`);
-                }
-            }
+        $(uiManager.dom.stockFilterForm).on('submit', (e) => this.handleFilterSubmit(e));
+        $(uiManager.dom.saveColumnPrefsBtn).on('click', () => this.handleSaveColumnPrefs());
+        
+        $(uiManager.dom.clearFilterBtn).on('click', () => {
+            uiManager.dom.stockFilterForm.reset();
+            uiManager.dom.allStocksCheck.checked = true;
+            $(uiManager.dom.stockFilterForm).trigger('submit');
         });
-    }
 
-    // --- Helper para renderizar números ---
-    function createNumberRenderer(isPercent = false, locale = 'es-CL', options = {}) {
-        return function(data, type, row) {
-            if (type === 'display') {
-                if (data === null || data === undefined || data === '') return 'N/A';
-                const number = parseFloat(String(data).replace(",", "."));
-                if (isNaN(number)) return data;
-    
-                const colorClass = number > 0 ? 'text-success' : (number < 0 ? 'text-danger' : '');
-                let formattedNumber = number.toLocaleString(locale, options);
-                if (isPercent) formattedNumber += '%';
-                
-                return `<span class="fw-bold ${colorClass}">${formattedNumber}</span>`;
-            }
-            return data;
-        };
+        $(portfolioManager.dom.form).on('submit', (e) => portfolioManager.handleAdd(e));
+        $(portfolioManager.dom.tableBody).on('click', '.delete-holding-btn', function() {
+            portfolioManager.handleDelete($(this).data('id'));
+        });
+        // --- FIN DE CORRECCIÓN ---
     }
+};
 
-    initializeApp();
-    setupWebSocket();
-    attachEventListeners();
+// ---- INICIAR LA APLICACIÓN ----
+$(document).ready(() => {
+    window.app.init();
 });
