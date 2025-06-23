@@ -28,6 +28,8 @@ window.app = {
     init() {
         uiManager.init();
         portfolioManager.init();
+        dividendManager.init();
+        window.closingManager.init(); // <-- AÑADIDO
         // Inicializar el autoUpdater. Esto llamará a resume() automáticamente.
         autoUpdater.init(uiManager); 
         this.initializeApp();
@@ -42,8 +44,6 @@ window.app = {
         await Promise.all([this.loadPreferences(), portfolioManager.loadHoldings()]);
         await this.fetchAndDisplayStocks();
         
-        // La lógica de reanudar ya está en autoUpdater.init().
-        // Solo necesitamos asegurarnos de que el <select> muestre el valor guardado.
         const savedInterval = sessionStorage.getItem('autoUpdateInterval');
         if (savedInterval) {
             uiManager.dom.autoUpdateSelect.value = savedInterval;
@@ -114,7 +114,6 @@ window.app = {
         if (this.state.isUpdating) return;
         this.state.isUpdating = true;
         
-        // Solo detenemos el temporizador si es una actualización MANUAL.
         if (!isAutoUpdate) {
             autoUpdater.stop();
         }
@@ -132,7 +131,6 @@ window.app = {
             uiManager.toggleLoading(false);
             this.updateRefreshButton();
             
-            // Si la actualización automática falló, la reiniciamos.
             if (isAutoUpdate) {
                  autoUpdater.start(uiManager.dom.autoUpdateSelect.value, () => this.handleUpdateClick(true));
             }
@@ -146,7 +144,6 @@ window.app = {
         if (intervalValue === "off") {
             autoUpdater.stop();
         } else {
-            // Inicia un nuevo ciclo de actualización automática.
             autoUpdater.start(intervalValue, () => this.handleUpdateClick(true));
         }
     },
@@ -188,7 +185,6 @@ window.app = {
             this.updateRefreshButton();
             uiManager.updateStatus("Navegador listo. Puede iniciar la captura de datos.", 'success');
             
-            // Si hay un intervalo seleccionado, y no hay un temporizador ya corriendo, inicia uno.
             const intervalValue = uiManager.dom.autoUpdateSelect.value;
             const isTimerRunning = sessionStorage.getItem('autoUpdateTarget');
             if (intervalValue !== 'off' && !isTimerRunning) {
@@ -203,7 +199,6 @@ window.app = {
             uiManager.updateStatus("¡Nuevos datos recibidos! Actualizando...", 'success');
             await this.fetchAndDisplayStocks();
             
-            // Le decimos al autoUpdater que inicie un nuevo ciclo.
             const intervalValue = uiManager.dom.autoUpdateSelect.value;
             if (intervalValue !== 'off') {
                 autoUpdater.start(intervalValue, () => this.handleUpdateClick(true));
@@ -216,7 +211,6 @@ window.app = {
             this.updateRefreshButton();
             uiManager.updateStatus(`Error del bot: ${data.message}`, 'danger');
             
-            // Reiniciar el temporizador incluso si hay un error.
             const intervalValue = uiManager.dom.autoUpdateSelect.value;
              if (intervalValue !== 'off') {
                 autoUpdater.start(intervalValue, () => this.handleUpdateClick(true));

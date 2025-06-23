@@ -11,7 +11,10 @@ from .log_entry import LogEntry
 from .alert import Alert
 from .portfolio import Portfolio
 from .filtered_stock_history import FilteredStockHistory
-
+from .dividend import Dividend
+from .dividend_column_preference import DividendColumnPreference
+from .stock_closing import StockClosing
+from .closing_column_preference import ClosingColumnPreference
 
 # El __all__ define qué se importa cuando se hace 'from src.models import *'
 __all__ = [
@@ -26,5 +29,8 @@ __all__ = [
     "Alert",
     "Portfolio",
     "FilteredStockHistory", 
-    # --- FIN DE CORRECCIÓN ---
+    "Dividend",
+    "DividendColumnPreference",
+    "StockClosing",
+    "ClosingColumnPreference",
 ]

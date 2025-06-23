@@ -3,16 +3,21 @@ import asyncio
 import logging
 import traceback
 import time
+from datetime import datetime
 from flask import current_app
 from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError
 
+# --- Lógica del Bot ---
 from .bot_page_manager import get_page
-from .bot_login import auto_login, LoginError, TARGET_DATA_PAGE_URL, LOGIN_PAGE_URL_FRAGMENT
+from .bot_login import auto_login, LoginError, TARGET_DATA_PAGE_URL
 from .bot_data_capture import capture_market_time, capture_premium_data_via_network, validate_premium_data, DataCaptureError
+
+# --- Utilidades y Extensiones ---
 from src.utils.db_io import store_prices_in_db, save_filtered_comparison_history
 from src.extensions import socketio
 from src.routes.errors import log_error
 from src.utils.page_utils import _ensure_target_page
+from src.utils.time_utils import get_fallback_market_time # <-- IMPORTACIÓN NUEVA
 
 logger = logging.getLogger(__name__)
 _bot_running_lock = asyncio.Lock()
@@ -46,8 +51,6 @@ async def perform_session_health_check(page: Page, username: str, password: str)
     else:
         logger.info("[Health Check] ✓ La sesión existente es válida.")
 
-# --- INICIO DE CORRECCIÓN ---
-
 async def _attempt_data_capture(page: Page) -> tuple[datetime | None, dict | None]:
     """
     Función interna que realiza un único intento de captura de datos.
@@ -64,8 +67,6 @@ async def _attempt_data_capture(page: Page) -> tuple[datetime | None, dict | Non
 
     # Disparar la recarga de la página
     logger.info("Disparando recarga de página...")
-    # Usamos wait_for_load_state para asegurarnos de que la página termina de cargar
-    # antes de que los timeouts de los listeners expiren.
     await page.reload(wait_until="domcontentloaded", timeout=30000)
 
     # Esperar por las tareas de captura de datos.
@@ -76,93 +77,95 @@ async def _attempt_data_capture(page: Page) -> tuple[datetime | None, dict | Non
 async def run_bolsa_bot(app=None, username=None, password=None, **kwargs) -> str | None:
     global _is_first_run_since_startup
     
+    # Adquirir el lock para evitar ejecuciones concurrentes
     try:
         await asyncio.wait_for(_bot_running_lock.acquire(), timeout=0.1)
     except asyncio.TimeoutError:
+        logger.warning("Se ignoró una nueva solicitud de ejecución del bot porque ya estaba en curso.")
         return "ignored_already_running"
     
     try:
-        logger.info(f"=== INICIO DE EJECUCIÓN (Primera vez: {_is_first_run_since_startup}) ===")
+        logger.info(f"=== INICIO DE EJECUCIÓN DEL BOT (Primera vez: {_is_first_run_since_startup}) ===")
         page = await get_page()
 
+        # --- FASE 1: Asegurar Sesión ---
+        # Siempre se realiza un chequeo de salud de la sesión
+        logger.info("🚀 Fase 1: Chequeo y establecimiento de Sesión.")
+        await perform_session_health_check(page, username, password)
+        
+        # Si era la primera ejecución, notificamos al frontend que el navegador está listo.
         if _is_first_run_since_startup:
-            logger.info("🚀 Fase 1: Establecimiento de Sesión Inicial.")
-            await perform_session_health_check(page, username, password)
             _is_first_run_since_startup = False
             socketio.emit("initial_session_ready")
-            # En el primer run, el frontend inicia la fase 2.
-            # Aquí la corrección es que si el primer run es automático, debería continuar
-            if not kwargs.get('is_manual_trigger', True):
-                 logger.info("El primer run fue automático, procediendo a Fase 2.")
-            else:
-                return "phase_1_complete"
+            logger.info("✓ Navegador y sesión inicial listos. Notificación enviada al frontend.")
 
-        logger.info("🎬 Fase 2: Captura de Datos.")
-        await perform_session_health_check(page, username, password)
-
+        # --- FASE 2: Captura de Datos de Acciones ---
+        logger.info("🎬 Fase 2: Captura de Datos de Precios de Acciones.")
+        
         if not await _ensure_target_page(page, logger):
-             raise DataCaptureError("No se pudo asegurar la página de destino para la captura.")
+             raise DataCaptureError("No se pudo asegurar la página de destino para la captura de acciones.")
 
-        # --- Lógica de Reintentos ---
         max_attempts = 3
         market_time, raw_data = None, None
         
         for attempt in range(1, max_attempts + 1):
-            logger.info(f"--- Intento de captura {attempt}/{max_attempts} ---")
+            logger.info(f"--- Intento de captura de acciones {attempt}/{max_attempts} ---")
             try:
                 market_time, raw_data = await _attempt_data_capture(page)
                 
-                # Si ambos datos se capturan, salimos del bucle
                 if market_time and raw_data:
-                    logger.info(f"✓ Captura exitosa en el intento {attempt}.")
+                    logger.info(f"✓ Captura de acciones exitosa en el intento {attempt}.")
                     break
                 
-                # Si falta alguno, lo registramos y preparamos para el reintento
                 missing = []
                 if not market_time: missing.append("hora del mercado")
                 if not raw_data: missing.append("datos de precios")
-                logger.warning(f"Intento {attempt} fallido. Faltan datos: {', '.join(missing)}.")
+                logger.warning(f"Intento de captura de acciones {attempt} fallido. Faltan datos: {', '.join(missing)}.")
                 
             except Exception as e:
-                logger.error(f"Error grave en el intento de captura {attempt}: {e}", exc_info=True)
+                logger.error(f"Error grave en el intento de captura de acciones {attempt}: {e}", exc_info=True)
 
-            # Si no fue el último intento, esperamos antes de reintentar
             if attempt < max_attempts:
-                wait_time = attempt * 2  # Espera exponencial: 2s, 4s
-                logger.info(f"Esperando {wait_time} segundos antes del próximo intento...")
-                await asyncio.sleep(wait_time)
+                await asyncio.sleep(attempt * 2) # Espera incremental
             else:
-                 logger.error("Se agotaron los reintentos de captura.")
-
-        # --- Fin Lógica de Reintentos ---
-
+                 logger.error("Se agotaron los reintentos de captura de acciones.")
+        
+        # --- INICIO DE LA MODIFICACIÓN: Lógica de Fallback para la Hora del Mercado ---
         if not market_time:
-            raise DataCaptureError("No se pudo interceptar la hora del mercado después de varios intentos.")
+            logger.warning("No se pudo interceptar la hora del mercado en tiempo real. Calculando hora de cierre de fallback.")
+            market_time = get_fallback_market_time()
+            logger.info(f"✓ Usando hora de fallback: {market_time.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+
         if not raw_data:
-            raise DataCaptureError("No se pudo interceptar los datos de precios después de varios intentos.")
+            # Si después de los reintentos no hay datos de precios, es un error fatal.
+            raise DataCaptureError("No se pudieron capturar los datos de precios después de varios intentos.")
+        # --- FIN DE LA MODIFICACIÓN ---
         
         if not validate_premium_data(raw_data):
-            raise DataCaptureError("Formato de datos no válido.")
+            raise DataCaptureError("El formato de los datos de acciones no es válido.")
         
-        logger.info("✓ Hora y datos capturados. Pasando a la base de datos...")
+        logger.info(f"✓ Datos de acciones capturados. Se usarán con el timestamp: {market_time.strftime('%Y-%m-%d %H:%M:%S')}")
         
+        # Guardar en la DB dentro del contexto de la app
         with (app or current_app).app_context():
             store_prices_in_db(raw_data, market_time, app=app)
             save_filtered_comparison_history(market_timestamp=market_time, app=app)
             
-        return "phase_2_complete"
+        return "update_complete"
 
     except Exception as e:
-        # Resetear el estado si el bot falla para que el próximo intento sea un "primer run" completo
+        # Si algo falla (login, captura, etc.), reseteamos el flag para que el próximo intento sea completo.
         if isinstance(e, (LoginError, DataCaptureError)):
             _is_first_run_since_startup = True 
-        logger.error(f"Error en la ejecución del bot: {e}", exc_info=True)
+        
+        error_message = f"Error crítico en la ejecución del bot: {str(e)}"
+        logger.error(error_message, exc_info=True)
         socketio.emit("bot_error", {"message": str(e)})
-        with (app or current_app).app_context(): log_error("bot_automation", str(e), traceback.format_exc())
+        with (app or current_app).app_context():
+            log_error("bot_automation", str(e), traceback.format_exc())
         return f"error: {e}"
+        
     finally:
         if _bot_running_lock.locked():
              _bot_running_lock.release()
-        logger.info("=== FIN DE EJECUCIÓN ===")
-
-# --- FIN DE CORRECCIÓN ---
+        logger.info("=== FIN DE EJECUCIÓN DEL BOT ===")
