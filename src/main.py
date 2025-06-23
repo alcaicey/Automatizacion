@@ -79,6 +79,10 @@ def logs():
 def mantenedores():
     return render_template("mantenedores.html")
 
+@app.route("/indicadores")
+def indicadores():
+    return render_template("indicadores.html")
+
 @app.route("/login")
 def login():
     return render_template("login.html")
@@ -91,6 +95,7 @@ app.register_blueprint(architecture_bp)
 app.register_blueprint(crud_bp, url_prefix="/api") # Registrar el blueprint del CRUD
 
 @app.route("/static/<path:path>")
+
 def static_files(path):
     return send_from_directory(app.static_folder, path)
 

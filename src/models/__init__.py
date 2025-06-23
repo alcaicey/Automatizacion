@@ -15,7 +15,9 @@ from .dividend import Dividend
 from .dividend_column_preference import DividendColumnPreference
 from .stock_closing import StockClosing
 from .closing_column_preference import ClosingColumnPreference
-
+from .advanced_kpi import AdvancedKPI
+from .kpi_selection import KpiSelection 
+from .prompt_config import PromptConfig 
 # El __all__ define qué se importa cuando se hace 'from src.models import *'
 __all__ = [
     "db",
@@ -33,4 +35,7 @@ __all__ = [
     "DividendColumnPreference",
     "StockClosing",
     "ClosingColumnPreference",
+    "AdvancedKPI",
+    "KpiSelection", 
+    "PromptConfig",
 ]

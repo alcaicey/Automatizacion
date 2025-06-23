@@ -28,9 +28,8 @@ window.app = {
     init() {
         uiManager.init();
         portfolioManager.init();
-        dividendManager.init();
-        window.closingManager.init(); // <-- AÑADIDO
-        // Inicializar el autoUpdater. Esto llamará a resume() automáticamente.
+        // dividendManager.init(); // <- ELIMINADO
+        window.closingManager.init();
         autoUpdater.init(uiManager); 
         this.initializeApp();
         this.setupWebSocket();

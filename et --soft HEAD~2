@@ -1,0 +1,2710 @@
+[33mcommit 3ecb32d98ec137b4d0fd46b4e0e69c3909462654[m[33m ([m[1;36mHEAD -> [m[1;32mrefactor/breakout-utils[m[33m)[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Mon Jun 23 11:08:51 2025 -0400
+
+    build: Versión estable con kPIs
+
+[33mcommit f18f7d2c27ee7df0dfaf24dfed717e97864f8b82[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Mon Jun 23 10:06:57 2025 -0400
+
+    build: Versión estable con kPIs
+
+[33mcommit 4556b3cca095ec28c29750dcb2f63a4e0e25a1ca[m[33m ([m[1;31morigin/refactor/breakout-utils[m[33m)[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Sun Jun 22 21:51:33 2025 -0400
+
+    build: Versión estable con dividendos y cierre bolsa
+
+[33mcommit bd7bebaa582ab47d3ab27d2787c30b6535e669a9[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Thu Jun 19 16:48:40 2025 -0400
+
+    build: Versión con graficos
+
+[33mcommit b9deffd2d7ee416523f141617e6b3cb9e3de1219[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Thu Jun 19 15:27:55 2025 -0400
+
+    build: Versión con modifiaciones visuales
+
+[33mcommit 17d4e1f8e0cfb31a06e5efe4e436c739e37c3b35[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Thu Jun 19 12:30:59 2025 -0400
+
+    build: Versión estable con jealt check
+
+[33mcommit dc3ddd3bf8e5b52e28cc2a15262619f820cab7a1[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Thu Jun 19 10:51:01 2025 -0400
+
+    build: Versión estable con flujo de sesión implementado
+
+[33mcommit 22dc7b216fb5f59fecfb62203b9387662ca6a8e9[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Wed Jun 18 22:12:53 2025 -0400
+
+    build: Versión estable con flujo de sesión implementado
+
+[33mcommit f3b6d234082cb5cad7bd1f2db84388e961cd3404[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Wed Jun 18 22:03:58 2025 -0400
+
+    build: Versión con mi portafolio
+
+[33mcommit d86888b52a4a165aa9b0b7139485c1aaa7621d2f[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Wed Jun 18 21:08:11 2025 -0400
+
+    build: mejora de tiempos
+
+[33mcommit 4c3c73d93158cae44bdd4b4846d22df42ebd6589[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Wed Jun 18 18:48:30 2025 -0400
+
+    build: Versión estable con flujo de sesión implementado
+
+[33mcommit 25c36717c19af9823652f7750b161cc081c79267[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Wed Jun 18 18:31:34 2025 -0400
+
+    build: Versión estable con flujo de sesión implementado
+
+[33mcommit cac8c5e7fd24b0c6d3f10363632889de2ed5037f[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Wed Jun 18 17:30:22 2025 -0400
+
+    build: Versión estable con flujo de sesión implementado
+
+[33mcommit a067737f75e4e3ace6be6adc1d1fd2c8b9df2b29[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Wed Jun 18 16:26:10 2025 -0400
+
+    build: Versión estable con flujo de sesión implementado
+
+[33mcommit a43998e49344d4c5ec605227044fea485e3843c1[m
+Merge: 64e978d c2bff5f
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Tue Jun 17 22:28:48 2025 -0400
+
+    lo que faltaba de mantenedores
+
+[33mcommit 64e978ddbf315293940e88af13abaa09d8908005[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Tue Jun 17 22:22:54 2025 -0400
+
+    build: mantenedores funcionando
+
+[33mcommit bf144b9fdc59eecd8b12db4c919c3a767cfd2e87[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Tue Jun 17 18:46:15 2025 -0400
+
+    build: Version con dashboard
+
+[33mcommit f6e5119cbab3bf2b3b6ae23b53dc46fb70b1e186[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Tue Jun 17 16:45:53 2025 -0400
+
+    build: Vcambio de credenciales
+
+[33mcommit c2bff5f397a9027fdff0a2f96099180d03c4a2c1[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Tue Jun 17 18:46:15 2025 -0400
+
+    build: Version con dashboard
+
+[33mcommit 1d9743a6656277e8054771633b92dac05154b717[m
+Merge: dafd900 b70c9b9
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Tue Jun 17 18:40:45 2025 -0400
+
+    Merge pull request #125 from alcaicey/codex/generar-crud-dinámico-para-modelos-sqlalchemy
+    
+    Implement dynamic CRUD manager
+
+[33mcommit b70c9b92fd4903c1f768d28b76f647db9fda6f0f[m[33m ([m[1;31morigin/codex/generar-crud-dinámico-para-modelos-sqlalchemy[m[33m)[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Tue Jun 17 18:40:14 2025 -0400
+
+    Add dynamic CRUD API and UI
+
+[33mcommit f27582cccb611ed5662ddcd8d50d62f0f3dee5e1[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Tue Jun 17 16:45:53 2025 -0400
+
+    build: Vcambio de credenciales
+
+[33mcommit dafd9008a56d42833898eb1d868f639da99d382b[m
+Merge: 86c269b 02bb91c
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Tue Jun 17 16:44:11 2025 -0400
+
+    Merge pull request #124 from alcaicey/codex/implementar-almacenamiento-de-series-temporales-y-alertas
+    
+    Implement dashboard and alerts
+
+[33mcommit 02bb91c89ff670ae40042decfe7734965c6a41d6[m[33m ([m[1;31morigin/codex/implementar-almacenamiento-de-series-temporales-y-alertas[m[33m)[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Tue Jun 17 16:43:46 2025 -0400
+
+    feat: add dashboard and alert system
+
+[33mcommit 86c269bcd8447d09572c5f00b276cb33fd0ef0d9[m
+Merge: 57b2edf 3c60102
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Tue Jun 17 11:02:35 2025 -0400
+
+    Merge pull request #123 from alcaicey/refactor/breakout-utils
+    
+    Refactor/breakout utils
+
+[33mcommit 3c60102fb78d3cd6786e711ca77a9bbae42f433d[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Tue Jun 17 10:27:05 2025 -0400
+
+    build: Versión estable con flujo de login en 2 Fases
+
+[33mcommit 0d70fd3aca7dae94a5fe5ed19be32cc85e3ecb7e[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Thu Jun 12 12:19:55 2025 -0400
+
+    chore: remove duplicated DB/JSON/scheduler code from bolsa_service
+
+[33mcommit 4dd10ed3584cc3c0748934b3ca7b1aa64fab64f7[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Thu Jun 12 11:55:41 2025 -0400
+
+    refactor: move db_io and scheduler utilities to utils/ package
+
+[33mcommit 57b2edf501f69a0673b315d167084b992b06b82f[m[33m ([m[1;31morigin/master[m[33m, [m[1;31mdesde-laptop/master[m[33m, [m[1;31mdesde-laptop/desde-laptop[m[33m, [m[1;32mmaster[m[33m)[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Wed Jun 11 09:56:45 2025 -0400
+
+    limpieza
+
+[33mcommit 88a151832b48d725660bc6ba6c6b32e1dfcb1232[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Tue Jun 10 12:53:15 2025 -0400
+
+    Ignora venv y salida.txt
+
+[33mcommit 3096eed563510011eb0963a7b9112dee56e02cec[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Tue Jun 10 12:46:17 2025 -0400
+
+    Ignorar salida.txt
+
+[33mcommit bb00d9dc3ad23249ffe2c014c6f0cf6c70e1f831[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Tue Jun 10 12:35:59 2025 -0400
+
+    log de consola
+
+[33mcommit 1c4d46b9e87bb797be2bef771d6c9084c4be373b[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Tue Jun 10 12:32:21 2025 -0400
+
+    eliminar carpetas basura
+
+[33mcommit 8b2d1c7c99f42d806ca45e50f9777cf518adb781[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Sat Jun 7 19:56:31 2025 -0400
+
+    Agrega exclusión de entornos virtuales en .gitignore
+    
+    COMMIT
+
+[33mcommit 74b4dc228a15dbc4c3887d64efef2a11899581f9[m
+Merge: db42ef6 ef7b80a
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Wed Jun 11 09:49:50 2025 -0400
+
+    Merge pull request #121 from alcaicey/codex/añadir-regenera-diagrama-desde-frontend
+    
+    Remove placeholder DB diagram image
+
+[33mcommit ef7b80a0922c213f19d24827fd6be581af2e415b[m[33m ([m[1;31morigin/codex/añadir-regenera-diagrama-desde-frontend[m[33m)[m
+Merge: 49dffd0 db42ef6
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Wed Jun 11 09:44:15 2025 -0400
+
+    Merge branch 'master' into codex/añadir-regenera-diagrama-desde-frontend
+
+[33mcommit 49dffd0a18642e16aa5461c413644c93e9159836[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Wed Jun 11 09:14:37 2025 -0400
+
+    Remove diagram image
+
+[33mcommit db42ef6a6588ef509a4aa3e4c65e6d331afbd190[m
+Merge: b40daaf a663f12
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Wed Jun 11 09:00:32 2025 -0400
+
+    Merge pull request #120 from alcaicey/codex/crear-vista-de-arquitectura-de-base-de-datos
+    
+    Add architecture view with schema diagram
+
+[33mcommit a663f12f3a4e686036068f79d76db7240b5f983c[m[33m ([m[1;31morigin/codex/crear-vista-de-arquitectura-de-base-de-datos[m[33m)[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Wed Jun 11 09:00:20 2025 -0400
+
+    Add database diagram generation and view
+
+[33mcommit b40daafa8502080e0a0e5c42ee81df3c19ea028f[m
+Merge: 7504a07 5fd352b
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Wed Jun 11 08:35:03 2025 -0400
+
+    Merge pull request #119 from alcaicey/codex/generar-diagrama-de-base-de-datos-y-agregar-instrucciones
+    
+    Add DB diagram and PowerShell how-to
+
+[33mcommit 5fd352bc672752e3c11226de1e0be8d40535914c[m[33m ([m[1;31morigin/codex/generar-diagrama-de-base-de-datos-y-agregar-instrucciones[m[33m)[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Wed Jun 11 08:34:39 2025 -0400
+
+    Add DB diagram and PowerShell instructions
+
+[33mcommit 7504a0741fbe1d9b1049bd2d1551d83370e5f68c[m
+Merge: 241ebdd dd18cbe
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Wed Jun 11 08:21:02 2025 -0400
+
+    Merge pull request #118 from alcaicey/codex/refactorizar-y-estabilizar-sistema-de-scraping
+    
+    Implement error log API and tests
+
+[33mcommit dd18cbe7a06ef6d2914f0b6b61f24d1d82eceb80[m[33m ([m[1;31morigin/codex/refactorizar-y-estabilizar-sistema-de-scraping[m[33m)[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Wed Jun 11 08:20:42 2025 -0400
+
+    Add error logging blueprint and pagination
+
+[33mcommit 241ebdd1cbf644402949ecce2ae5bcaf1054b918[m
+Merge: c971fc2 d8a1176
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Wed Jun 11 08:02:54 2025 -0400
+
+    Merge pull request #117 from alcaicey/codex/reescribir-run_automation.py-para-usar-async_api
+    
+    Switch Playwright logic to async API
+
+[33mcommit d8a1176b8e8c22c3dddd361b3ac44a230226bd73[m[33m ([m[1;31morigin/codex/reescribir-run_automation.py-para-usar-async_api[m[33m)[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Wed Jun 11 08:02:20 2025 -0400
+
+    Switch scraping utilities to async Playwright
+
+[33mcommit c971fc2eb0457dea5f6597945690daa96b104e37[m
+Merge: de2438c a06c0a0
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Wed Jun 11 07:32:08 2025 -0400
+
+    Merge pull request #116 from alcaicey/codex/modularizar-script-bolsa_bot_automatizacion.py
+    
+    Modularize automation script
+
+[33mcommit a06c0a0fb67c69471048de40390a3ca2def70350[m[33m ([m[1;31morigin/codex/modularizar-script-bolsa_bot_automatizacion.py[m[33m, [m[1;31mdesde-laptop/codex/modularizar-script-bolsa_bot_automatizacion.py[m[33m)[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Wed Jun 11 07:31:50 2025 -0400
+
+    Modularize automation bot
+
+[33mcommit de2438c23c97bd56cc022f374d79b9dedf848795[m
+Merge: 009b928 6b8458d
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Tue Jun 10 23:40:58 2025 -0400
+
+    Merge pull request #115 from alcaicey/codex/centralizar-logs-en-base-de-datos
+    
+    Implement logs database and UI
+
+[33mcommit 6b8458d7d68d7af5d0df681c8795461c7f2be68c[m[33m ([m[1;31morigin/codex/centralizar-logs-en-base-de-datos[m[33m, [m[1;31mdesde-laptop/codex/centralizar-logs-en-base-de-datos[m[33m)[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Tue Jun 10 23:40:06 2025 -0400
+
+    Add database-backed log management
+
+[33mcommit 009b92898dc164fe142bc26c7ca27def1bf1ea87[m
+Merge: d1c9229 b677957
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Tue Jun 10 18:07:39 2025 -0400
+
+    Merge pull request #114 from alcaicey/codex/asegurar-validación-y-reintentos-de-errores
+    
+    Improve login robustness
+
+[33mcommit b67795757f7e8944c839881853611ebe0d1c414a[m[33m ([m[1;31morigin/codex/asegurar-validación-y-reintentos-de-errores[m[33m, [m[1;31mdesde-laptop/codex/asegurar-validación-y-reintentos-de-errores[m[33m)[m
+Merge: d7bb3a9 d1c9229
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Tue Jun 10 18:07:31 2025 -0400
+
+    Merge branch 'master' into codex/asegurar-validación-y-reintentos-de-errores
+
+[33mcommit d7bb3a91ec840adafe5c2fa748b3bc5c5336884c[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Tue Jun 10 17:25:49 2025 -0400
+
+    Improve login error handling and data validation
+
+[33mcommit d1c92296990d197174e859b3204ed6e72cfac7b7[m
+Merge: 540f647 177eaec
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Tue Jun 10 17:10:40 2025 -0400
+
+    Merge pull request #113 from alcaicey/codex/mejorar-logs-de-usuario-para-trader
+    
+    Enhance scraping logs
+
+[33mcommit 177eaecb70b5a24366931c0785c1367f64656797[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Tue Jun 10 17:10:24 2025 -0400
+
+    Improve logging summary
+
+[33mcommit 540f6475e34159bbd8c89a5b1a45d862bf19dfc3[m
+Merge: 042d64c 6b81c3f
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Tue Jun 10 15:47:10 2025 -0400
+
+    Merge pull request #112 from alcaicey/codex/modificar-cierre-del-navegador-en-run_automation
+    
+    Keep scraping browser open for manual review
+
+[33mcommit 6b81c3fa2d237ce6bab549486e1efe93a804489f[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Tue Jun 10 15:46:55 2025 -0400
+
+    feat(bot): keep browser open
+
+[33mcommit 042d64c3b2282d9e23f143ae065f4bb679456bce[m
+Merge: fc8844c e1b62bb
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Tue Jun 10 13:26:13 2025 -0400
+
+    Merge pull request #110 from alcaicey/codex/corregir-mapeo-de-columnas-en-datatables
+    
+    Fix comparison table mapping
+
+[33mcommit e1b62bb3af92dcf210595c7f66069a1276580158[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Tue Jun 10 13:26:02 2025 -0400
+
+    Fix comparison table mapping
+
+[33mcommit fc8844cef5ca72e196372e03c2939d2c350f737d[m
+Merge: b35a6bb 73c9602
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Tue Jun 10 13:25:19 2025 -0400
+
+    Merge pull request #109 from alcaicey/codex/corregir-sintaxis-del-bloque-mermaid
+    
+    Fix manual update flow diagram
+
+[33mcommit 73c96024ed84c23fee0f144a0f6bb18806495c72[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Tue Jun 10 13:24:50 2025 -0400
+
+    Fix flow diagram mermaid syntax
+
+[33mcommit b35a6bbb1d25430d2d06260b085e707de03fc872[m
+Merge: 9a540a6 e529088
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Tue Jun 10 13:21:30 2025 -0400
+
+    Merge pull request #108 from alcaicey/codex/actualizar-bot-para-evitar-conflictos-con-ventanas-manuales
+    
+    Fix Playwright response handling and add SANTIAGOX window guard
+
+[33mcommit e529088f89f543781f9c5a7f664c2f29cc130499[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Tue Jun 10 13:21:16 2025 -0400
+
+    Improve scraping bot handling and conflict detection
+
+[33mcommit 9a540a6f4e2ba1110ba94c545c6d8c8168e91ed2[m
+Merge: cec7944 29e0ea1
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Tue Jun 10 13:10:22 2025 -0400
+
+    Merge pull request #107 from alcaicey/codex/robustecer-validación-de-captura-de-datos-api
+    
+    Improve session validation when fetching stock prices
+
+[33mcommit 29e0ea15e51be5a5e1db868b0b8d48ba46f14d96[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Tue Jun 10 13:10:05 2025 -0400
+
+    Validate premium data and retry on empty JSON
+
+[33mcommit cec79441c1fb6a8779c41aea9bc30f3411f451bf[m
+Merge: 7a11cb6 277fcc8
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Tue Jun 10 12:28:39 2025 -0400
+
+    Merge pull request #106 from alcaicey/codex/modificar-flujo-de-login-y-navegación-en-bot-playwright
+    
+    Handle cookies login detection
+
+[33mcommit 277fcc8d79b70d67e1cac6590054a5b5334ea0d6[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Tue Jun 10 12:28:06 2025 -0400
+
+    Detect existing session via cookies
+
+[33mcommit 7a11cb66ae6513956a66c237564c16d0473785e2[m
+Merge: fd21a59 62b8b02
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 23:17:44 2025 -0400
+
+    Merge pull request #105 from alcaicey/codex/corregir-intersección-de-datos-y-mejorar-ui
+    
+    Fix browser refresh and credentials
+
+[33mcommit 62b8b02bfc27f95736fe450f2e768b779c8c9b52[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 23:17:25 2025 -0400
+
+    Fix browser refresh and credentials handling
+
+[33mcommit fd21a59c0408e132221ad0947847e028222c242f[m
+Merge: 9b86217 579e942
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 22:45:52 2025 -0400
+
+    Merge pull request #104 from alcaicey/codex/corregir-errores-en-scraper-y-vista-histórica
+    
+    Mejoras a refresco de datos y vista histórica
+
+[33mcommit 579e9424216d77384afb7773588c290778423059[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 22:45:35 2025 -0400
+
+    Fix refresh workflow and improve history
+
+[33mcommit 9b86217bc8a8eb9d87761260ae5c5ae050d38127[m
+Merge: 35a3b05 3dd0c6c
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 22:25:44 2025 -0400
+
+    Merge pull request #103 from alcaicey/codex/revisar-estructura-y-versión-de-mermaid
+    
+    Update mermaid version
+
+[33mcommit 3dd0c6cc844432826242160ff4571ab2cd0c1645[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 22:25:28 2025 -0400
+
+    Pin Mermaid version
+
+[33mcommit 35a3b05bca4d39d331843ec785834e2a2e263ee5[m
+Merge: 2a668bd ad8bd43
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 22:25:03 2025 -0400
+
+    Merge pull request #102 from alcaicey/codex/corregir-comparación-de-archivos-json
+    
+    Update price comparison to use database history
+
+[33mcommit ad8bd435e8a6c126f45b112b604d8cd4ae917d3b[m
+Merge: 4341e7d 2a668bd
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 22:24:55 2025 -0400
+
+    Merge branch 'master' into codex/corregir-comparación-de-archivos-json
+
+[33mcommit 4341e7dddf43145ec3481f580960b116d1f34368[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 22:20:50 2025 -0400
+
+    Add price comparison with DB
+
+[33mcommit 2a668bd06bec3537eac43d7f0d26b6e0b1e5c1f5[m
+Merge: 2881dc0 018335b
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 22:09:47 2025 -0400
+
+    Merge pull request #101 from alcaicey/codex/corregir-simulación-de-enter-en-navegador
+    
+    Fix Playwright refresh and history API
+
+[33mcommit 018335bec197695784ed1966a640553a5f01db00[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 22:08:05 2025 -0400
+
+    Fix refresh and history
+
+[33mcommit 2881dc04db6921935d29338bd3887771db338e6d[m
+Merge: 0bfeac9 26e60a0
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 21:50:44 2025 -0400
+
+    Merge pull request #100 from alcaicey/codex/corregir-error-epipe-al-cerrar-app
+    
+    Fix graceful shutdown to close Playwright and threads
+
+[33mcommit 26e60a073e1c7b5716b0fa1196109ee49606af7d[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 21:50:30 2025 -0400
+
+    Handle graceful shutdown
+
+[33mcommit 0bfeac9a999851a7ea06cdadb4970224710e80e1[m
+Merge: 8d23419 100a8b8
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 21:42:37 2025 -0400
+
+    Merge pull request #99 from alcaicey/codex/corregir-y-mejorar-script-de-comparación-de-archivos-de-prec
+    
+    Improve history comparison
+
+[33mcommit 100a8b8d1f519e8358f3fa3892e831f0ea317f21[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 21:42:09 2025 -0400
+
+    Improve historical comparison script
+
+[33mcommit 8d23419dd28f407bac0bd4831771b52cfeeb3a23[m
+Merge: 4dd79a7 212d96d
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 21:33:13 2025 -0400
+
+    Merge pull request #98 from alcaicey/codex/simular-enter-y-refrescar-página-con-playwright
+    
+    Improve refresh logic using Playwright
+
+[33mcommit 212d96d4f516cb9fa5c4625030a6df3af3c4bb27[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 21:31:58 2025 -0400
+
+    refactor: refresh browser via playwright
+
+[33mcommit 4dd79a7db79b5ffe1d156885b46e84f906baa21c[m
+Merge: 7a4147e 285aafe
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 21:04:01 2025 -0400
+
+    Merge pull request #96 from alcaicey/codex/implementar-vista-de-histórico-de-cargas-de-acciones
+    
+    Implement historical data view with comparison
+
+[33mcommit 285aafe9bd21b45465d19ac7d49f687fb264f604[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 21:03:46 2025 -0400
+
+    Add historical view and comparison
+
+[33mcommit 7a4147e25c13e9f68a6aa2ef79aa193e9aef0e66[m
+Merge: de158ed 254ac7b
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 20:28:37 2025 -0400
+
+    Merge pull request #95 from alcaicey/codex/mejorar-manejo-de-navegador-y-actualización-de-datos
+    
+    Improve browser reuse and diagrams
+
+[33mcommit 254ac7b0ec317c5975f6a157ae597b35b03323a0[m[33m ([m[1;31morigin/codex/mejorar-manejo-de-navegador-y-actualización-de-datos[m[33m, [m[1;31mdesde-laptop/codex/mejorar-manejo-de-navegador-y-actualización-de-datos[m[33m)[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 20:28:23 2025 -0400
+
+    Improve bot reuse and update diagrams
+
+[33mcommit de158ed688e6757359f314d71773d91f4b377b22[m
+Merge: c70cafc ea7cac4
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 19:54:02 2025 -0400
+
+    Merge pull request #94 from alcaicey/codex/mejorar-flujo-de-automatización-de-la-app
+    
+    Document event flows and handle browser refresh
+
+[33mcommit ea7cac4320da6813e683c16630da49756bfef531[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 19:53:47 2025 -0400
+
+    feat: log last_update changes and refresh browser
+
+[33mcommit c70cafc2dc4448b3c3648ebefb2679424ebbe1a1[m
+Merge: 63a0a7b 09b4825
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 19:42:15 2025 -0400
+
+    Merge pull request #93 from alcaicey/codex/agregar-diagramas-de-eventos-e-integración-en-arquitectura.h
+    
+    Add frontend event and processing diagrams
+
+[33mcommit 09b48259a99c65308d357051793668974c6da97b[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 19:42:02 2025 -0400
+
+    docs: add interface events and processing diagrams
+
+[33mcommit 63a0a7b1dd07fdb51c1c28e245e117e0d25ab2ef[m
+Merge: 68ba222 e5ff9e6
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 19:35:14 2025 -0400
+
+    Merge pull request #92 from alcaicey/codex/agregar-diagramas-de-flujo-detallados-con-mermaid.js
+    
+    Add detailed event and dependency diagrams
+
+[33mcommit e5ff9e67a560f148879c72648dcf75aa5d59f44d[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 19:35:01 2025 -0400
+
+    feat: add detailed event and dependency diagrams
+
+[33mcommit 68ba2220158aa38e6862c89bc754de36c3ec0909[m
+Merge: ce9e5d6 30f79b4
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 19:25:49 2025 -0400
+
+    Merge pull request #91 from alcaicey/codex/actualizar-sección-de-arquitectura
+    
+    Update architecture page with file structure
+
+[33mcommit 30f79b452c18073a5241a74e1f61bf43a18db029[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 19:25:38 2025 -0400
+
+    feat: improve architecture doc
+
+[33mcommit ce9e5d6b1ee742ac473b4a282afb5c6271b40204[m
+Merge: 856cce7 268af1b
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 18:48:02 2025 -0400
+
+    Merge pull request #90 from alcaicey/codex/agregar-diagramas-de-flujo-con-mermaid.js
+    
+    Add diagrams for UI events and errors
+
+[33mcommit 268af1bd01c6c52d23c6835b2949639ca674591e[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 18:47:47 2025 -0400
+
+    Add event and error diagrams
+
+[33mcommit 856cce77e35cbc1299f18e4788f5aa010d277e73[m
+Merge: e14234f 1b7221e
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 18:42:56 2025 -0400
+
+    Merge pull request #89 from alcaicey/codex/actualizar-validación-y-manejo-de-datos-en-frontend
+    
+    Improve update logic and logging
+
+[33mcommit 1b7221e5b6d9384aabec82586ff942cdbfde4808[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 18:42:18 2025 -0400
+
+    Enhance stock update handling
+
+[33mcommit e14234ff9e3e514305eda5bc2a82736c0f1bbc34[m
+Merge: e4bd742 233d674
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 18:31:25 2025 -0400
+
+    Merge pull request #88 from alcaicey/codex/analizar-y-depurar-problema-de-datos-desactualizados
+    
+    Bug fixes and architecture updates
+
+[33mcommit 233d6740ebb50aa4f2624b7742392ced8668a3ce[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 18:31:13 2025 -0400
+
+    Fix data retrieval and update architecture visuals
+
+[33mcommit e4bd7425f43e4ee4935835128f6060f46176c06e[m
+Merge: ebcf9db 18b5bcd
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 17:57:47 2025 -0400
+
+    Merge pull request #87 from alcaicey/codex/mejorar-presentación-y-contenido-de-arquitectura.html
+    
+    Update arquitectura diagrams and styling
+
+[33mcommit 18b5bcd7b09ecb499d25bd925dece17fd9377966[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 17:57:30 2025 -0400
+
+    Improve architecture page diagrams
+
+[33mcommit ebcf9dbf7862a12d07aa9fef7f72594ca5f84ab5[m
+Merge: e4d2140 6608161
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 17:56:46 2025 -0400
+
+    Merge pull request #86 from alcaicey/codex/actualizar-frontend-con-datos-recientes-de-acciones
+    
+    Add LastUpdate sync test
+
+[33mcommit 660816143a2846f7ef94f0b8acd18eb9f47b9c8f[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 17:56:22 2025 -0400
+
+    test: verify LastUpdate sync with JSON
+
+[33mcommit e4d2140a1ae152b0bb87f75dc3b74574f0dd21f4[m
+Merge: 3338653 661bedf
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 17:28:42 2025 -0400
+
+    Merge pull request #85 from alcaicey/codex/validar-y-actualizar-timestamp-en-response
+    
+    Implement JSON timestamp retry
+
+[33mcommit 661bedf57a42e4c87101cd45fd062ef7b3af399a[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 17:28:27 2025 -0400
+
+    feat: retry when stock JSON unchanged
+
+[33mcommit 3338653cf867f88b6eaa095cb1fedccd44e0f452[m
+Merge: f46dd45 f8c8893
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 16:51:28 2025 -0400
+
+    Merge pull request #84 from alcaicey/codex/forzar-headers-no-cache-en-solicitud-post
+    
+    Fix premium data caching
+
+[33mcommit f8c88934378ceee01c394ad2703ace50024b2103[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 16:51:17 2025 -0400
+
+    Add no-cache headers when fetching premium data
+
+[33mcommit f46dd45b54c622f796614c506398ba1d758bda3c[m
+Merge: ade9afb 09ee257
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 16:14:02 2025 -0400
+
+    Merge pull request #83 from alcaicey/codex/corregir-datos-desactualizados-en-tabla-de-acciones
+    
+    Fix network data capture timing
+
+[33mcommit 09ee257c151cbd9a7fa56ed64f9af89e05ec5886[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 16:12:28 2025 -0400
+
+    Improve stock data capture
+
+[33mcommit ade9afb73d046b53748c7a4afedf14465b8cbd19[m
+Merge: 1a50981 4eac2e5
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 15:08:12 2025 -0400
+
+    Merge pull request #80 from alcaicey/codex/desarrollar-diagramas-de-arquitectura-y-flujo
+    
+    Add architecture diagrams page
+
+[33mcommit 1a509818e8bf3d9dfafb25a32056503af540ca2c[m
+Merge: 51c69a8 7a0d4ea
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 15:07:06 2025 -0400
+
+    Merge pull request #81 from alcaicey/codex/corregir-actualización-de-tabla-en-frontend
+    
+    Fix frontend table refresh
+
+[33mcommit 7a0d4ea816aaf76117f46b77c67dcf1e16ead33d[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 15:06:23 2025 -0400
+
+    Add logging to frontend scripts for real-time updates
+
+[33mcommit 4eac2e5645d834d8f2ae267be4ae43ab12a52c81[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 13:38:44 2025 -0400
+
+    Add architecture page with diagrams
+
+[33mcommit 51c69a837d0d87074f755558a177b9b3735b4430[m
+Merge: 16a81d4 21ade7f
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 11:36:53 2025 -0400
+
+    Merge pull request #79 from alcaicey/codex/corregir-renderizado-de-tabla-html
+    
+    Improve stock table mapping
+
+[33mcommit 21ade7fc49315d690895d9eedc76dbebbc43a5d7[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Mon Jun 9 11:34:40 2025 -0400
+
+    refactor(frontend): reuse field mapping
+
+[33mcommit 16a81d4c5b24533c8f85940659120ae905c86a14[m
+Merge: 68df443 957c08a
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 21:19:39 2025 -0400
+
+    Merge pull request #78 from alcaicey/codex/corregir-renderizado-de-tabla-de-acciones
+    
+    Fix stock table rendering for DB format
+
+[33mcommit 957c08a199e7167c34bede9050633c6d3aa6d8e5[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 21:17:27 2025 -0400
+
+    fix(frontend): map db keys in table
+
+[33mcommit 68df4433f8cb72fe23618997aaf098de995e916b[m
+Merge: 3ff75c1 a6c2e50
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 20:53:35 2025 -0400
+
+    Merge pull request #77 from alcaicey/codex/generar-archivo-agents.md-con-descripción-de-agentes
+    
+    Add agent overview documentation
+
+[33mcommit a6c2e5029aa7ac7d221448047e9ffe9814e8303c[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 20:53:20 2025 -0400
+
+    Add AGENTS documentation
+
+[33mcommit 3ff75c1ad589fa6adbaa157afc8e01b8d007a7fe[m
+Merge: ac1c387 ff5b032
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 20:43:24 2025 -0400
+
+    Merge pull request #76 from alcaicey/codex/corregir-actualización-de-tabla-y-formato-de-datos
+    
+    Improve automation robustness
+
+[33mcommit ff5b032535e90be8300ddc0f0dcef4cd4e3127b1[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 20:42:17 2025 -0400
+
+    Add session persistence and fix log endpoint
+
+[33mcommit ac1c38766594205aeb15214f8f43110ef5672892[m
+Merge: bf8ca1c 1d26dd3
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 20:17:20 2025 -0400
+
+    Merge pull request #75 from alcaicey/codex/lista-de-mejoras-funcionales-y-visuales-para-traders
+    
+    Add dark mode toggle
+
+[33mcommit 1d26dd3388ceb0f641c1a7e5cd9e66f3e70f0a47[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 20:17:04 2025 -0400
+
+    Add dark mode toggle
+
+[33mcommit bf8ca1c71237420d1582e109537f77261aac654f[m
+Merge: 9b41e90 1b97e26
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 20:04:22 2025 -0400
+
+    Merge pull request #74 from alcaicey/codex/solucionar-error-403-en-llamadas-a-la-api
+    
+    Improve premium data fetch
+
+[33mcommit 1b97e26b8164aa42d75b2130642d5ee8f1b65aad[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 20:04:09 2025 -0400
+
+    feat: try direct premium data fetch
+
+[33mcommit 9b41e900652029df51e8fcf1cc559f6c19ff25a7[m
+Merge: 0269ff2 52b1174
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 20:03:37 2025 -0400
+
+    Merge pull request #73 from alcaicey/codex/add-fallbacks-to-store_prices_in_db-and-filter_stocks
+    
+    Handle alt stock keys
+
+[33mcommit 52b1174f682b57bc3de4b4c448d91cb152825a91[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 20:03:24 2025 -0400
+
+    Add fallback key support and tests
+
+[33mcommit 0269ff2fdb89d633f05d247047daa1ef45e2283d[m
+Merge: a6b6b25 bbd6a17
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 20:02:52 2025 -0400
+
+    Merge pull request #72 from alcaicey/codex/add-route-and-unit-tests-for-logging
+    
+    Add client error logging endpoint
+
+[33mcommit bbd6a17f387b772abc4db5bd447b5cabdb6c4803[m
+Merge: fdd3dc0 a6b6b25
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 20:02:44 2025 -0400
+
+    Merge branch 'master' into codex/add-route-and-unit-tests-for-logging
+
+[33mcommit fdd3dc09044848ec8ee2d5ddf1d35db6f271b738[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 19:59:47 2025 -0400
+
+    Add client error logging endpoint with tests
+
+[33mcommit a6b6b25d966a1f6efb9df695b6d27b0cc74b8dd9[m
+Merge: 749c465 b719bf4
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 19:59:20 2025 -0400
+
+    Merge pull request #71 from alcaicey/codex/verificar-renderizado-de-datos-en-tabla-html
+    
+    Add missing frontend log endpoint
+
+[33mcommit b719bf458bfde7efa82b4cb74c0c805e1b54eb65[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 19:59:07 2025 -0400
+
+    Add frontend logging endpoint
+
+[33mcommit 749c465bd9bfa13158a554807038b0b63a1575da[m
+Merge: 60deb74 a6c41b6
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 19:47:15 2025 -0400
+
+    Merge pull request #70 from alcaicey/codex/esperar-10-segundos-si-aparece-captcha
+    
+    Implement fixed CAPTCHA wait
+
+[33mcommit a6c41b65cf07b74c8a90bcae5b2e216d0b418554[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 19:47:03 2025 -0400
+
+    Add fixed captcha wait
+
+[33mcommit 60deb74fd1a26e62ba402350d1aec1f505872eb1[m
+Merge: 4959933 648c04e
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 19:35:57 2025 -0400
+
+    Merge pull request #69 from alcaicey/codex/actualizar-contenido-de-tabla-dinámica-en-app.js
+    
+    Ensure DOM nodes are captured after DOMContentLoaded
+
+[33mcommit 648c04e4da7ec003a2d1072260d3b09ac63cbacf[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 19:35:42 2025 -0400
+
+    Delay DOM element lookup until DOMContentLoaded
+
+[33mcommit 495993394783fa331b40154a300b061483085470[m
+Merge: e166095 d3b59fb
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 19:02:30 2025 -0400
+
+    Merge pull request #68 from alcaicey/codex/agregar-verificación-timestamp-y-log-de-scraping
+    
+    Improve scraping file handling
+
+[33mcommit d3b59fbdd248fcbd2fbd116b4ae542045e025c67[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 19:02:18 2025 -0400
+
+    Improve scraping workflow
+
+[33mcommit e166095eb3348b96499d2a35ff4d0d2d47c3318a[m
+Merge: 7683561 8b3c7d6
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 18:47:48 2025 -0400
+
+    Merge pull request #67 from alcaicey/codex/agregar-argumento-opcional-keep_open
+    
+    Add keep_open flag to automation
+
+[33mcommit 8b3c7d61c4923aaa39731f83a0b79462dcbab4f1[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 18:47:04 2025 -0400
+
+    Add keep_open option to automation
+
+[33mcommit 7683561ea148ce9a0604005327ca69b78ea25075[m
+Merge: 5736783 468722d
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 18:45:44 2025 -0400
+
+    Merge pull request #66 from alcaicey/codex/consolidar-constante-logs_dir
+    
+    Unify LOGS_DIR constant
+
+[33mcommit 468722dddff5b9f795bd68d38b052b22f6941508[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 18:45:30 2025 -0400
+
+    consolidate log dir constant
+
+[33mcommit 57367835709851478c68f3ba8d9883149d6184a0[m
+Merge: 199c734 242a41b
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 18:10:30 2025 -0400
+
+    Merge pull request #65 from alcaicey/codex/añadir-verificación-de-navegador-abierto-y-manejo-de-errores
+    
+    Improve refresh logic when browser closed
+
+[33mcommit 242a41b58f8282e8c3f8e0e827b1087948db6639[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 18:10:16 2025 -0400
+
+    Handle refresh failure and restart bot
+
+[33mcommit 199c7347736088dd93434b507a7d30cf0e4adc1d[m
+Merge: 6860cbf 2266519
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 17:37:40 2025 -0400
+
+    Merge pull request #64 from alcaicey/codex/mostrar-contador-de-próxima-actualización
+    
+    Add countdown in auto update status
+
+[33mcommit 2266519fa3259a10fed94ec84da0dae965dec529[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 17:36:20 2025 -0400
+
+    Show countdown for next auto update
+
+[33mcommit 6860cbfc42c613160a10e39335d523e21453d7ef[m
+Merge: ab2fc7d 186e1ad
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 17:35:49 2025 -0400
+
+    Merge pull request #63 from alcaicey/codex/registrar-ejecución-y-actualizar-información-en-url
+    
+    Implement refresh shortcut and stock filter endpoints
+
+[33mcommit 186e1ad3b6000da76fd9d8f3c3305fc108edd320[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 17:35:08 2025 -0400
+
+    feat: refresh running bot with enter
+
+[33mcommit ab2fc7d4ed1cd65f2d8b1fdbab04cfde9c90d230[m
+Merge: 6c5f902 6f21172
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 16:54:00 2025 -0400
+
+    Merge pull request #62 from alcaicey/codex/corregir-problemas-al-seleccionar-columnas-en-configuración
+    
+    Fix column config table reload
+
+[33mcommit 6f21172dec2cc4bffff118d00dbd3d36717fcebb[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 16:53:49 2025 -0400
+
+    Fix table reinitialization after column config
+
+[33mcommit 6c5f902a7543b7bf9d6dfbbca2c76c615e5d4b1d[m
+Merge: e814795 98e363d
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 16:53:22 2025 -0400
+
+    Merge pull request #61 from alcaicey/codex/agregar-columna-de-timestamp-para-última-actualización
+    
+    Add tracking of last update timestamp in DB
+
+[33mcommit 98e363d115480cbea4241a83f7a018b0322ec752[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 16:52:57 2025 -0400
+
+    Add last update tracking
+
+[33mcommit e8147957a2e3a2610f637da5b2607109c3481c0c[m
+Merge: 3fba794 50ee32f
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 16:36:49 2025 -0400
+
+    Merge pull request #60 from alcaicey/codex/guardar-filtros-de-órdenes-en-base-de-datos
+    
+    Persist stock filter preference with 'All' option
+
+[33mcommit 50ee32fa79734a53836955a3ca9d1285c4b287ab[m
+Merge: 9ac527f 3fba794
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 16:31:17 2025 -0400
+
+    Merge branch 'master' into codex/guardar-filtros-de-órdenes-en-base-de-datos
+
+[33mcommit 9ac527f001150b208904901972b898288ea80305[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 16:28:43 2025 -0400
+
+    Remove redundant json import
+
+[33mcommit 55a671d82081225f0363755bafbc8e5d2bf90d54[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 16:19:14 2025 -0400
+
+    Add stock filter persistence and 'All' option
+
+[33mcommit 3fba79420cca91982c669e4652b16d414352e733[m
+Merge: 7a09f45 fafa497
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 16:18:46 2025 -0400
+
+    Merge pull request #59 from alcaicey/codex/agregar-logs-de-errores-y-centralizar-carpeta
+    
+    Add centralized logging and frontend error reporting
+
+[33mcommit fafa4977139e111fdbf97fe174636bc899701c5d[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 16:18:37 2025 -0400
+
+    Centralize logs and add frontend error logging
+
+[33mcommit 7a09f453216fa150b9445cb9ffce4737ac9f08a4[m
+Merge: 723be94 5c4e0b4
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 16:02:38 2025 -0400
+
+    Merge pull request #58 from alcaicey/codex/fix-columna-configurada-no-desaparece
+    
+    Fix column selection refresh bug
+
+[33mcommit 5c4e0b43b724fd961555aa8578a7679e072dc787[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 16:02:12 2025 -0400
+
+    Fix column visibility refresh
+
+[33mcommit 723be9475953872720774028c5e2f1ed2b9c9fba[m
+Merge: e303742 d15a7d4
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 15:46:33 2025 -0400
+
+    Merge pull request #57 from alcaicey/codex/agregar-valores-faltantes-y-controles-de-tabla
+    
+    Add column visibility preferences
+
+[33mcommit d15a7d48817eabf329dabc3c7c7632850651b326[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 15:46:20 2025 -0400
+
+    Add column preferences and table config
+
+[33mcommit e303742252a8d0c7ab5c9d98dbdda67c0eafc6c6[m
+Merge: 0eda020 cbf6b63
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 15:22:37 2025 -0400
+
+    Merge pull request #56 from alcaicey/codex/evitar-reabrir-navegador-en-actualizaciones
+    
+    Prevent multiple browser instances in Bolsa bot
+
+[33mcommit cbf6b633af674faab60774473e5b4db6d5d0e500[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 15:22:22 2025 -0400
+
+    Avoid browser relaunch while bot running
+
+[33mcommit 0eda0202edb31c6ca98809a340f519b18095a71b[m
+Merge: c1a4741 59b4a57
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 14:48:03 2025 -0400
+
+    Merge pull request #55 from alcaicey/codex/investigar-cierre-inesperado-del-navegador
+    
+    keep browser open after HAR analysis
+
+[33mcommit 59b4a57e58c68ff5d0d8f9c05cd585e4f5796333[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 14:47:18 2025 -0400
+
+    keep browser open after har analysis
+
+[33mcommit c1a4741050c23231510a785a6c6cb3a4d57960f0[m
+Merge: 59bf651 cc74305
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 14:26:33 2025 -0400
+
+    Merge pull request #54 from alcaicey/codex/agregar-login-con-almacenamiento-de-credenciales
+    
+    Add login with credential storage
+
+[33mcommit cc74305558620e205d9037a332f83bdd5a190a10[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 14:25:53 2025 -0400
+
+    Add login feature with credential storage
+
+[33mcommit 59bf651957ceeff1c78f11d5bf5be11fe1cc539a[m
+Merge: f0bd64d ebe5512
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 14:11:47 2025 -0400
+
+    Merge pull request #53 from alcaicey/codex/modify-store_prices_in_db-for-upsert-strategy
+    
+    Enable idempotent stock price inserts
+
+[33mcommit ebe5512e61c411316178e504a1ab82cd800ffb5e[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 14:11:15 2025 -0400
+
+    Implement upsert for storing stock prices and test
+
+[33mcommit f0bd64dd6b0eac516e0431b18f24a51513e3147d[m
+Merge: b0c7194 d0aa395
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 14:04:36 2025 -0400
+
+    Merge pull request #52 from alcaicey/codex/realizar-cambios-para-corregir-fallos
+    
+    Update README for Playwright dependencies
+
+[33mcommit d0aa395128ea5bbd5d16ca645d5f6115b42b8d50[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 14:04:24 2025 -0400
+
+    docs: add playwright install-deps step
+
+[33mcommit b0c7194bda66364558ba2afb796599a184d21441[m
+Merge: 3ae3a2e eda9b80
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 14:03:53 2025 -0400
+
+    Merge pull request #51 from alcaicey/codex/actualizar-manejo-de-credenciales-en-el-código
+    
+    Enforce env credentials
+
+[33mcommit eda9b80a5d502cd969882119b517b0f767fc78ef[m[33m ([m[1;31morigin/codex/actualizar-manejo-de-credenciales-en-el-código[m[33m, [m[1;31mdesde-laptop/codex/actualizar-manejo-de-credenciales-en-el-código[m[33m)[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 14:03:05 2025 -0400
+
+    Make credentials mandatory via env vars
+
+[33mcommit 3ae3a2ec89973fa2e1553345155f1124c1d08da5[m
+Merge: f7f2240 fc28420
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 13:20:57 2025 -0400
+
+    Merge pull request #50 from alcaicey/codex/investigar-cierre-del-navegador-al-usar-opción-s-o-n
+    
+    Fix interactive flag handling
+
+[33mcommit fc2842054acce27480b12cfa0f270369e54393ea[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 13:19:58 2025 -0400
+
+    Use env var default for interactive mode
+
+[33mcommit f7f224079d46c9a7383ee751be5e7bfd6b4516a4[m
+Merge: 469c90c 9ec7d76
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 12:56:10 2025 -0400
+
+    Merge pull request #49 from alcaicey/codex/agregar-opción-interactiva-para-ejecución
+    
+    Prompt for non interactive mode
+
+[33mcommit 9ec7d76bf0823f005d15e0c1ff7c5c2904997397[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 12:53:25 2025 -0400
+
+    Prompt for non-interactive mode on start
+
+[33mcommit 469c90c0bdf492dc79bdf145d9e10916fe0f971b[m
+Merge: 1ba9ee7 39ceac3
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 12:12:43 2025 -0400
+
+    Merge pull request #48 from alcaicey/codex/enhance-run_automation-for-captcha-detection
+    
+    Handle captcha pause in automation
+
+[33mcommit 39ceac342146ce63a6ccff798a73c7a60d05215f[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 12:12:28 2025 -0400
+
+    Detect captcha and pause
+
+[33mcommit 1ba9ee7913941026838b05844c522c60f61a6863[m
+Merge: 8787b77 db69a42
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 12:11:01 2025 -0400
+
+    Merge pull request #47 from alcaicey/codex/añadir-parámetro-non_interactive-a-run_bolsa_bot
+    
+    Add interactive flag for bolsa bot
+
+[33mcommit db69a4223ae8150b208454324eca37d8d19a625c[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sun Jun 8 12:10:41 2025 -0400
+
+    Add interactive control for bolsa bot
+
+[33mcommit 8787b77396548b2b3725cf707861c0502b52770d[m
+Merge: bffc724 307e731
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 22:29:50 2025 -0400
+
+    Merge pull request #46 from alcaicey/codex/crear-test-unitario-para-botones-filtrar-y-actualizar
+    
+    Add browser-launch integration tests
+
+[33mcommit 307e731d40b604a20b0014966bca4547d56b4895[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 22:29:09 2025 -0400
+
+    Add tests ensuring browser launch on filter and update
+
+[33mcommit bffc7242d5796ccf3f37dd432aa3c364a8a43207[m
+Merge: 3f60389 2c9caef
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 22:16:57 2025 -0400
+
+    Merge pull request #45 from alcaicey/codex/update-socket.io-to-cdn
+    
+    Use CDN for Socket.IO client
+
+[33mcommit 2c9caef5e473ee931dd362eec6ae1edf0ed82dca[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 22:16:46 2025 -0400
+
+    Use Socket.IO CDN
+
+[33mcommit 3f60389c62509f4ad14d605f6082626c7036d7dd[m
+Merge: 4e40a91 efb12d9
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 22:04:49 2025 -0400
+
+    Merge pull request #44 from alcaicey/codex/fix-databaseerror-with-unique-index
+    
+    Fix Timescale hypertable primary key
+
+[33mcommit efb12d94d1aa5aa0808209b6d06917a70a658da8[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 22:03:19 2025 -0400
+
+    Use composite key for StockPrice
+
+[33mcommit 4e40a917ae6e5636115a9e840731f13e42c7d640[m
+Merge: 26b5ccc 173a60d
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 21:13:15 2025 -0400
+
+    Merge pull request #43 from alcaicey/codex/actualizar-readme-y-pasos-de-configuración
+    
+    Fix README setup path
+
+[33mcommit 173a60d8aa0f1370bafd828032e3523dde7775ab[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 21:13:00 2025 -0400
+
+    docs: clarify setup paths
+
+[33mcommit 26b5ccc864555e97d927c2ce7c4b69018e7847cd[m
+Merge: 40201e6 9ec052f
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 21:12:33 2025 -0400
+
+    Merge pull request #42 from alcaicey/codex/update-app-context-handling-and-add-tests
+    
+    Run bolsa bot with Flask context
+
+[33mcommit 9ec052fd170dfc28814d24ca139be17cd5c31362[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 21:12:05 2025 -0400
+
+    Ensure bolsa bot runs with app context
+
+[33mcommit 40201e6c0b0a7972aa436c87c245287097260daf[m
+Merge: faa01cd d8a5224
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 21:11:36 2025 -0400
+
+    Merge pull request #41 from alcaicey/codex/modify-primary-key-to-include-timestamp
+    
+    Ensure stock price timestamps are unique
+
+[33mcommit d8a5224465afab7e09e15fb1b9f2bef732e75b46[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 21:10:17 2025 -0400
+
+    Add unique constraint including timestamp
+
+[33mcommit faa01cd4dc3a8fd888b35b7f5f5968a5b515bbae[m
+Merge: a07f434 79de941
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 21:08:06 2025 -0400
+
+    Merge pull request #40 from alcaicey/codex/reemplazar-imagen-en-docker-compose.yml
+    
+    Update TimescaleDB image
+
+[33mcommit 79de94169fece2c7f368663cbbffef2b326aa1ac[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 21:07:53 2025 -0400
+
+    Update TimescaleDB image
+
+[33mcommit a07f434e18c5544b00d9643b859c61af01c253f3[m
+Merge: 7dd48fd 7010f39
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 20:17:32 2025 -0400
+
+    Merge pull request #39 from alcaicey/codex/incluir-pytest-en-requirements.txt
+    
+    Add pytest to requirements and streamline CI
+
+[33mcommit 7010f39adf529dba1560bfc7d851ef7b1dda3877[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 20:17:21 2025 -0400
+
+    Include pytest in requirements and simplify CI
+
+[33mcommit 7dd48fd01bb83f21f8f31a0380c46e7dca2e997a[m
+Merge: 7fa2c8d 4e8917b
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 20:02:31 2025 -0400
+
+    Merge pull request #38 from alcaicey/codex/remove-and-ignore-virtual-environment
+    
+    Ignore local virtual environments
+
+[33mcommit 4e8917b4593d3e5708a0306d084d760ef1c2092e[m
+Merge: ed19bde 7fa2c8d
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 20:00:58 2025 -0400
+
+    Merge branch 'master' into codex/remove-and-ignore-virtual-environment
+
+[33mcommit ed19bde8a75535164de78673a99d9b6db493a76b[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 19:58:48 2025 -0400
+
+    Remove virtual environment from repository and ignore it
+
+[33mcommit 16e75911d8bb8718bafe81cc6f4b0fe910cc865c[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Sat Jun 7 19:30:44 2025 -0400
+
+    Eliminar carpeta envLocal del repositorio
+
+[33mcommit 7fa2c8d91b04157b6bfe1b23e6ac46bdb7f6b323[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Sat Jun 7 18:42:10 2025 -0400
+
+    limpieza de archivos basura
+
+[33mcommit f2c63fa4a02056b524a5ec9650b5d4fcd55be0de[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Sat Jun 7 18:42:10 2025 -0400
+
+    limpieza de archivos basura
+
+[33mcommit d3be4b95574a66880a85a0f7fcfed0a88d5c75f8[m
+Merge: 1448385 73fb662
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 18:52:13 2025 -0400
+
+    Merge pull request #34 from alcaicey/codex/fix-error-with----in-powershell
+    
+    Update README with PowerShell steps
+
+[33mcommit cc005b11aec6f44522f5d2140b5ada8b9bd3bbee[m
+Merge: 96051c1 165d63d
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 18:52:13 2025 -0400
+
+    Merge pull request #34 from alcaicey/codex/fix-error-with----in-powershell
+    
+    Update README with PowerShell steps
+
+[33mcommit 14483859243a0c32952d3ce1acafbec5395d85ae[m
+Merge: cb16de0 a888d0e
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 18:13:06 2025 -0400
+
+    Merge pull request #37 from alcaicey/codex/excluir-archivos-de-logs-del-control-de-versiones
+    
+    Exclude generated log files
+
+[33mcommit 96051c1e720fb6c113109be49ac6945778685251[m
+Merge: 131f02a cc12012
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 18:13:06 2025 -0400
+
+    Merge pull request #37 from alcaicey/codex/excluir-archivos-de-logs-del-control-de-versiones
+    
+    Exclude generated log files
+
+[33mcommit a888d0e8fe24acd9c6a6b42110b7369ebef48b5c[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 18:12:51 2025 -0400
+
+    Exclude generated log files from version control
+
+[33mcommit cc120121aa50dd6a4e392d0930a7873fe4b90d00[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 18:12:51 2025 -0400
+
+    Exclude generated log files from version control
+
+[33mcommit cb16de087ff3b7a136dd7bd5cc016865cfbde48f[m
+Merge: b2299a5 f396199
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 13:56:16 2025 -0400
+
+    Merge pull request #36 from alcaicey/codex/create-test-for-database-connection
+    
+    Add connection test for DATABASE_URL
+
+[33mcommit 131f02a553535d9105b9264139fe2e8b7f5beacc[m
+Merge: 7fc71fc 3ba47b2
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 13:56:16 2025 -0400
+
+    Merge pull request #36 from alcaicey/codex/create-test-for-database-connection
+    
+    Add connection test for DATABASE_URL
+
+[33mcommit f396199be2968bd930899c56ffe1e1444d875958[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 13:55:52 2025 -0400
+
+    Add DB connection test
+
+[33mcommit 3ba47b271963f182347b754507918e969f049e22[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 13:55:52 2025 -0400
+
+    Add DB connection test
+
+[33mcommit b2299a537ccb638b4f2ec47b988130452a232fab[m
+Merge: fa3c485 7195834
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 13:37:28 2025 -0400
+
+    Merge pull request #35 from alcaicey/3npchh-codex/fix-error-with----in-powershell
+    
+    Update README with PowerShell steps
+
+[33mcommit 7fc71fc118b6ee3aa2d8e954091c2429add0ee59[m
+Merge: cab4a1b b0c8e4e
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 13:37:28 2025 -0400
+
+    Merge pull request #35 from alcaicey/3npchh-codex/fix-error-with----in-powershell
+    
+    Update README with PowerShell steps
+
+[33mcommit 7195834a9cf48f42ed1272bfd3dd0a2dc6050646[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 13:37:12 2025 -0400
+
+    Update README with PowerShell steps
+
+[33mcommit b0c8e4e5e428882c148448bec1dd0436076f461f[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 13:37:12 2025 -0400
+
+    Update README with PowerShell steps
+
+[33mcommit 73fb6621f41cebd4ef015d6f234873655d4872d2[m[33m ([m[1;32mcodex/fix-error-with----in-powershell[m[33m)[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 10:53:08 2025 -0400
+
+    Update README with PowerShell steps
+
+[33mcommit 165d63ddb2e419ad26373df60fc4dd4b5fd72d7e[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 10:53:08 2025 -0400
+
+    Update README with PowerShell steps
+
+[33mcommit fa3c4850f429e4b27c360a18393e2cd2282ce907[m
+Merge: bed9213 81edf14
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 08:28:04 2025 -0400
+
+    Merge pull request #33 from alcaicey/codex/analizar-código-y-actualizar-readme
+    
+    Improve README with test instructions
+
+[33mcommit cab4a1b14e022fec849cacbf5fd4a882178fe7d1[m
+Merge: 19ea5f5 ee67869
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 08:28:04 2025 -0400
+
+    Merge pull request #33 from alcaicey/codex/analizar-código-y-actualizar-readme
+    
+    Improve README with test instructions
+
+[33mcommit 81edf14e60185f522a8835d9e7400381d193b579[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 08:06:49 2025 -0400
+
+    Add environment variable and testing instructions
+
+[33mcommit ee67869907044ad23866d56a776e68298d4e1d18[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 08:06:49 2025 -0400
+
+    Add environment variable and testing instructions
+
+[33mcommit bed9213d71315e21e5dc58aefc64234103a76dac[m
+Merge: a0d159e 5fdab6e
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 07:56:29 2025 -0400
+
+    Merge pull request #32 from alcaicey/codex/revisar-código-y-generar-test-de-pruebas
+    
+    Add WebSocket workflow tests
+
+[33mcommit 19ea5f5eae62f604fa31cc60ec0db9153965562b[m
+Merge: 3209829 b5a05b3
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 07:56:29 2025 -0400
+
+    Merge pull request #32 from alcaicey/codex/revisar-código-y-generar-test-de-pruebas
+    
+    Add WebSocket workflow tests
+
+[33mcommit 5fdab6e3a21fcbf57ec18a66b00f179b03c1ec19[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 02:19:40 2025 -0400
+
+    Add tests for stock data websocket flow
+
+[33mcommit b5a05b320b6e4542bc2bb558a016f4197d6523b9[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 02:19:40 2025 -0400
+
+    Add tests for stock data websocket flow
+
+[33mcommit a0d159ecd67899159c51ec050b563901b28dcf51[m
+Merge: f134f7d 0690f5f
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 00:45:12 2025 -0400
+
+    Merge pull request #31 from alcaicey/codex/add-__init__.py-to-tests-and-fix-imports
+    
+    Fix test imports
+
+[33mcommit 32098297dc3875b08d4cdc1393fb85792c396c23[m
+Merge: e71d69e 7fe6741
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 00:45:12 2025 -0400
+
+    Merge pull request #31 from alcaicey/codex/add-__init__.py-to-tests-and-fix-imports
+    
+    Fix test imports
+
+[33mcommit 0690f5f644db0eb517e4042b1d4870fd1cba8316[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 00:43:28 2025 -0400
+
+    Make tests package and remove sys.path hacks
+
+[33mcommit 7fe6741603559bb61da0ff491607a9e662b82007[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 00:43:28 2025 -0400
+
+    Make tests package and remove sys.path hacks
+
+[33mcommit f134f7df9b4e4407f652568816f3107f29533488[m
+Merge: e4f9e8e 6c50653
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 00:39:06 2025 -0400
+
+    Merge pull request #30 from alcaicey/codex/remove-unused-packages-from-requirements.txt
+    
+    Clean requirements
+
+[33mcommit e71d69ed9944379100ebf3efbd2e3e73e1578bcc[m
+Merge: 3d531ac e952629
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 00:39:06 2025 -0400
+
+    Merge pull request #30 from alcaicey/codex/remove-unused-packages-from-requirements.txt
+    
+    Clean requirements
+
+[33mcommit 6c50653fed1b8ae7a830d0ced4856e49127ef771[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 00:37:40 2025 -0400
+
+    chore: clean requirements
+
+[33mcommit e9526299d8e2be43a83705a653b4b94e451db5b3[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 00:37:40 2025 -0400
+
+    chore: clean requirements
+
+[33mcommit e4f9e8e7ab189ee1060cae3e0290fbaf802ec807[m
+Merge: edcc649 08d6183
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 00:33:51 2025 -0400
+
+    Merge pull request #29 from alcaicey/codex/remove-unused-imports-and-fix-flake8-issues
+    
+    Clean imports and adjust long lines
+
+[33mcommit 3d531accfae9e658639a2e8b3f24ddeb36147987[m
+Merge: b2ab3d6 cd008e6
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 00:33:51 2025 -0400
+
+    Merge pull request #29 from alcaicey/codex/remove-unused-imports-and-fix-flake8-issues
+    
+    Clean imports and adjust long lines
+
+[33mcommit 08d6183c5cae60413cf47bed7da62568c76c96e6[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 00:32:37 2025 -0400
+
+    chore: clean imports and wrap long lines
+
+[33mcommit cd008e60596569a7170ca13ec8f724484e523338[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 00:32:37 2025 -0400
+
+    chore: clean imports and wrap long lines
+
+[33mcommit edcc64997184d2e18db74f7c8cb93fbcc956a495[m
+Merge: 4a93e39 c9da93f
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 00:21:15 2025 -0400
+
+    Merge pull request #28 from alcaicey/codex/asegurar-salto-de-línea-al-final-de-har_analyzer.py
+    
+    Fix newline at end of har analyzer
+
+[33mcommit b2ab3d63e9902d061ee74a95c13e7f028c50279d[m
+Merge: 0281ca1 79d1877
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 00:21:15 2025 -0400
+
+    Merge pull request #28 from alcaicey/codex/asegurar-salto-de-línea-al-final-de-har_analyzer.py
+    
+    Fix newline at end of har analyzer
+
+[33mcommit c9da93fab5d9640ab08b8294b75107ab169fef15[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 00:19:23 2025 -0400
+
+    CI: install pytest
+
+[33mcommit 79d1877f50c47cfc19bac66691b7a5645f6813c3[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 00:19:23 2025 -0400
+
+    CI: install pytest
+
+[33mcommit 9aaa2b0116be75555d27918e41d4e73eebcee228[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 00:12:44 2025 -0400
+
+    fix: ensure har_analyzer ends with newline
+
+[33mcommit 02f6569d46b57dc042c18144079a4690e08f4728[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 00:12:44 2025 -0400
+
+    fix: ensure har_analyzer ends with newline
+
+[33mcommit 4a93e391ade0b20503b272c4caf2e190adc41376[m
+Merge: a8492f4 c4c8b03
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 00:01:25 2025 -0400
+
+    Merge pull request #27 from alcaicey/codex/modificar-create_timescale_hypertable-para-postgresql
+    
+    Fix Timescale setup for non-Postgres
+
+[33mcommit 0281ca1cfcb75d89b7af228b822f4afd5c2cc356[m
+Merge: 96d2a0c df298ae
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 00:01:25 2025 -0400
+
+    Merge pull request #27 from alcaicey/codex/modificar-create_timescale_hypertable-para-postgresql
+    
+    Fix Timescale setup for non-Postgres
+
+[33mcommit c4c8b03404421a9afdd866743742650ccb88b5dc[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 00:00:21 2025 -0400
+
+    Skip Timescale setup for non-Postgres
+
+[33mcommit df298aec9583ea7537935540acedda0dc522805c[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Sat Jun 7 00:00:21 2025 -0400
+
+    Skip Timescale setup for non-Postgres
+
+[33mcommit a8492f4283222797ecf720d25e7948a973fcebaa[m
+Merge: b29fe46 64ce902
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 23:57:13 2025 -0400
+
+    Merge pull request #26 from alcaicey/codex/update-navbar-in-historico-and-analisis-pages
+    
+    Add navbar to historic and analysis pages
+
+[33mcommit 96d2a0c6818f49851f074d732f206ef7eced7f2e[m
+Merge: 1268027 5f550eb
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 23:57:13 2025 -0400
+
+    Merge pull request #26 from alcaicey/codex/update-navbar-in-historico-and-analisis-pages
+    
+    Add navbar to historic and analysis pages
+
+[33mcommit 64ce902ebbca681dee525ef3523ee321084a3548[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 23:56:30 2025 -0400
+
+    Add navbar to historico and analisis pages
+
+[33mcommit 5f550eb10f1098a1a6d7e5030ab88d90f568b40e[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 23:56:30 2025 -0400
+
+    Add navbar to historico and analisis pages
+
+[33mcommit b29fe4662b6303c633234ac4598f41b90fd2ac85[m
+Merge: 701534b c076124
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 23:44:45 2025 -0400
+
+    Merge pull request #25 from alcaicey/codex/añadir-contenido-de-marcador-de-posición-en-análisis
+    
+    Add analysis page and sample data table
+
+[33mcommit 1268027d2b692015744aab125afcda7a73516af0[m
+Merge: 6d3f91a a77536b
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 23:44:45 2025 -0400
+
+    Merge pull request #25 from alcaicey/codex/añadir-contenido-de-marcador-de-posición-en-análisis
+    
+    Add analysis page and sample data table
+
+[33mcommit c07612433c0d9a23db5838a24c9db00b79f876ee[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 23:39:15 2025 -0400
+
+    feat(ui): add analysis and sample historical pages
+
+[33mcommit a77536bd60045e2c99a5392b49ac4215da7feeb5[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 23:39:15 2025 -0400
+
+    feat(ui): add analysis and sample historical pages
+
+[33mcommit 701534be680a80523cbb5cd8d6a772cf2915ab0d[m
+Merge: a0d6641 997b7b7
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 22:16:43 2025 -0400
+
+    Merge pull request #24 from alcaicey/codex/update-readme-with-playwright-installation-instructions
+    
+    Update README and add Playwright CI
+
+[33mcommit 6d3f91a613bfa058ccf606bc564daca353f81519[m
+Merge: eda71d6 f4caeb4
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 22:16:43 2025 -0400
+
+    Merge pull request #24 from alcaicey/codex/update-readme-with-playwright-installation-instructions
+    
+    Update README and add Playwright CI
+
+[33mcommit 997b7b73620b0330e710c066d7dafe7f8bdd20a9[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 22:16:29 2025 -0400
+
+    docs: add Playwright setup instructions
+
+[33mcommit f4caeb4e24a0ef91db9530950ff872df28b13e4d[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 22:16:29 2025 -0400
+
+    docs: add Playwright setup instructions
+
+[33mcommit a0d6641433306147298f8e2d9f4a8ddd47799f06[m
+Merge: d88a244 4ef3e7b
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 22:15:38 2025 -0400
+
+    Merge pull request #23 from alcaicey/codex/import-and-register-user_bp-blueprint
+    
+    Add user blueprint
+
+[33mcommit eda71d6de4ad47938ce76db8cf3380821b656db6[m
+Merge: 1ca14d7 97b8f1e
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 22:15:38 2025 -0400
+
+    Merge pull request #23 from alcaicey/codex/import-and-register-user_bp-blueprint
+    
+    Add user blueprint
+
+[33mcommit 4ef3e7b3a5badf67808e2cdf5ef7f27974ba46a1[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 22:14:43 2025 -0400
+
+    Register user blueprint
+
+[33mcommit 97b8f1e64f42c43d1c39666ba67f3d258020f8b1[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 22:14:43 2025 -0400
+
+    Register user blueprint
+
+[33mcommit d88a244aa126a4d75a3533543085e0cd89b4da3c[m
+Merge: 7f2ad21 a9076f6
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 22:10:59 2025 -0400
+
+    Merge pull request #21 from alcaicey/codex/add-api-endpoints-for-stock-prices
+    
+    Add stock price CRUD endpoints and UI
+
+[33mcommit 1ca14d7aa326195bb98b3f650e550711b1fdf405[m
+Merge: 28c3c11 9e92ae0
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 22:10:59 2025 -0400
+
+    Merge pull request #21 from alcaicey/codex/add-api-endpoints-for-stock-prices
+    
+    Add stock price CRUD endpoints and UI
+
+[33mcommit a9076f645587a6e5fb1f913ed7eb1147c147ea95[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 22:10:44 2025 -0400
+
+    Add CRUD API for stock prices and frontend
+
+[33mcommit 9e92ae0336b7c07626306c11a1aded1f5daef4b7[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 22:10:44 2025 -0400
+
+    Add CRUD API for stock prices and frontend
+
+[33mcommit 7f2ad21687e0c2271e8ce402fd7d714e48adc39b[m
+Merge: 59cc179 ce8b184
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 22:00:26 2025 -0400
+
+    Merge pull request #20 from alcaicey/codex/add-psycopg2,-flask-socketio,-and-timescaledb-setup
+    
+    Implement TimescaleDB storage and WebSocket notifications
+
+[33mcommit 28c3c116de66b2c0f32270fe57581cb9de15cf95[m
+Merge: b49cc6e 2ffd7ef
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 22:00:26 2025 -0400
+
+    Merge pull request #20 from alcaicey/codex/add-psycopg2,-flask-socketio,-and-timescaledb-setup
+    
+    Implement TimescaleDB storage and WebSocket notifications
+
+[33mcommit ce8b184c2a207a2a404ce6a76fb7827743fcd791[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 22:00:04 2025 -0400
+
+    Add TimescaleDB support and WebSocket notifications
+
+[33mcommit 2ffd7ef472f325b7633fee1b08d91047803afff3[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 22:00:04 2025 -0400
+
+    Add TimescaleDB support and WebSocket notifications
+
+[33mcommit 59cc179f7a8f360da2f537f5d70ace4edd39b13c[m
+Merge: 289d02d 058268c
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 21:54:35 2025 -0400
+
+    Merge pull request #19 from alcaicey/codex/actualizar-readme-e-incluir-mejoras-futuras
+    
+    Add future improvements section
+
+[33mcommit b49cc6e156d29346cbecd2d533224756723a96ca[m
+Merge: 3bc57ac 9fd3877
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 21:54:35 2025 -0400
+
+    Merge pull request #19 from alcaicey/codex/actualizar-readme-e-incluir-mejoras-futuras
+    
+    Add future improvements section
+
+[33mcommit 058268c702f708575d35e348649dba23bd9ef9da[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 21:54:22 2025 -0400
+
+    docs: add future improvements
+
+[33mcommit 9fd38775796ca21e22956ce4d671becad54e1af5[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 21:54:22 2025 -0400
+
+    docs: add future improvements
+
+[33mcommit 289d02d283bf7a1d31161774c9c11cc9aab715ae[m
+Merge: 7308677 d33283f
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 16:21:07 2025 -0400
+
+    Merge pull request #18 from alcaicey/codex/corregir-creación-del-archivo-har
+    
+    Fix HAR capture not saved
+
+[33mcommit 3bc57ac5f69fde8671b1741f40aceca88db96a32[m
+Merge: 3a11320 1c627bf
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 16:21:07 2025 -0400
+
+    Merge pull request #18 from alcaicey/codex/corregir-creación-del-archivo-har
+    
+    Fix HAR capture not saved
+
+[33mcommit d33283fb68a9928859c1a55b385c271dc74f47fa[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 16:20:57 2025 -0400
+
+    Ensure HAR file is saved by closing context
+
+[33mcommit 1c627bfe7e57d8b04c5bc58f20e0fc9cc2e1d5af[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 16:20:57 2025 -0400
+
+    Ensure HAR file is saved by closing context
+
+[33mcommit 7308677aa2727df4bccf4b0480fb175cba9099a0[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Fri Jun 6 15:40:24 2025 -0400
+
+    listo
+
+[33mcommit 3a1132083ca1527756a1e1098ac1a33682d912ef[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Fri Jun 6 15:40:24 2025 -0400
+
+    listo
+
+[33mcommit 96f0793f0146f6eb3055f933495c8267702d9002[m
+Merge: 2ed36f3 b460e65
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Fri Jun 6 15:36:55 2025 -0400
+
+    Merge branch 'master' of https://github.com/alcaicey/Automatizacion
+
+[33mcommit f94dddca9c2c33f9303589f46de7a7e8d11b1258[m
+Merge: 6b796b6 ffb02db
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Fri Jun 6 15:36:55 2025 -0400
+
+    Merge branch 'master' of https://github.com/alcaicey/Automatizacion
+
+[33mcommit b460e659c697598ceb5d9ee6dcff3ffb6f15f82f[m
+Merge: 29cdd5c 00565d4
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 15:32:15 2025 -0400
+
+    Merge pull request #17 from alcaicey/codex/add-non-interactive-flag-for-bolsa-bot
+    
+    Add non-interactive mode for bolsa bot
+
+[33mcommit ffb02db7ebf5a57cb04c83ba7012868e23f4c50f[m
+Merge: 83173ab fdc26dc
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 15:32:15 2025 -0400
+
+    Merge pull request #17 from alcaicey/codex/add-non-interactive-flag-for-bolsa-bot
+    
+    Add non-interactive mode for bolsa bot
+
+[33mcommit 00565d4e567aad57d7fd61a72d60ddf3dcb67088[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 15:31:49 2025 -0400
+
+    Add non-interactive mode for bolsa bot
+
+[33mcommit fdc26dc4a8fc54d65d16315979f42350df3f72c6[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 15:31:49 2025 -0400
+
+    Add non-interactive mode for bolsa bot
+
+[33mcommit 29cdd5cb129f05c20594426c3061dc0ecff4ae66[m
+Merge: 625f799 67e7151
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 15:29:40 2025 -0400
+
+    Merge pull request #16 from alcaicey/codex/reorganizar-archivo-har_analyzer.py
+    
+    Clean up duplicate HAR analyzer
+
+[33mcommit 83173ab6829121d63068a6520cce5f80821260fc[m
+Merge: 0df799f 1fe7894
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 15:29:40 2025 -0400
+
+    Merge pull request #16 from alcaicey/codex/reorganizar-archivo-har_analyzer.py
+    
+    Clean up duplicate HAR analyzer
+
+[33mcommit 67e715198e5b0e45311b82b02f76fedc9c6e02f9[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 15:29:23 2025 -0400
+
+    Remove duplicate har analyzer and update imports
+
+[33mcommit 1fe7894f3c15a3e72dcd47f2880a6c7775f53992[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 15:29:23 2025 -0400
+
+    Remove duplicate har analyzer and update imports
+
+[33mcommit 2ed36f35b2da801bd7fb095ed3149dd4b3b1e7ca[m
+Merge: c52cd87 625f799
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Fri Jun 6 14:47:07 2025 -0400
+
+    Merge branch 'master' of https://github.com/alcaicey/Automatizacion
+
+[33mcommit 6b796b6511b5bcbb915983509c82dce9ed267f0d[m
+Merge: 40d917c 0df799f
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Fri Jun 6 14:47:07 2025 -0400
+
+    Merge branch 'master' of https://github.com/alcaicey/Automatizacion
+
+[33mcommit c52cd873d0902f48b74a029045d6bc0b6b738033[m
+Merge: a928465 809a6fe
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 12:03:16 2025 -0400
+
+    Merge pull request #4 from alcaicey/codex/corregir-error--modulenotfounderror--no-module-named--src
+    
+    Fix path execution for bolsa bot
+
+[33mcommit 40d917cab333b984dd3c6aca48a5f55b660ff2c2[m
+Merge: e9c14f7 17f46c3
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 12:03:16 2025 -0400
+
+    Merge pull request #4 from alcaicey/codex/corregir-error--modulenotfounderror--no-module-named--src
+    
+    Fix path execution for bolsa bot
+
+[33mcommit 625f799ae370d38eae53186252ac2688c3dcf1a6[m
+Merge: ce90bc7 9ad1b00
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 14:25:20 2025 -0400
+
+    Merge pull request #15 from alcaicey/codex/update-bolsa_santiago_bot.py-to-handle-eoferror
+    
+    Handle EOF when waiting for manual browser close
+
+[33mcommit 0df799f5898c045662cde4267d235c790bdc3620[m
+Merge: 9f20455 c4510c6
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 14:25:20 2025 -0400
+
+    Merge pull request #15 from alcaicey/codex/update-bolsa_santiago_bot.py-to-handle-eoferror
+    
+    Handle EOF when waiting for manual browser close
+
+[33mcommit 9ad1b00d74eb4f8466f9dabc75ef062dd2b4b359[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 14:24:57 2025 -0400
+
+    Handle EOFError after automation and test
+
+[33mcommit c4510c68fe9b28bfbdb0b922b314a6baab26d112[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 14:24:57 2025 -0400
+
+    Handle EOFError after automation and test
+
+[33mcommit ce90bc7db6e227f66ca9d23c87edddb776b38a8c[m
+Merge: 9b0c4d1 811a092
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 14:10:37 2025 -0400
+
+    Merge pull request #14 from alcaicey/codex/generar-test-para-cerrar-sesiones
+    
+    Add test for session restart when closing sessions
+
+[33mcommit 9f20455259b0e40fa88f83441ce5174b3339a970[m
+Merge: f63dd0a 9b47654
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 14:10:37 2025 -0400
+
+    Merge pull request #14 from alcaicey/codex/generar-test-para-cerrar-sesiones
+    
+    Add test for session restart when closing sessions
+
+[33mcommit 811a092cba19725a4842630a2796f3a35b8446f8[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 14:10:19 2025 -0400
+
+    Add test for session closure restart
+
+[33mcommit 9b47654e0a7049d6672e9c57b830bfe90dc019d1[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 14:10:19 2025 -0400
+
+    Add test for session closure restart
+
+[33mcommit 9b0c4d1d44610faab00a59e6415bb036e54b5d46[m
+Merge: e983397 774fe98
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 14:00:38 2025 -0400
+
+    Merge pull request #13 from alcaicey/codex/agregar-contador-en-reversa-de-sesión
+    
+    Add session countdown to frontend
+
+[33mcommit f63dd0abd204dd9b22bee186e54a6eb4194d25e3[m
+Merge: 5290a91 9ade9b6
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 14:00:38 2025 -0400
+
+    Merge pull request #13 from alcaicey/codex/agregar-contador-en-reversa-de-sesión
+    
+    Add session countdown to frontend
+
+[33mcommit 774fe987f3e285db07de18a908ea59e3f66c2c62[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 14:00:17 2025 -0400
+
+    Add session countdown support
+
+[33mcommit 9ade9b6aea71efada17edd5f16570d179d5e1212[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 14:00:17 2025 -0400
+
+    Add session countdown support
+
+[33mcommit e983397f10042d6e5225b0063e2816569e6537ec[m
+Merge: 33a1c9e eef8772
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 13:56:14 2025 -0400
+
+    Merge pull request #12 from alcaicey/codex/evitar-cierre-automático-del-navegador
+    
+    Update script to keep browser open
+
+[33mcommit 5290a9181265220d1338157a27a7169bdbda7bb3[m
+Merge: c506174 d09801c
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 13:56:14 2025 -0400
+
+    Merge pull request #12 from alcaicey/codex/evitar-cierre-automático-del-navegador
+    
+    Update script to keep browser open
+
+[33mcommit eef87724f2c631800694357957ae63217db78c3d[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 13:55:57 2025 -0400
+
+    Prevent automatic browser closure
+
+[33mcommit d09801c91990b3e20b415dcb47817078730b06c4[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 13:55:57 2025 -0400
+
+    Prevent automatic browser closure
+
+[33mcommit 33a1c9e1a9c0680feb54e1840396ba1c29d29d6e[m
+Merge: 6ccb7f2 cbf8a23
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 13:52:38 2025 -0400
+
+    Merge pull request #11 from alcaicey/codex/evitar-guardar-solicitudes-duplicadas-en-log
+    
+    Fix logging of csrfToken
+
+[33mcommit c506174b18c7079763148f9d32a4551d07e98a57[m
+Merge: 5438f9c 2c3a91d
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 13:52:38 2025 -0400
+
+    Merge pull request #11 from alcaicey/codex/evitar-guardar-solicitudes-duplicadas-en-log
+    
+    Fix logging of csrfToken
+
+[33mcommit cbf8a23900e0133d720cf1cdeb4806e423d1bc54[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 13:52:26 2025 -0400
+
+    Filtra logs de csrfToken
+
+[33mcommit 2c3a91ddd37a0232c69a50225f4c38de715f680c[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 13:52:26 2025 -0400
+
+    Filtra logs de csrfToken
+
+[33mcommit 6ccb7f25ab8ca177b88be9e8e2f4f55b8d9bef16[m
+Merge: 32a1e3e e2aefc5
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 13:47:46 2025 -0400
+
+    Merge pull request #10 from alcaicey/codex/evitar-guardar-csrftoken-en-network_summary
+    
+    Ignore CSRF token endpoint in HAR analyzer
+
+[33mcommit 5438f9c1056ee658f5fbbd4f40cf514f72abfc0b[m
+Merge: 14d8a57 ed82c98
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 13:47:46 2025 -0400
+
+    Merge pull request #10 from alcaicey/codex/evitar-guardar-csrftoken-en-network_summary
+    
+    Ignore CSRF token endpoint in HAR analyzer
+
+[33mcommit e2aefc50375aad3eb5dc0671e4b7bc2caf2d0f0b[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 13:47:26 2025 -0400
+
+    Ignore CSRF token endpoint in HAR analyzer
+
+[33mcommit ed82c98224f903fa54d3197c13a65568804acf60[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 13:47:26 2025 -0400
+
+    Ignore CSRF token endpoint in HAR analyzer
+
+[33mcommit 32a1e3e33869f62a2a9a39e73faa8f1603fc5e63[m
+Merge: 07b0e27 cd4f228
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 13:23:22 2025 -0400
+
+    Merge pull request #9 from alcaicey/codex/actualizar-directorios-de-logs-en-config.py-y-bolsa_servi
+    
+    Update log directories
+
+[33mcommit 14d8a57876345769d5cbadc7a66de4449ebd1ef2[m
+Merge: 9cf0a9a f02e59e
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 13:23:22 2025 -0400
+
+    Merge pull request #9 from alcaicey/codex/actualizar-directorios-de-logs-en-config.py-y-bolsa_servi
+    
+    Update log directories
+
+[33mcommit cd4f228e711fc6d8a4e31cd7ac035691adf8b49f[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 13:23:08 2025 -0400
+
+    Update log paths and docs
+
+[33mcommit f02e59ee42d57d7db789029049c53bd0dd8e7220[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 13:23:08 2025 -0400
+
+    Update log paths and docs
+
+[33mcommit 07b0e27f6d5febadb4ac478c94a22ae3ad6c572b[m
+Merge: 8941548 c0c9dda
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 13:18:57 2025 -0400
+
+    Merge pull request #8 from alcaicey/codex/analizar-respuesta-json-y-calcular-duración
+    
+    Improve HAR session expiry logging
+
+[33mcommit 9cf0a9a9355b6ba29cfadc469771763c51a3ed3c[m
+Merge: 4601384 04ea22c
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 13:18:57 2025 -0400
+
+    Merge pull request #8 from alcaicey/codex/analizar-respuesta-json-y-calcular-duración
+    
+    Improve HAR session expiry logging
+
+[33mcommit c0c9ddacd0197ef19b449a411311c07bc5b8dd42[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 13:18:24 2025 -0400
+
+    Log session expiration info
+
+[33mcommit 04ea22c0923a14dc3c646e1b9e8e4a4523a141e3[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 13:18:24 2025 -0400
+
+    Log session expiration info
+
+[33mcommit 8941548659531468f8384cfadc06c5b4cfaa0f00[m
+Merge: 12fc471 d5bd2d3
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 13:14:28 2025 -0400
+
+    Merge pull request #7 from alcaicey/codex/definir-y-manejar-archivo-har-fijo
+    
+    Use constant HAR file path
+
+[33mcommit 4601384552aa6bb906e032172fd0ba651355c721[m
+Merge: 1b59487 c56a784
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 13:14:28 2025 -0400
+
+    Merge pull request #7 from alcaicey/codex/definir-y-manejar-archivo-har-fijo
+    
+    Use constant HAR file path
+
+[33mcommit d5bd2d31a73d539921b897788d1d9047ba055892[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 13:14:07 2025 -0400
+
+    Set fixed HAR file and clean before capture
+
+[33mcommit c56a784add8eb44c3ca272bd32c98470360d0c26[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 13:14:07 2025 -0400
+
+    Set fixed HAR file and clean before capture
+
+[33mcommit 12fc471bb95f7df23b643b7f45095001dd057706[m
+Merge: 37df842 ee4da45
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 13:10:08 2025 -0400
+
+    Merge pull request #6 from alcaicey/codex/eliminar-url-de-lista-urls_to_inspect_in_har_for_context
+    
+    Remove csrf token url from inspection list
+
+[33mcommit 1b59487bb56a2155495efc18e86e11fcd79d780f[m
+Merge: 6eabdee bbcb3d6
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 13:10:08 2025 -0400
+
+    Merge pull request #6 from alcaicey/codex/eliminar-url-de-lista-urls_to_inspect_in_har_for_context
+    
+    Remove csrf token url from inspection list
+
+[33mcommit ee4da45eff0489d372e808d08460556474e94450[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 13:09:53 2025 -0400
+
+    Remove csrf token url from config
+
+[33mcommit bbcb3d6c8bca1092a97db1e42847c938e091aaaf[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 13:09:53 2025 -0400
+
+    Remove csrf token url from config
+
+[33mcommit 37df842134224493d17f9212d878384805f0f3bc[m
+Merge: bfff7fd a9490ba
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 13:05:54 2025 -0400
+
+    Merge pull request #5 from alcaicey/codex/modificar-cierre-de-context,-browser-y-p_instance
+    
+    Allow manual browser closure
+
+[33mcommit 6eabdeedc0639aa7c79f1bdda8519ca927aa80ca[m
+Merge: e1ca600 e2777a8
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 13:05:54 2025 -0400
+
+    Merge pull request #5 from alcaicey/codex/modificar-cierre-de-context,-browser-y-p_instance
+    
+    Allow manual browser closure
+
+[33mcommit a9490bae05ce0fc3c65ed89d3829e7af020cb1bb[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 13:05:41 2025 -0400
+
+    Move cleanup after user confirmation
+
+[33mcommit e2777a85e7b6c4a4afa67a76610f3e1946b510ff[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 13:05:41 2025 -0400
+
+    Move cleanup after user confirmation
+
+[33mcommit bfff7fd5d35d320b12230ae58abd4295402c9a8e[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 12:11:39 2025 -0400
+
+    Update config.py
+    
+    credenciales
+
+[33mcommit e1ca6007af9dfc541f5ad0a7befdb853348e07bb[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 12:11:39 2025 -0400
+
+    Update config.py
+    
+    credenciales
+
+[33mcommit f133d1518894143f18b52214aa33d9240875cb53[m
+Merge: a928465 809a6fe
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 12:03:16 2025 -0400
+
+    Merge pull request #4 from alcaicey/codex/corregir-error--modulenotfounderror--no-module-named--src
+    
+    Fix path execution for bolsa bot
+
+[33mcommit 79162453a667cd808015ed9825f99ebf7c645e4e[m
+Merge: e9c14f7 17f46c3
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 12:03:16 2025 -0400
+
+    Merge pull request #4 from alcaicey/codex/corregir-error--modulenotfounderror--no-module-named--src
+    
+    Fix path execution for bolsa bot
+
+[33mcommit 809a6fe35f214aa1f18cdf20c4ca88464b7d1797[m[33m ([m[1;32mcodex/corregir-error--modulenotfounderror--no-module-named--src[m[33m)[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 12:03:03 2025 -0400
+
+    Fix path for bolsa_santiago_bot
+
+[33mcommit 17f46c3137164598cbfa14753a20e81cb097adeb[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 12:03:03 2025 -0400
+
+    Fix path for bolsa_santiago_bot
+
+[33mcommit a9284656d12fb46d90b7ede03176f42058f46761[m
+Merge: cd52400 75e25bb
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 11:54:00 2025 -0400
+
+    Merge pull request #3 from alcaicey/codex/reubicar-variables-de-entorno-en-archivo-de-configuración
+    
+    Centralize config
+
+[33mcommit e9c14f72365866e38ad86ca6efd1f63695257a09[m
+Merge: d124443 02c4a93
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 11:54:00 2025 -0400
+
+    Merge pull request #3 from alcaicey/codex/reubicar-variables-de-entorno-en-archivo-de-configuración
+    
+    Centralize config
+
+[33mcommit 75e25bb2ea482718502191d788ad67b1501ac718[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 11:53:47 2025 -0400
+
+    Centralize config
+
+[33mcommit 02c4a937a51af2f5237aa6ceaf811a9f45fb12fc[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 11:53:47 2025 -0400
+
+    Centralize config
+
+[33mcommit cd524000d8bfde6fe9111bb5b9c05db1d83c0024[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Fri Jun 6 11:32:44 2025 -0400
+
+    limpieza de archivos basura
+
+[33mcommit d124443c0d35b468a315f07acefa08fad1a47445[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Fri Jun 6 11:32:44 2025 -0400
+
+    limpieza de archivos basura
+
+[33mcommit 6a2906673d4bfd7e0a248a100c70ebb6668161e3[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 11:23:31 2025 -0400
+
+    Delete bolsa_santiago_bot.py
+
+[33mcommit dd8e43dda9feca9ba59e0626ccb5feccec67f629[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 11:23:31 2025 -0400
+
+    Delete bolsa_santiago_bot.py
+
+[33mcommit 3ef29d3c236dd359ea5bd3e42afd7d133a2843ae[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 11:23:18 2025 -0400
+
+    Delete bolsa_app_updated.zip
+
+[33mcommit c22bef11bd4b219081f972617b997c118685a797[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 11:23:18 2025 -0400
+
+    Delete bolsa_app_updated.zip
+
+[33mcommit 3a489d13d4390dc5ae365fc6b4e0cd55bee50752[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 11:23:05 2025 -0400
+
+    Delete bolsa_app_updated (2).zip
+
+[33mcommit f93c6162f8e3f30df0827477414cf4649c4884af[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 11:23:05 2025 -0400
+
+    Delete bolsa_app_updated (2).zip
+
+[33mcommit b02b3ae39a6a858924082888a866b88762337205[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 11:22:53 2025 -0400
+
+    Delete bolsa_app_updated (1).zip
+
+[33mcommit a48b18245ef3c4c738759259c9d7d0fe3eb902a3[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 11:22:53 2025 -0400
+
+    Delete bolsa_app_updated (1).zip
+
+[33mcommit 5694b56c92491cde0f9fe4f62cfd84fe732cba09[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 11:22:38 2025 -0400
+
+    Delete bolsa_app_src.zip
+
+[33mcommit e89b175522aeefd2067a4abd46f8eb1917402f00[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 11:22:38 2025 -0400
+
+    Delete bolsa_app_src.zip
+
+[33mcommit 7eedb67acf9d8f166055f30bdd67f978721aefef[m[33m ([m[1;32mlocal-pruebas-modificaciones-codex[m[33m)[m
+Merge: 9ad8d63 76e21b4
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 10:17:57 2025 -0400
+
+    Merge pull request #1 from alcaicey/codex/reemplazar-variables-por-os.environ-o-archivo-de-configuraci
+    
+    Use env vars for credentials and paths
+
+[33mcommit 86cc6fe9639e77087ed0899e17b381b84112987d[m
+Merge: 9ad8d63 76e21b4
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Fri Jun 6 10:17:57 2025 -0400
+
+    Merge pull request #1 from alcaicey/codex/reemplazar-variables-por-os.environ-o-archivo-de-configuraci
+    
+    Use env vars for credentials and paths
+
+[33mcommit 76e21b43625c8fdf75803cecfbede3f12d4e6afa[m[33m ([m[1;32mcodex/reemplazar-variables-por-os.environ-o-archivo-de-configuraci[m[33m)[m
+Author: alcaicey <alcaicey@gmail.com>
+Date:   Thu Jun 5 12:53:27 2025 -0400
+
+    Read credentials and paths from environment
+
+[33mcommit 9ad8d63c2a2b5f5bd8109504a6570dad0c2767c9[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Thu Jun 5 11:02:44 2025 -0400
+
+    Agregar archivos de proyecto.
+
+[33mcommit dcf0038b0ed70f9e0d343dbbfd03de9552718d43[m
+Author: crrebolledo <crebolledo@actis.cl>
+Date:   Thu Jun 5 11:02:39 2025 -0400
+
+    Agregar .gitattributes y .gitignore.

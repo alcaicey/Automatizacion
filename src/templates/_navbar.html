@@ -17,6 +17,13 @@
             <i class="fas fa-home me-1"></i>Inicio
           </a>
         </li>
+         <li class="nav-item">
+          <a class="nav-link {{ 'active' if request.path == url_for('indicadores') else '' }}" href="{{ url_for('indicadores') }}">
+            <i class="fas fa-tachometer-alt me-1"></i>Indicadores
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {{ 'active' if request.path == url_for('logs') else '' }}" href="{{ url_for('logs') }}">
         <li class="nav-item">
           <a class="nav-link {{ 'active' if request.path == url_for('historico') else '' }}" href="{{ url_for('historico') }}">
             <i class="fas fa-history me-1"></i>Histórico

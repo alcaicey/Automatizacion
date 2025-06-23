@@ -6,7 +6,7 @@ window.dividendManager = {
     columnPrefs: {
         all: [],
         visible: [],
-        config: { // Mapeo de nombres de API a títulos legibles y renderers
+        config: {
             'nemo': { title: 'Símbolo' },
             'descrip_vc': { title: 'Descripción' },
             'fec_lim': { title: 'Fecha Límite', render: (d) => new Date(d + 'T00:00:00Z').toLocaleDateString('es-CL', { timeZone: 'UTC' }) },
@@ -31,6 +31,12 @@ window.dividendManager = {
             columnModal: document.getElementById('dividendColumnConfigModal'),
             columnForm: document.getElementById('dividendColumnConfigForm'),
             saveColumnPrefsBtn: document.getElementById('saveDividendColumnPrefs'),
+            startDate: document.getElementById('dividendStartDate'),
+            endDate: document.getElementById('dividendEndDate'),
+            columnFilter: document.getElementById('dividendColumnFilter'),
+            textFilter: document.getElementById('dividendTextFilter'),
+            applyFiltersBtn: document.getElementById('applyDividendFilters'),
+            clearFiltersBtn: document.getElementById('clearDividendFilters'),
         };
 
         if (!this.dom.table) return;
@@ -38,7 +44,6 @@ window.dividendManager = {
         this.socket = io();
         this.attachEventListeners();
         this.loadInitialData();
-        console.log('[DividendManager] Módulo inicializado.');
     },
 
     async loadInitialData() {
@@ -50,16 +55,17 @@ window.dividendManager = {
         this.dom.updateBtn.addEventListener('click', () => this.handleUpdateClick());
         this.dom.saveColumnPrefsBtn.addEventListener('click', () => this.handleSavePrefs());
         
+        this.dom.applyFiltersBtn.addEventListener('click', () => this.applyCustomFilters());
+        this.dom.clearFiltersBtn.addEventListener('click', () => this.clearCustomFilters());
+
         this.socket.on('dividend_update_complete', (result) => {
             console.log('[DividendManager] Actualización completada:', result);
-            this.dom.updateBtn.innerHTML = '<i class="fas fa-sync-alt me-2"></i>Revisar Actualizaciones';
+            this.dom.updateBtn.innerHTML = '<i class="fas fa-sync-alt me-2"></i>Revisar';
             this.dom.updateBtn.disabled = false;
             
-            if (result.error) {
-                this.displayChanges({ error: result.error });
-            } else {
-                this.displayChanges(result);
-                this.loadDividends(); // Recargar la tabla con los nuevos datos
+            this.displayChanges(result);
+            if (!result.error) {
+                this.loadDividends();
             }
         });
     },
@@ -72,6 +78,7 @@ window.dividendManager = {
             this.columnPrefs.all = data.all_columns;
             this.columnPrefs.visible = data.visible_columns;
             this.renderColumnModal();
+            this.populateColumnFilterDropdown();
         } catch (error) {
             console.error(error);
         }
@@ -89,6 +96,64 @@ window.dividendManager = {
         }
     },
     
+    populateColumnFilterDropdown() {
+        this.dom.columnFilter.innerHTML = '<option value="">Cualquier Columna</option>';
+        this.columnPrefs.visible.forEach((colKey, index) => {
+            const title = this.columnPrefs.config[colKey]?.title || colKey.replace(/_/g, ' ');
+            this.dom.columnFilter.innerHTML += `<option value="${index}">${title}</option>`;
+        });
+    },
+
+    applyCustomFilters() {
+        if (!this.dataTable) return;
+
+        $.fn.dataTable.ext.search.pop();
+        this.dataTable.columns().search('').draw();
+
+        const startDate = this.dom.startDate.value ? new Date(this.dom.startDate.value + 'T00:00:00Z') : null;
+        const endDate = this.dom.endDate.value ? new Date(this.dom.endDate.value + 'T23:59:59Z') : null;
+        const colIndex = this.dom.columnFilter.value;
+        const searchText = this.dom.textFilter.value.trim().toLowerCase();
+
+        if (searchText) {
+            if (colIndex) {
+                this.dataTable.column(colIndex).search(searchText, false, true).draw();
+            } else {
+                this.dataTable.search(searchText).draw();
+            }
+        }
+
+        const dateColKey = 'fec_pago';
+        const dateColIndex = this.columnPrefs.visible.indexOf(dateColKey);
+        
+        if ((startDate || endDate) && dateColIndex > -1) {
+            $.fn.dataTable.ext.search.push(
+                (settings, data, dataIndex) => {
+                    const rowData = this.dataTable.row(dataIndex).data();
+                    const cellDateStr = rowData[dateColKey];
+                    if (!cellDateStr) return false;
+
+                    const cellDate = new Date(cellDateStr + 'T00:00:00Z');
+                    if ((startDate && cellDate < startDate) || (endDate && cellDate > endDate)) {
+                        return false;
+                    }
+                    return true;
+                }
+            );
+            this.dataTable.draw();
+        }
+    },
+    
+    clearCustomFilters() {
+        this.dom.startDate.value = '';
+        this.dom.endDate.value = '';
+        this.dom.columnFilter.value = '';
+        this.dom.textFilter.value = '';
+        
+        $.fn.dataTable.ext.search.pop();
+        this.dataTable.search('').columns().search('').draw();
+    },
+
     renderColumnModal() {
         this.dom.columnForm.innerHTML = '';
         this.columnPrefs.all.forEach(colKey => {
@@ -135,6 +200,7 @@ window.dividendManager = {
 
         bootstrap.Modal.getInstance(this.dom.columnModal).hide();
         this.renderTable(this.dataTable.rows().data().toArray());
+        this.populateColumnFilterDropdown(); // Actualizar el dropdown de filtros
     },
 
     async handleUpdateClick() {
@@ -151,7 +217,7 @@ window.dividendManager = {
             }
         } catch (error) {
             this.displayChanges({ error: error.message });
-            btn.innerHTML = '<i class="fas fa-sync-alt me-2"></i>Revisar Actualizaciones';
+            btn.innerHTML = '<i class="fas fa-sync-alt me-2"></i>Revisar';
             btn.disabled = false;
         }
     },

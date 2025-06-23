@@ -24,6 +24,7 @@ python-dotenv
 requests
 pytz      # <-- AÑADIR PARA ZONAS HORARIAS
 holidays  # <-- AÑADIR PARA FESTIVOS
+openai
 
 # For schema diagram generation
 sqlalchemy-schemadisplay>=1.3
