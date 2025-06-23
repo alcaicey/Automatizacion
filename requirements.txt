@@ -6,7 +6,8 @@ Flask-Cors>=3.0.0
 gunicorn>=20.1.0 # For production
 python-dotenv>=1.0.0
 greenlet
-
+gevent 
+gevent-websocket
 
 # Database
 psycopg2-binary>=2.9.0

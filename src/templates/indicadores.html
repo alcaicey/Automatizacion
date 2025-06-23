@@ -28,7 +28,8 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-end align-items-center mb-3 gap-2">
                         <button id="selectKPIStocksBtn" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#kpiSelectionModal"><i class="fas fa-check-square me-2"></i>Seleccionar Acciones</button>
-                        <button id="updateKPIsBtn" class="btn btn-success"><i class="fas fa-sync-alt me-2"></i>Cargar/Actualizar KPIs con IA</button>
+                        <button id="kpiColumnBtn" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#kpiColumnConfigModal"><i class="fas fa-sliders-h"></i> Columnas</button>
+                        <button id="updateKPIsBtn" class="btn btn-success"><i class="fas fa-sync-alt me-2"></i>Cargar/Actualizar KPIs</button>
                     </div>
                     <div id="kpiUpdateAlert" class="alert d-none" role="alert"></div>
                     <div class="table-responsive">
@@ -79,16 +80,13 @@
                             <button id="dividendColumnBtn" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#dividendColumnConfigModal"><i class="fas fa-sliders-h"></i> Columnas</button>
                         </div>
                     </div>
-
                     <div id="dividendChangesAlert" class="alert d-none" role="alert"></div>
-                    
                     <div class="table-responsive">
                         <table id="dividendsTable" class="table table-striped table-hover w-100"></table>
                     </div>
                 </div>
             </div>
         </div>
-
     </div>
 </div>
 
@@ -109,7 +107,6 @@
     </div>
 </div>
 
-<!-- Modal para Selección de Acciones de KPIs -->
 <div class="modal fade" id="kpiSelectionModal" tabindex="-1" aria-labelledby="kpiSelectionModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
@@ -128,6 +125,25 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="kpiColumnConfigModal" tabindex="-1" aria-labelledby="kpiColumnConfigModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="kpiColumnConfigModalLabel">Seleccionar Columnas de KPIs</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="kpiColumnConfigForm" class="row g-2"></form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" id="saveKPIColumnPrefs" class="btn btn-primary">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}

@@ -7,6 +7,8 @@ import time
 from datetime import datetime, timedelta, timezone
 
 from flask import Blueprint, jsonify, request, current_app
+from sqlalchemy import select, and_
+from sqlalchemy.orm import aliased
 from sqlalchemy.dialects.postgresql import insert
 
 # --- Lógica de Negocio y Utilidades ---
@@ -19,9 +21,10 @@ from src.extensions import db, socketio
 from src.models import (
     Credential, LogEntry, ColumnPreference, StockFilter, StockPrice, Alert, 
     FilteredStockHistory, Portfolio, Dividend, DividendColumnPreference,
-    StockClosing, ClosingColumnPreference, AdvancedKPI, KpiSelection
+    StockClosing, ClosingColumnPreference, AdvancedKPI, KpiSelection, KpiColumnPreference
 )
-from sqlalchemy import select
+
+# --- Lógica de Playwright y Servicios Específicos ---
 from src.scripts import dividend_service, closing_service, ai_financial_service
 from src.scripts.bot_page_manager import get_page
 
@@ -89,32 +92,52 @@ def stock_history(symbol):
         labels = [p.timestamp.strftime("%d/%m/%Y %H:%M:%S") for p in prices]
         data = [p.price for p in prices]
         return jsonify({"labels": labels, "data": data})
-
 # ===================================================================
 # ENDPOINTS PARA DIVIDENDOS
 # ===================================================================
-
 @api_bp.route("/dividends", methods=["GET"])
 def get_dividends():
     with current_app.app_context():
-        dividends = Dividend.query.order_by(Dividend.payment_date.asc()).all()
-        return jsonify([d.to_dict() for d in dividends])
+        latest_closing_date = db.session.query(db.func.max(StockClosing.date)).scalar()
+        
+        if not latest_closing_date:
+            dividends = Dividend.query.order_by(Dividend.payment_date.asc()).all()
+            results = [d.to_dict() for d in dividends]
+            for r in results:
+                r['is_ipsa'] = False
+            return jsonify(results)
+
+        results = db.session.query(
+            Dividend,
+            StockClosing.belongs_to_ipsa
+        ).outerjoin(
+            StockClosing,
+            and_(
+                Dividend.nemo == StockClosing.nemo,
+                StockClosing.date == latest_closing_date
+            )
+        ).order_by(Dividend.payment_date.asc()).all()
+
+        enriched_dividends = []
+        for dividend, belongs_to_ipsa in results:
+            dividend_dict = dividend.to_dict()
+            dividend_dict['is_ipsa'] = bool(belongs_to_ipsa) 
+            enriched_dividends.append(dividend_dict)
+
+        return jsonify(enriched_dividends)
 
 @api_bp.route("/dividends/update", methods=["POST"])
 def update_dividends():
     app_instance = current_app._get_current_object()
-
     def task_in_thread(app):
         result = {}
         try:
             loop = app.bot_event_loop
             if not loop.is_running(): raise RuntimeError("El loop de eventos del bot no está corriendo.")
-            
             async def update_task():
                 page = await get_page()
                 with app.app_context():
                     return await dividend_service.compare_and_update_dividends(page)
-            
             future = asyncio.run_coroutine_threadsafe(update_task(), loop)
             result = future.result(timeout=120)
         except Exception as e:
@@ -122,7 +145,6 @@ def update_dividends():
             result = {"error": str(e)}
         finally:
             socketio.emit('dividend_update_complete', result)
-
     threading.Thread(target=task_in_thread, args=(app_instance,), daemon=True).start()
     return jsonify({"success": True, "message": "Proceso de actualización de dividendos iniciado."}), 202
 
@@ -130,11 +152,10 @@ def update_dividends():
 def handle_dividend_columns():
     with current_app.app_context():
         if request.method == 'GET':
-            all_cols = list(Dividend().to_dict().keys())
+            all_cols = list(Dividend().to_dict().keys()) + ['is_ipsa']
             prefs = DividendColumnPreference.query.first()
-            visible_cols = json.loads(prefs.columns_json) if prefs and prefs.columns_json else ['nemo', 'fec_pago', 'fec_lim', 'val_acc', 'descrip_vc']
+            visible_cols = json.loads(prefs.columns_json) if prefs and prefs.columns_json else ['nemo', 'is_ipsa', 'fec_pago', 'fec_lim', 'val_acc', 'descrip_vc']
             return jsonify({'all_columns': all_cols, 'visible_columns': visible_cols})
-        
         if request.method == 'POST':
             data = request.get_json()
             if not data or 'columns' not in data: return jsonify({'error': 'Falta la lista de columnas'}), 400
@@ -143,7 +164,6 @@ def handle_dividend_columns():
             db.session.add(prefs)
             db.session.commit()
             return jsonify({'success': True})
-
 # ===================================================================
 # ENDPOINTS PARA CIERRE BURSÁTIL
 # ===================================================================
@@ -158,18 +178,15 @@ def get_closing_data():
 @api_bp.route("/closing/update", methods=["POST"])
 def update_closing_data():
     app_instance = current_app._get_current_object()
-
     def task_in_thread(app):
         result = {}
         try:
             loop = app.bot_event_loop
             if not loop.is_running(): raise RuntimeError("El loop de eventos del bot no está corriendo.")
-            
             async def update_task():
                 page = await get_page()
                 with app.app_context():
                     return await closing_service.update_stock_closings(page)
-            
             future = asyncio.run_coroutine_threadsafe(update_task(), loop)
             result = future.result(timeout=120)
         except Exception as e:
@@ -177,7 +194,6 @@ def update_closing_data():
             result = {"error": str(e)}
         finally:
             socketio.emit('closing_update_complete', result)
-
     threading.Thread(target=task_in_thread, args=(app_instance,), daemon=True).start()
     return jsonify({"success": True, "message": "Proceso de actualización de Cierre Bursátil iniciado."}), 202
 
@@ -192,7 +208,6 @@ def handle_closing_columns():
             else:
                 visible_cols = ['nemo', 'fec_fij_cie', 'precio_cierre_ant', 'monto_ant', 'un_transadas_ant', 'neg_ant', 'ren_actual', 'razon_pre_uti', 'PERTENECE_IPSA']
             return jsonify({'all_columns': all_cols, 'visible_columns': visible_cols})
-        
         if request.method == 'POST':
             data = request.get_json()
             if not data or 'columns' not in data: return jsonify({'error': 'Falta la lista de columnas'}), 400
@@ -203,47 +218,108 @@ def handle_closing_columns():
             return jsonify({'success': True})
 
 # ===================================================================
-# ENDPOINTS PARA INDICADORES FINANCIEROS CLAVE (KPIs) - NUEVOS
+# ENDPOINTS PARA INDICADORES FINANCIEROS CLAVE (KPIs)
 # ===================================================================
+@api_bp.route("/kpis/columns", methods=["GET", "POST"])
+def handle_kpi_columns():
+    """Gestiona las preferencias de columnas para la tabla de KPIs."""
+    with current_app.app_context():
+        if request.method == 'GET':
+            # Definimos todas las columnas posibles a partir del kpiManager.js
+            all_cols = [
+                'nemo', 'precio_cierre_ant', 'razon_pre_uti', 'roe', 'dividend_yield', 
+                'riesgo', 'beta', 'debt_to_equity', 'kpi_last_updated', 'kpi_source'
+            ]
+            
+            prefs = KpiColumnPreference.query.first()
+            if prefs and prefs.columns_json:
+                visible_cols = json.loads(prefs.columns_json)
+            else:
+                # Columnas visibles por defecto
+                visible_cols = ['nemo', 'precio_cierre_ant', 'razon_pre_uti', 'roe', 'dividend_yield', 'riesgo']
+            
+            return jsonify({'all_columns': all_cols, 'visible_columns': visible_cols})
+        
+        if request.method == 'POST':
+            data = request.get_json()
+            if not data or 'columns' not in data:
+                return jsonify({'error': 'Falta la lista de columnas'}), 400
+            
+            prefs = db.session.get(KpiColumnPreference, 1) or KpiColumnPreference(id=1)
+            prefs.columns_json = json.dumps(data['columns'])
+            db.session.add(prefs)
+            db.session.commit()
+            return jsonify({'success': True})
+        
+@api_bp.route("/kpis/selection", methods=["GET", "POST"])
+def handle_kpi_selection():
+    with current_app.app_context():
+        if request.method == "GET":
+            all_closings_query = select(StockClosing.nemo).distinct().order_by(StockClosing.nemo)
+            all_nemos = [row.nemo for row in db.session.execute(all_closings_query).all()]
+            
+            selected_nemos_query = select(KpiSelection.nemo)
+            selected_nemos = {row.nemo for row in db.session.execute(selected_nemos_query).all()}
+            
+            result = [
+                {"nemo": nemo, "is_selected": nemo in selected_nemos}
+                for nemo in all_nemos
+            ]
+            return jsonify(result)
+
+        if request.method == "POST":
+            data = request.get_json()
+            if not isinstance(data, dict) or "nemos" not in data:
+                return jsonify({"error": "Formato inválido. Se espera {'nemos': [...]}."}), 400
+            
+            KpiSelection.query.delete()
+            
+            new_selections = [KpiSelection(nemo=nemo) for nemo in data["nemos"]]
+            db.session.add_all(new_selections)
+            db.session.commit()
+            return jsonify({"success": True, "message": f"Selección guardada con {len(new_selections)} acciones."})
 
 @api_bp.route("/kpis", methods=["GET"])
 def get_all_kpis():
-    """Combina los datos de cierre con los KPIs avanzados."""
     with current_app.app_context():
-        latest_date = db.session.query(db.func.max(StockClosing.date)).scalar()
-        if not latest_date:
+        selected_nemos_query = select(KpiSelection.nemo)
+        selected_nemos = [row.nemo for row in db.session.execute(selected_nemos_query).all()]
+        if not selected_nemos:
             return jsonify([])
+
+        latest_date = db.session.query(db.func.max(StockClosing.date)).scalar()
+        if not latest_date: return jsonify([])
         
-        closings = StockClosing.query.filter_by(date=latest_date).all()
-        advanced_kpis = {k.nemo: k.to_dict() for k in AdvancedKPI.query.all()}
+        closings = StockClosing.query.filter(StockClosing.nemo.in_(selected_nemos), StockClosing.date == latest_date).all()
+        advanced_kpis = {k.nemo: k.to_dict() for k in AdvancedKPI.query.filter(AdvancedKPI.nemo.in_(selected_nemos)).all()}
         
         combined_data = []
         for closing in closings:
             data = closing.to_dict()
             adv_data = advanced_kpis.get(data['nemo'], {})
-            
             data['roe'] = adv_data.get('roe')
             data['debt_to_equity'] = adv_data.get('debt_to_equity')
             data['beta'] = adv_data.get('beta')
             data['riesgo'] = adv_data.get('analyst_recommendation')
             data['dividend_yield'] = data.get('ren_actual')
-            
+            data['kpi_last_updated'] = adv_data.get('last_updated')
+            data['kpi_source'] = adv_data.get('source')
             combined_data.append(data)
             
         return jsonify(combined_data)
 
 @api_bp.route("/kpis/update", methods=["POST"])
 def update_advanced_kpis():
-    """
-    Dispara un proceso en segundo plano para actualizar los KPIs avanzados
-    usando la API de IA para una lista de nemotécnicos.
-    """
     app_instance = current_app._get_current_object()
-
     def task_in_thread(app):
         with app.app_context():
-            nemos_to_update = [c.nemo for c in db.session.query(StockClosing.nemo).distinct().all()]
-            logger.info(f"Se iniciará la actualización de KPIs para {len(nemos_to_update)} acciones.")
+            nemos_to_update = [s.nemo for s in KpiSelection.query.all()]
+            if not nemos_to_update:
+                logger.info("No hay acciones seleccionadas para la actualización de KPIs.")
+                socketio.emit('kpi_update_complete', {'message': 'No hay acciones seleccionadas para actualizar.'})
+                return
+
+            logger.info(f"Se iniciará la actualización de KPIs para {len(nemos_to_update)} acciones seleccionadas.")
             
             updated_count = 0
             for i, nemo in enumerate(nemos_to_update):
@@ -255,7 +331,8 @@ def update_advanced_kpis():
                             "roe": kpi_data.get('roe'),
                             "debt_to_equity": kpi_data.get('debt_to_equity'),
                             "beta": kpi_data.get('beta'),
-                            "analyst_recommendation": kpi_data.get('analyst_recommendation')
+                            "analyst_recommendation": kpi_data.get('analyst_recommendation'),
+                            "source": kpi_data.get('source')
                         }
                         stmt = insert(AdvancedKPI).values(data_to_upsert)
                         update_stmt = stmt.on_conflict_do_update(
@@ -268,17 +345,18 @@ def update_advanced_kpis():
                         socketio.emit('kpi_update_progress', {'nemo': nemo, 'status': 'success', 'progress': f"{i+1}/{len(nemos_to_update)}"})
                     else:
                         socketio.emit('kpi_update_progress', {'nemo': nemo, 'status': 'failed', 'progress': f"{i+1}/{len(nemos_to_update)}"})
-                    
-                    time.sleep(1) 
-                        
+                    time.sleep(1.5) 
+                except ValueError as e: # Captura el error de cuota insuficiente
+                    logger.error(f"Deteniendo actualización de KPIs: {e}")
+                    socketio.emit('kpi_update_complete', {'error': str(e)})
+                    return # Detiene el bucle y el hilo
                 except Exception as e:
                     logger.error(f"Error procesando KPI para {nemo}: {e}")
                     socketio.emit('kpi_update_progress', {'nemo': nemo, 'status': 'error', 'message': str(e), 'progress': f"{i+1}/{len(nemos_to_update)}"})
 
-            socketio.emit('kpi_update_complete', {'message': f'Actualización completada. {updated_count} acciones procesadas.'})
-
+            socketio.emit('kpi_update_complete', {'message': f'Actualización completada. {updated_count} de {len(nemos_to_update)} acciones procesadas.'})
     threading.Thread(target=task_in_thread, args=(app_instance,), daemon=True).start()
-    return jsonify({"success": True, "message": "Proceso de actualización de KPIs iniciado."}), 202
+    return jsonify({"success": True, "message": "Proceso de actualización de KPIs iniciado para acciones seleccionadas."}), 202
 
 # ===================================================================
 # ENDPOINTS DE CONFIGURACIÓN (COLUMNAS, FILTROS, CREDENCIALES)
@@ -457,81 +535,3 @@ def handle_alerts():
         if request.method == 'GET':
             alerts = Alert.query.filter_by(triggered=False).all()
             return jsonify([a.to_dict() for a in alerts])
-
-
-# ===================================================================
-# ENDPOINTS PARA INDICADORES FINANCIEROS CLAVE (KPIs)
-# ===================================================================
-
-@api_bp.route("/kpis/selection", methods=["GET", "POST"])
-def handle_kpi_selection():
-    """Obtiene o actualiza la lista de acciones seleccionadas para KPIs."""
-    with current_app.app_context():
-        if request.method == "GET":
-            # Devuelve todas las acciones de cierre y marca las seleccionadas
-            all_closings_query = select(StockClosing.nemo).distinct().order_by(StockClosing.nemo)
-            all_nemos = [row.nemo for row in db.session.execute(all_closings_query).all()]
-            
-            selected_nemos_query = select(KpiSelection.nemo)
-            selected_nemos = {row.nemo for row in db.session.execute(selected_nemos_query).all()}
-            
-            result = [
-                {"nemo": nemo, "is_selected": nemo in selected_nemos}
-                for nemo in all_nemos
-            ]
-            return jsonify(result)
-
-        if request.method == "POST":
-            data = request.get_json()
-            if not isinstance(data, dict) or "nemos" not in data:
-                return jsonify({"error": "Formato inválido. Se espera {'nemos': [...]}."}), 400
-            
-            # Estrategia de borrado y recreación para simplicidad
-            KpiSelection.query.delete()
-            
-            new_selections = [KpiSelection(nemo=nemo) for nemo in data["nemos"]]
-            db.session.add_all(new_selections)
-            db.session.commit()
-            return jsonify({"success": True, "message": f"Selección guardada con {len(new_selections)} acciones."})
-
-@api_bp.route("/kpis", methods=["GET"])
-def get_all_kpis():
-    """Combina datos de cierre con KPIs avanzados SOLO para acciones seleccionadas."""
-    with current_app.app_context():
-        selected_nemos_query = select(KpiSelection.nemo)
-        selected_nemos = [row.nemo for row in db.session.execute(selected_nemos_query).all()]
-        if not selected_nemos:
-            return jsonify([])
-
-        closings = StockClosing.query.filter(StockClosing.nemo.in_(selected_nemos)).all()
-        advanced_kpis = {k.nemo: k.to_dict() for k in AdvancedKPI.query.filter(AdvancedKPI.nemo.in_(selected_nemos)).all()}
-        
-        # ... (el resto de la lógica de combinación de datos no cambia) ...
-        combined_data = []
-        for closing in closings:
-            data = closing.to_dict()
-            adv_data = advanced_kpis.get(data['nemo'], {})
-            data['roe'] = adv_data.get('roe')
-            data['debt_to_equity'] = adv_data.get('debt_to_equity')
-            data['beta'] = adv_data.get('beta')
-            data['riesgo'] = adv_data.get('analyst_recommendation')
-            data['dividend_yield'] = data.get('ren_actual')
-            combined_data.append(data)
-            
-        return jsonify(combined_data)
-
-@api_bp.route("/kpis/update", methods=["POST"])
-def update_advanced_kpis():
-    """Actualiza los KPIs SOLO para las acciones seleccionadas."""
-    app_instance = current_app._get_current_object()
-
-    def task_in_thread(app):
-        with app.app_context():
-            # AHORA SOLO OBTIENE LAS ACCIONES SELECCIONADAS
-            nemos_to_update = [s.nemo for s in KpiSelection.query.all()]
-            # ... (el resto de la lógica del hilo no cambia, ya que itera sobre la lista `nemos_to_update`) ...
-            logger.info(f"Se iniciará la actualización de KPIs para {len(nemos_to_update)} acciones seleccionadas.")
-            # ... (el bucle for y la llamada a ai_financial_service permanecen igual) ...
-            
-    threading.Thread(target=task_in_thread, args=(app_instance,), daemon=True).start()
-    return jsonify({"success": True, "message": "Proceso de actualización de KPIs iniciado para acciones seleccionadas."}), 202

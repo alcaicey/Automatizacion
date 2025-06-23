@@ -18,6 +18,7 @@ from .closing_column_preference import ClosingColumnPreference
 from .advanced_kpi import AdvancedKPI
 from .kpi_selection import KpiSelection 
 from .prompt_config import PromptConfig 
+from .kpi_column_preference import KpiColumnPreference
 # El __all__ define qué se importa cuando se hace 'from src.models import *'
 __all__ = [
     "db",
@@ -38,4 +39,5 @@ __all__ = [
     "AdvancedKPI",
     "KpiSelection", 
     "PromptConfig",
+    "KpiColumnPreference",
 ]

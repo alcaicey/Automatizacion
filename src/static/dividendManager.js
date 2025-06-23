@@ -8,16 +8,20 @@ window.dividendManager = {
         visible: [],
         config: {
             'nemo': { title: 'Símbolo' },
+            'is_ipsa': { 
+                title: 'IPSA', 
+                render: (data) => data ? '<i class="fas fa-check-circle text-primary"></i>' : '' 
+            },
             'descrip_vc': { title: 'Descripción' },
             'fec_lim': { title: 'Fecha Límite', render: (d) => new Date(d + 'T00:00:00Z').toLocaleDateString('es-CL', { timeZone: 'UTC' }) },
             'fec_pago': { title: 'Fecha Pago', render: (d) => new Date(d + 'T00:00:00Z').toLocaleDateString('es-CL', { timeZone: 'UTC' }) },
             'moneda': { title: 'Moneda' },
             'val_acc': { title: 'Valor', render: (d,t,r) => `${r.moneda} ${d.toLocaleString('es-CL', {minimumFractionDigits: 2, maximumFractionDigits: 4})}` },
-            'num_acc_ant': { title: 'Acc. Antiguas', render: (d) => d.toLocaleString('es-CL') },
-            'num_acc_der': { title: 'Acc. con Derecho', render: (d) => d.toLocaleString('es-CL') },
-            'num_acc_nue': { title: 'Acc. Nuevas', render: (d) => d.toLocaleString('es-CL') },
-            'pre_ant_vc': { title: 'Precio Antiguo', render: (d,t,r) => `${r.moneda} ${d.toLocaleString('es-CL')}` },
-            'pre_ex_vc': { title: 'Precio Ex-Div', render: (d,t,r) => `${r.moneda} ${d.toLocaleString('es-CL')}` },
+            'num_acc_ant': { title: 'Acc. Antiguas', render: (d) => d ? d.toLocaleString('es-CL') : 'N/A' },
+            'num_acc_der': { title: 'Acc. con Derecho', render: (d) => d ? d.toLocaleString('es-CL') : 'N/A' },
+            'num_acc_nue': { title: 'Acc. Nuevas', render: (d) => d ? d.toLocaleString('es-CL') : 'N/A' },
+            'pre_ant_vc': { title: 'Precio Antiguo', render: (d,t,r) => d ? `${r.moneda} ${d.toLocaleString('es-CL')}`: 'N/A' },
+            'pre_ex_vc': { title: 'Precio Ex-Div', render: (d,t,r) => d ? `${r.moneda} ${d.toLocaleString('es-CL')}`: 'N/A' },
         }
     },
     socket: null,
@@ -158,7 +162,7 @@ window.dividendManager = {
         this.dom.columnForm.innerHTML = '';
         this.columnPrefs.all.forEach(colKey => {
             const isChecked = this.columnPrefs.visible.includes(colKey);
-            const label = this.columnPrefs.config[colKey]?.title || colKey;
+            const label = this.columnPrefs.config[colKey]?.title || colKey.replace(/_/g, ' ');
             this.dom.columnForm.innerHTML += `
                 <div class="col-6"><div class="form-check">
                     <input class="form-check-input" type="checkbox" value="${colKey}" id="div-col-${colKey}" ${isChecked ? 'checked' : ''}>
@@ -200,7 +204,7 @@ window.dividendManager = {
 
         bootstrap.Modal.getInstance(this.dom.columnModal).hide();
         this.renderTable(this.dataTable.rows().data().toArray());
-        this.populateColumnFilterDropdown(); // Actualizar el dropdown de filtros
+        this.populateColumnFilterDropdown();
     },
 
     async handleUpdateClick() {

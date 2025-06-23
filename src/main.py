@@ -148,5 +148,5 @@ if __name__ == "__main__":
 
     start_bot_thread()
 
-    logger.info("🚀 Iniciando servidor Flask. La aplicación está lista en http://localhost:5000")
-    socketio.run(app, host="0.0.0.0", port=5000, debug=False, use_reloader=False, allow_unsafe_werkzeug=True)
+    logger.info("🚀 Iniciando servidor Flask con Gevent. La aplicación está lista en http://localhost:5000")
+    socketio.run(app, host="0.0.0.0", port=5000, debug=False)

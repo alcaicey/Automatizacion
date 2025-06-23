@@ -10,6 +10,10 @@ class AdvancedKPI(db.Model):
     debt_to_equity = db.Column(db.Float, nullable=True)
     beta = db.Column(db.Float, nullable=True)
     analyst_recommendation = db.Column(db.String(50), nullable=True)
+    
+    # --- NUEVA COLUMNA ---
+    source = db.Column(db.Text, nullable=True) 
+
     last_updated = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     def to_dict(self):
@@ -19,5 +23,6 @@ class AdvancedKPI(db.Model):
             'debt_to_equity': self.debt_to_equity,
             'beta': self.beta,
             'analyst_recommendation': self.analyst_recommendation,
+            'source': self.source, # <-- Añadir al diccionario
             'last_updated': self.last_updated.isoformat() if self.last_updated else None,
         }
