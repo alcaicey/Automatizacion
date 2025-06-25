@@ -52,11 +52,10 @@ async def perform_session_health_check(page: Page, username: str, password: str)
     """
     logger.info("[Health Check] Verificando estado de la sesión...")
     
-    # --- INICIO DE LA MODIFICACIÓN ---
-    # Cambiamos la condición de espera a 'networkidle' para dar tiempo al contenido dinámico
-    # de renderizarse antes de continuar con el chequeo de sesión.
-    await page.goto(BASE_URL, wait_until="networkidle", timeout=30000)
-    # --- FIN DE LA MODIFICACIÓN ---
+    # --- INICIO DE LA CORRECCIÓN: Usar una condición de espera más fiable ---
+    # Cambiamos `networkidle` por `domcontentloaded` para evitar timeouts en páginas "ruidosas".
+    await page.goto(BASE_URL, wait_until="domcontentloaded", timeout=30000)
+    # --- FIN DE LA CORRECCIÓN ---
     
     is_logged_in = await check_if_logged_in(page)
     

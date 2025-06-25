@@ -1,5 +1,8 @@
-# Este archivo sirve para que Python reconozca el directorio 'models' como un paquete.
-# No es necesario que contenga código, pero podemos usarlo para facilitar las importaciones.
+# src/models/__init__.py
+
+# El __init__.py en la carpeta de modelos sirve para que Python reconozca el
+# directorio como un paquete. También es un buen lugar para definir el
+# __all__, que controla qué se importa con 'from src.models import *'.
 
 from .user import User
 from .stock_price import StockPrice
@@ -19,11 +22,9 @@ from .advanced_kpi import AdvancedKPI
 from .kpi_selection import KpiSelection 
 from .prompt_config import PromptConfig 
 from .kpi_column_preference import KpiColumnPreference
-from .portfolio_column_preference import PortfolioColumnPreference # <-- AÑADIDO
+from .portfolio_column_preference import PortfolioColumnPreference
 
-# El __all__ define qué se importa cuando se hace 'from src.models import *'
 __all__ = [
-    "db",
     "User",
     "StockPrice",
     "Credential",
@@ -42,5 +43,5 @@ __all__ = [
     "KpiSelection", 
     "PromptConfig",
     "KpiColumnPreference",
-    "PortfolioColumnPreference", # <-- AÑADIDO
+    "PortfolioColumnPreference",
 ]

@@ -58,7 +58,6 @@ async def capture_session_time_via_network(page: Page, logger_instance=None) -> 
         data = await response.json()
         remaining_time = data.get("tiempoRestante")
         if remaining_time is not None:
-            # --- REQUISITO: Loguear la duración encontrada ---
             log.info(f"[DataCapture] ✓ ¡Variable de sesión encontrada! Duración: {remaining_time} segundos (~{int(remaining_time)/60:.1f} minutos).")
             return int(remaining_time)
         return None

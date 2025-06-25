@@ -2,7 +2,7 @@
 
 from flask import Blueprint
 
-# --- Importamos los otros blueprints que irán bajo /api ---
+# Importamos los otros blueprints que irán bajo /api
 from ..user import user_bp
 from ..crud_api import crud_bp
 
@@ -10,11 +10,11 @@ from ..crud_api import crud_bp
 api_bp = Blueprint("api", __name__)
 
 # 2. Registramos los blueprints "hijos" dentro del principal.
-#    No necesitan un prefijo de URL aquí, porque heredarán el de `api_bp`.
+#    Heredarán el prefijo de URL de `api_bp`.
 api_bp.register_blueprint(user_bp)
 api_bp.register_blueprint(crud_bp)
 
-# 3. Importamos los módulos de rutas para que se registren en el `api_bp`
+# 3. Importamos los módulos de rutas para que se registren en `api_bp`
 from . import bot_routes
 from . import data_routes
 from . import config_routes

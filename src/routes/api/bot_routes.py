@@ -12,13 +12,9 @@ from sqlalchemy.dialects.postgresql import insert
 from src.routes.api import api_bp
 from src.models import StockFilter, AdvancedKPI, KpiSelection
 
-# --- INICIO DE LA MODIFICACIÓN ---
-# Se importan los módulos necesarios para la nueva lógica de orquestación
 from src.scripts.bolsa_service import run_bolsa_bot
 from src.scripts import dividend_service, closing_service, ai_financial_service
 from src.scripts.bot_page_manager import get_page
-# --- FIN DE LA MODIFICACIÓN ---
-
 from src.extensions import socketio, db
 
 logger = logging.getLogger(__name__)
@@ -120,16 +116,14 @@ def update_advanced_kpis():
     app_instance = current_app._get_current_object()
     def task_in_thread(app):
         with app.app_context():
-            # --- INICIO DE LA MODIFICACIÓN ---
+            nemo = "" # variable para logging en caso de error
             try:
-                # Paso 0: Obtener la página de Playwright
                 loop = app.bot_event_loop
                 if not loop.is_running(): raise RuntimeError("El loop de eventos del bot no está corriendo.")
                 
                 page_future = asyncio.run_coroutine_threadsafe(get_page(), loop)
-                page = page_future.result(timeout=60) # Espera a que la página esté lista
+                page = page_future.result(timeout=60)
                 
-                # Paso 1: Actualizar los datos de Cierre Bursátil (nuestra fuente base)
                 socketio.emit('kpi_update_progress', {'status': 'info', 'message': 'Actualizando datos base de Cierre Bursátil...'})
                 closing_future = asyncio.run_coroutine_threadsafe(closing_service.update_stock_closings(page), loop)
                 closing_result = closing_future.result(timeout=120)
@@ -137,16 +131,13 @@ def update_advanced_kpis():
                 if 'error' in closing_result:
                     raise Exception(f"Fallo al obtener datos base de cierre: {closing_result['error']}")
 
-                socketio.emit('kpi_update_progress', {'status': 'info', 'message': '✓ Datos base actualizados. Iniciando consulta de KPIs avanzados...'})
+                socketio.emit('kpi_update_progress', {'status': 'info', 'message': '✓ Datos base actualizados. Iniciando consulta de KPIs...'})
 
-                # Paso 2: Proceder con la lógica existente para obtener KPIs de la IA
                 nemos_to_update = [s.nemo for s in KpiSelection.query.all()]
                 if not nemos_to_update:
-                    logger.info("No hay acciones seleccionadas para la actualización de KPIs.")
                     socketio.emit('kpi_update_complete', {'message': 'No hay acciones seleccionadas para actualizar.'})
                     return
                 
-                logger.info(f"Se iniciará la actualización de KPIs para {len(nemos_to_update)} acciones seleccionadas.")
                 updated_count = 0
                 for i, nemo in enumerate(nemos_to_update):
                     kpi_data = ai_financial_service.get_advanced_kpis(nemo)
@@ -170,14 +161,9 @@ def update_advanced_kpis():
                 
                 socketio.emit('kpi_update_complete', {'message': f'Actualización completada. {updated_count} de {len(nemos_to_update)} acciones procesadas.'})
 
-            except ValueError as e:
-                logger.error(f"Deteniendo actualización de KPIs: {e}")
-                socketio.emit('kpi_update_complete', {'error': str(e)})
-                return
             except Exception as e:
-                logger.error(f"Error procesando KPI para {nemo}: {e}")
-                socketio.emit('kpi_update_complete', {'error': str(e)}) # Emitir error general
-            # --- FIN DE LA MODIFICACIÓN ---
+                logger.error(f"Error procesando KPI para {nemo}: {e}", exc_info=True)
+                socketio.emit('kpi_update_complete', {'error': str(e)})
 
     threading.Thread(target=task_in_thread, args=(app_instance,), daemon=True).start()
     return jsonify({"success": True, "message": "Proceso de actualización de KPIs iniciado para acciones seleccionadas."}), 202

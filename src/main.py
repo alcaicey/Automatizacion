@@ -18,10 +18,10 @@ from src.extensions import db, socketio
 from src.models import (
     User, StockPrice, Credential, LogEntry, ColumnPreference, StockFilter, 
     LastUpdate, Portfolio, Dividend, StockClosing, AdvancedKPI, KpiSelection, 
-    PromptConfig, DividendColumnPreference, ClosingColumnPreference, KpiColumnPreference
+    PromptConfig, DividendColumnPreference, ClosingColumnPreference, KpiColumnPreference,
+    PortfolioColumnPreference
 )
 from src.routes import register_blueprints
-from src.utils.scheduler import stop_periodic_updates
 from src.scripts.bot_page_manager import close_browser
 
 # Configuración de logging
@@ -88,12 +88,11 @@ def indicadores():
 def login():
     return render_template("login.html")
 
-# --- INICIO DE LA MODIFICACIÓN: Ruta para el favicon ---
+# Ruta para el favicon
 @app.route('/favicon.ico')
 def favicon():
     return send_from_directory(os.path.join(app.root_path, 'static'),
                                'favicon.svg', mimetype='image/svg+xml')
-# --- FIN DE LA MODIFICACIÓN ---
 
 # Llamada única para registrar todos los blueprints
 register_blueprints(app)
@@ -105,7 +104,6 @@ def static_files(path):
 # --- Funciones de ciclo de vida de la aplicación ---
 def _cleanup_resources():
     logger.info("Iniciando cierre limpio de la aplicación...")
-    stop_periodic_updates()
     if BOT_THREAD.is_alive():
         logger.info("Solicitando detención del bucle de eventos del bot...")
         try:

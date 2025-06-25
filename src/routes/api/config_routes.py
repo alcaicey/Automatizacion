@@ -9,7 +9,7 @@ from src.extensions import db
 from src.utils.db_io import get_latest_data
 from src.models import (
     ColumnPreference, StockFilter, Credential, Dividend, DividendColumnPreference,
-    StockClosing, ClosingColumnPreference, KpiColumnPreference, PortfolioColumnPreference # <-- AÑADIDO
+    StockClosing, ClosingColumnPreference, KpiColumnPreference, PortfolioColumnPreference
 )
 
 logger = logging.getLogger(__name__)
@@ -38,20 +38,17 @@ def handle_columns():
             db.session.commit()
             return jsonify({'success': True})
 
-# --- INICIO DE LA MODIFICACIÓN: Nueva ruta para columnas del portafolio ---
 @api_bp.route("/portfolio/columns", methods=["GET", "POST"])
 def handle_portfolio_columns():
     """Gestiona las preferencias de columnas para la tabla de Portafolio."""
     with current_app.app_context():
         if request.method == 'GET':
-            # Definir todas las columnas posibles para el portafolio
             all_cols = [
                 'symbol', 'quantity', 'purchase_price', 'total_paid', 
                 'current_price', 'daily_variation_percent', 'current_value',
                 'gain_loss_total', 'gain_loss_percent', 'actions'
             ]
             prefs = PortfolioColumnPreference.query.first()
-            # Columnas visibles por defecto
             visible_cols = json.loads(prefs.columns_json) if prefs and prefs.columns_json else all_cols
             return jsonify({'all_columns': all_cols, 'visible_columns': visible_cols})
         
@@ -64,7 +61,6 @@ def handle_portfolio_columns():
             db.session.add(prefs)
             db.session.commit()
             return jsonify({'success': True})
-# --- FIN DE LA MODIFICACIÓN ---
 
 @api_bp.route("/dividends/columns", methods=["GET", "POST"])
 def handle_dividend_columns():

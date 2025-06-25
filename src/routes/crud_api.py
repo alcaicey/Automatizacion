@@ -14,7 +14,6 @@ def model_to_dict(obj):
     d = {}
     for c in obj.__table__.columns:
         val = getattr(obj, c.name)
-        # Convertir datetime a formato estándar ISO para compatibilidad
         if isinstance(val, datetime):
             val = val.isoformat()
         d[c.name] = val
@@ -79,8 +78,6 @@ def list_records(table_name):
         if search_filters:
             query = query.filter(or_(*search_filters))
 
-    # --- INICIO DE LA CORRECCIÓN: Usar siempre el model_to_dict genérico ---
-    # La paginación se mantiene igual, pero ahora la conversión de datos será consistente.
     pagination = query.order_by(*pk_column_names).paginate(page=page, per_page=per_page, error_out=False)
     records = pagination.items
     
@@ -96,7 +93,6 @@ def list_records(table_name):
             "has_prev": pagination.has_prev
         }
     })
-    # --- FIN DE LA CORRECCIÓN ---
 
 @crud_bp.route('/mantenedores/<table_name>', methods=['POST'])
 def create_record(table_name):
@@ -129,7 +125,7 @@ def update_record(table_name, record_id):
     if not data: abort(400)
 
     for key, value in data.items():
-        if key not in record.__table__.primary_key.columns.keys() and hasattr(record, key):
+        if hasattr(record, key) and key not in [c.name for c in model.__table__.primary_key.columns]:
             setattr(record, key, value)
             
     db.session.commit()
@@ -154,7 +150,7 @@ def delete_record(table_name, record_id):
 def delete_all_records(table_name):
     """Borra todos los registros de una tabla específica y permitida."""
     
-    allowed_tables_for_deletion = ['log_entries', 'stock_prices']
+    allowed_tables_for_deletion = ['log_entries', 'stock_prices', 'filtered_stock_history']
     
     if table_name not in allowed_tables_for_deletion:
         abort(403, description=f"El borrado masivo no está permitido para la tabla '{table_name}'.")

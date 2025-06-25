@@ -26,9 +26,7 @@ class StockPrice(db.Model):
         Devuelve el objeto como un diccionario, usando los nombres de clave del JSON original
         y formateando el timestamp.
         """
-        # --- INICIO DE LA CORRECCIÓN: Formatear el timestamp ---
         formatted_timestamp = self.timestamp.strftime('%d/%m/%Y %H:%M:%S') if self.timestamp else None
-        # --- FIN DE LA CORRECCIÓN ---
 
         return {
             'NEMO': self.symbol,
@@ -41,7 +39,6 @@ class StockPrice(db.Model):
             'MONEDA': self.currency,
             'ISIN': self.isin,
             'BONO_VERDE': self.green_bond,
-            # Usamos la variable formateada
             'timestamp': formatted_timestamp
         }
 
@@ -49,10 +46,14 @@ class StockPrice(db.Model):
 def create_timescale_hypertable(target, connection, **kw):
     if connection.dialect.name == "postgresql":
         try:
+            # La extensión debe estar preinstalada en la base de datos.
+            # Esta llamada asegura que está habilitada para la conexión actual.
             connection.execute(DDL("CREATE EXTENSION IF NOT EXISTS timescaledb;"))
+            # Convierte la tabla en una hypertable
             connection.execute(
                 DDL("SELECT create_hypertable('stock_prices', 'timestamp', if_not_exists => TRUE);")
             )
         except Exception as e:
-            # En entornos de prueba o DBs sin superusuario, esto puede fallar. Lo registramos.
-            print(f"ADVERTENCIA: No se pudo crear la hypertable de TimescaleDB. Error: {e}")
+            # Esto puede fallar si el usuario de la DB no tiene permisos de superusuario
+            # o si la extensión no está instalada. Lo registramos como una advertencia.
+            print(f"ADVERTENCIA: No se pudo crear/configurar la hypertable de TimescaleDB. Error: {e}")

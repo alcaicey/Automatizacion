@@ -51,7 +51,6 @@ async def auto_login(page: Page, username: str, password: str) -> None:
         await page.wait_for_url(f"**{LOGIN_LANDING_PAGE_URL}", timeout=20000)
         logger.info(f"[Login] En la página {page.url}")
 
-        # --- INICIO DE LA MODIFICACIÓN ---
         # PASO 4: Clic en el botón "INGRESAR" y esperar a que el formulario de SSO esté listo
         login_page_button = page.locator(LOGIN_PAGE_BUTTON_SELECTOR).first
         await login_page_button.click()
@@ -62,7 +61,6 @@ async def auto_login(page: Page, username: str, password: str) -> None:
         username_field = page.locator(USER_SEL)
         await username_field.wait_for(state="visible", timeout=20000)
         logger.info("[Login] Formulario de SSO detectado.")
-        # --- FIN DE LA MODIFICACIÓN ---
 
         # PASO 5: Rellenar credenciales en la página de SSO
         logger.info("[Login] Rellenando credenciales...")

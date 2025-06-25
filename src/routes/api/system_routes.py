@@ -4,7 +4,7 @@ from flask import jsonify, request, current_app
 
 from src.routes.api import api_bp 
 from src.extensions import db
-from src.models import LogEntry, Alert, FilteredStockHistory
+from src.models import LogEntry, Alert
 
 logger = logging.getLogger(__name__)
 
