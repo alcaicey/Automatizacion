@@ -1,3 +1,5 @@
+# src/scripts/bolsa_service.py
+
 from __future__ import annotations
 import asyncio
 import logging
@@ -23,23 +25,26 @@ _is_first_run_since_startup = True
 
 async def check_if_logged_in(page: Page) -> bool:
     """
-    Verifica si la sesión está activa comprobando la (in)visibilidad del botón de login.
+    Verifica de forma robusta si la sesión está activa.
+    1. Comprueba si estamos en una página de CAPTCHA.
+    2. Busca un elemento que SOLO existe si la sesión está iniciada (confirmación positiva).
     """
     logger.info("[Service] Verificando si existe una sesión activa...")
-    
-    # El botón de login tiene el ID 'menuppal-login' y solo se muestra si NO hay sesión.
-    login_button = page.locator('#menuppal-login')
+
+    if "validate.perfdrive.com" in page.url or "radware" in page.url:
+        logger.error("[Service] ¡Página de CAPTCHA detectada! Se considera sesión como NO activa.")
+        return False
+
+    profile_element = page.locator('div[ng-show="globales.miperfil.activo"]')
     
     try:
-        # Usamos un timeout corto. Si el botón de login es visible, significa que NO estamos logueados.
-        await login_button.wait_for(state="visible", timeout=5000)
-        logger.warning("[Service] Botón de 'Ingresar' encontrado. No hay sesión activa.")
-        return False
-    except TimeoutError:
-        # Si el botón de login NO es visible después de 5 segundos, es una señal fuerte
-        # de que ya estamos logueados (porque en su lugar se muestra el perfil del usuario).
-        logger.info("[Service] ✓ No se encontró el botón de 'Ingresar'. Se asume sesión activa.")
+        await profile_element.wait_for(state="visible", timeout=5000)
+        logger.info("[Service] ✓ Elemento de perfil de usuario encontrado. Sesión activa confirmada.")
         return True
+    except PlaywrightTimeoutError:
+        logger.warning("[Service] No se encontró el elemento de perfil de usuario. Se asume que no hay sesión activa.")
+        return False
+
 
 async def perform_session_health_check(page: Page, username: str, password: str) -> None:
     """
@@ -47,24 +52,24 @@ async def perform_session_health_check(page: Page, username: str, password: str)
     """
     logger.info("[Health Check] Verificando estado de la sesión...")
     
-    # 1. SIEMPRE vamos a la página principal primero para un chequeo limpio.
-    await page.goto(BASE_URL, wait_until="domcontentloaded", timeout=20000)
+    # --- INICIO DE LA MODIFICACIÓN ---
+    # Cambiamos la condición de espera a 'networkidle' para dar tiempo al contenido dinámico
+    # de renderizarse antes de continuar con el chequeo de sesión.
+    await page.goto(BASE_URL, wait_until="networkidle", timeout=30000)
+    # --- FIN DE LA MODIFICACIÓN ---
     
-    # 2. Comprobamos si estamos logueados desde la página principal.
     is_logged_in = await check_if_logged_in(page)
     
-    # 3. Si no lo estamos, llamamos a nuestro robusto auto_login.
     if not is_logged_in:
         logger.warning("[Health Check] Sesión no válida o expirada. Forzando re-login...")
         await auto_login(page, username, password)
         
-        # 4. Verificación final post-login.
         await page.goto(TARGET_DATA_PAGE_URL, wait_until="domcontentloaded", timeout=20000)
         premium_badge = page.locator("span.badge:has-text('Tiempo Real')")
         try:
             await premium_badge.wait_for(state="visible", timeout=10000)
             logger.info("[Health Check] ✓ Re-login exitoso y verificado en la página de datos.")
-        except TimeoutError:
+        except PlaywrightTimeoutError:
             raise LoginError("El re-login forzado falló. No se pudo acceder a la página de datos premium.")
     else:
         logger.info("[Health Check] ✓ La sesión existente es válida.")
@@ -99,7 +104,7 @@ async def run_bolsa_bot(app=None, username=None, password=None, filtered_symbols
     try:
         logger.info(f"=== INICIO DE EJECUCIÓN DEL BOT (Primera vez: {_is_first_run_since_startup}) ===")
         page = await get_page()
-
+        
         logger.info("🚀 Fase 1: Chequeo y establecimiento de Sesión.")
         await perform_session_health_check(page, username, password)
         

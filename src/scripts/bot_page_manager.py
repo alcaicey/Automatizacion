@@ -4,10 +4,12 @@ import logging
 import os
 from typing import Optional
 
-from playwright.async_api import async_playwright, Browser, Page, Playwright, BrowserContext
+from playwright.async_api import async_playwright, Browser, Page, Playwright, BrowserContext, Error as PlaywrightError
 
-# Importamos la CLASE principal, como indica la documentación de la v2.0.0
+# --- INICIO DE LA MODIFICACIÓN ---
+# Importamos la CLASE principal de la librería
 from playwright_stealth import Stealth
+# --- FIN DE LA MODIFICACIÓN ---
 
 from src.config import STORAGE_STATE_PATH
 from .bot_config import get_playwright_context_options, get_extra_headers
@@ -51,18 +53,20 @@ async def get_page() -> Page:
         _LOG.info(f"[PageManager] Estado de sesión encontrado en {STORAGE_STATE_PATH}. Se cargará.")
     
     context_options = get_playwright_context_options(storage_state_path=storage_state)
+    _LOG.info("[PageManager] Creando nuevo contexto de navegador con evasión...")
     _CONTEXT = await _BROWSER.new_context(**context_options)
     
-    _CONTEXT.on("close", _save_session_state_sync_wrapper)
+    # --- INICIO DE LA MODIFICACIÓN ---
+    # Aplicamos la evasión al CONTEXTO, ANTES de crear la página.
+    # Esto es más robusto y afecta a todas las páginas que se abran.
+    await Stealth().apply_stealth_async(_CONTEXT)
+    # --- FIN DE LA MODIFICACIÓN ---
     
-    # --- INICIO DE LA CORRECCIÓN SEGÚN DOCUMENTACIÓN v2.0.0 ---
-    # 1. Creamos una instancia de la clase Stealth.
-    stealth_config = Stealth()
-    # 2. Aplicamos el stealth al CONTEXTO usando el método `apply_stealth_async`.
-    await stealth_config.apply_stealth_async(_CONTEXT)
-    # --- FIN DE LA CORRECCIÓN ---
+    _CONTEXT.on("close", _save_session_state_sync_wrapper)
 
+    _LOG.info("[PageManager] ✓ Creando una nueva página desde el contexto existente.")
     _PAGE = await _CONTEXT.new_page()
+    
     await _PAGE.set_extra_http_headers(get_extra_headers())
     
     _LOG.info("[PageManager] ✓ Nuevo contexto y página creados con evasión aplicada.")
