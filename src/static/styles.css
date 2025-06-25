@@ -43,14 +43,16 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
+    flex-direction: column;
     z-index: 9999;
 }
 
 .loading-content {
     text-align: center;
     padding: 20px;
-    border-radius: 10px;
+    color: white;
     background-color: rgba(0, 0, 0, 0.5);
+    border-radius: 10px;
     max-width: 90%;
 }
 
@@ -68,6 +70,15 @@ body {
     animation: highlight 2s ease-out;
 }
 
+/* Animación para resaltar filas actualizadas en tablas */
+@keyframes highlight-row {
+    0% { background-color: rgba(255, 255, 0, 0.4); }
+    100% { background-color: transparent; }
+}
+
+.highlight-update {
+    animation: highlight-row 2s ease-out;
+}
 /* Mejoras para dispositivos móviles */
 @media (max-width: 767.98px) {
     .table-responsive {

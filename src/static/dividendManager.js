@@ -3,6 +3,7 @@
 window.dividendManager = {
     dataTable: null,
     dom: {},
+    isInitialLoad: true, // <-- NUEVA PROPIEDAD
     columnPrefs: {
         all: [],
         visible: [],
@@ -59,7 +60,10 @@ window.dividendManager = {
         this.dom.updateBtn.addEventListener('click', () => this.handleUpdateClick());
         this.dom.saveColumnPrefsBtn.addEventListener('click', () => this.handleSavePrefs());
         
-        this.dom.applyFiltersBtn.addEventListener('click', () => this.applyCustomFilters());
+        this.dom.applyFiltersBtn.addEventListener('click', () => {
+            this.isInitialLoad = false; // El usuario aplicó filtros manualmente
+            this.applyCustomFilters();
+        });
         this.dom.clearFiltersBtn.addEventListener('click', () => this.clearCustomFilters());
 
         this.socket.on('dividend_update_complete', (result) => {
@@ -94,6 +98,9 @@ window.dividendManager = {
             if (!response.ok) throw new Error('No se pudieron cargar los dividendos.');
             const dividends = await response.json();
             this.renderTable(dividends);
+            // --- INICIO DE LA MODIFICACIÓN: Aplicar filtros después de cargar ---
+            this.applyCustomFilters(); 
+            // --- FIN DE LA MODIFICACIÓN ---
         } catch (error) {
             console.error('Error al cargar dividendos:', error);
             this.dom.table.innerHTML = `<tr><td colspan="5" class="text-danger text-center">${error.message}</td></tr>`;
@@ -111,51 +118,85 @@ window.dividendManager = {
     applyCustomFilters() {
         if (!this.dataTable) return;
 
-        $.fn.dataTable.ext.search.pop();
-        this.dataTable.columns().search('').draw();
+        // --- INICIO DE LA MODIFICACIÓN: Lógica de filtros por defecto ---
+        if (this.isInitialLoad) {
+            const today = new Date();
+            const future = new Date();
+            future.setMonth(today.getMonth() + 3);
+
+            // Función para formatear la fecha a YYYY-MM-DD
+            const formatDate = (date) => date.toISOString().split('T')[0];
+
+            this.dom.startDate.value = formatDate(today);
+            this.dom.endDate.value = formatDate(future);
+            this.dom.textFilter.value = 'true';
+            
+            // Encuentra el índice de la columna IPSA
+            const ipsaColIndex = this.columnPrefs.visible.indexOf('is_ipsa');
+            if (ipsaColIndex !== -1) {
+                this.dom.columnFilter.value = ipsaColIndex;
+            }
+        }
+        // --- FIN DE LA MODIFICACIÓN ---
 
         const startDate = this.dom.startDate.value ? new Date(this.dom.startDate.value + 'T00:00:00Z') : null;
         const endDate = this.dom.endDate.value ? new Date(this.dom.endDate.value + 'T23:59:59Z') : null;
-        const colIndex = this.dom.columnFilter.value;
+        let colIndex = this.dom.columnFilter.value; // Se usa 'let' para poder modificarlo
         const searchText = this.dom.textFilter.value.trim().toLowerCase();
-
-        if (searchText) {
-            if (colIndex) {
-                this.dataTable.column(colIndex).search(searchText, false, true).draw();
-            } else {
-                this.dataTable.search(searchText).draw();
-            }
-        }
-
-        const dateColKey = 'fec_pago';
-        const dateColIndex = this.columnPrefs.visible.indexOf(dateColKey);
         
-        if ((startDate || endDate) && dateColIndex > -1) {
-            $.fn.dataTable.ext.search.push(
-                (settings, data, dataIndex) => {
-                    const rowData = this.dataTable.row(dataIndex).data();
+        $.fn.dataTable.ext.search.pop();
+
+        $.fn.dataTable.ext.search.push(
+            (settings, data, dataIndex) => {
+                const rowData = this.dataTable.row(dataIndex).data();
+                
+                // 1. Filtro de Fecha
+                const dateColKey = 'fec_pago';
+                const dateColIndex = this.columnPrefs.visible.indexOf(dateColKey);
+                if ((startDate || endDate) && dateColIndex > -1) {
                     const cellDateStr = rowData[dateColKey];
                     if (!cellDateStr) return false;
-
                     const cellDate = new Date(cellDateStr + 'T00:00:00Z');
                     if ((startDate && cellDate < startDate) || (endDate && cellDate > endDate)) {
                         return false;
                     }
-                    return true;
                 }
-            );
-            this.dataTable.draw();
-        }
+
+                // 2. Filtro de Texto
+                if (searchText) {
+                    if (colIndex) { // Búsqueda en columna específica
+                        const columnKey = this.columnPrefs.visible[colIndex];
+                        const cellValue = rowData[columnKey];
+                        if (String(cellValue).toLowerCase().indexOf(searchText) === -1) {
+                            return false;
+                        }
+                    } else { // Búsqueda en todas las columnas
+                        let matchFound = false;
+                        for (const key of this.columnPrefs.visible) {
+                            const cellValue = rowData[key];
+                            if (cellValue !== null && String(cellValue).toLowerCase().indexOf(searchText) !== -1) {
+                                matchFound = true;
+                                break;
+                            }
+                        }
+                        if (!matchFound) return false;
+                    }
+                }
+                return true;
+            }
+        );
+        this.dataTable.draw();
     },
     
     clearCustomFilters() {
+        this.isInitialLoad = false; // El usuario limpió los filtros
         this.dom.startDate.value = '';
         this.dom.endDate.value = '';
         this.dom.columnFilter.value = '';
         this.dom.textFilter.value = '';
         
         $.fn.dataTable.ext.search.pop();
-        this.dataTable.search('').columns().search('').draw();
+        this.dataTable.draw();
     },
 
     renderColumnModal() {
@@ -193,6 +234,7 @@ window.dividendManager = {
     },
     
     async handleSavePrefs() {
+        this.isInitialLoad = false; // El usuario guardó preferencias
         const selected = Array.from(this.dom.columnForm.querySelectorAll('input:checked')).map(i => i.value);
         this.columnPrefs.visible = selected;
         
@@ -208,6 +250,7 @@ window.dividendManager = {
     },
 
     async handleUpdateClick() {
+        this.isInitialLoad = false; // El usuario pidió actualizar
         const btn = this.dom.updateBtn;
         btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Actualizando...`;
         btn.disabled = true;

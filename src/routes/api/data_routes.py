@@ -3,10 +3,7 @@ import logging
 from flask import jsonify, request, current_app
 from sqlalchemy import select, and_, func
 
-# --- INICIO DE LA CORRECCIÓN ---
-# Importa el objeto `api_bp` desde el __init__.py del paquete actual (la carpeta 'api')
 from . import api_bp
-# --- FIN DE LA CORRECCIÓN ---
 
 from src.utils.db_io import get_latest_data, filter_stocks, compare_last_two_db_entries
 from src.utils import history_view
@@ -17,7 +14,6 @@ from src.models import (
 
 logger = logging.getLogger(__name__)
 
-# A partir de aquí, el resto del archivo no necesita cambios, ya que usa el `api_bp` importado.
 @api_bp.route("/stocks", methods=["GET"])
 def get_stocks():
     with current_app.app_context():

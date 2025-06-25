@@ -88,6 +88,13 @@ def indicadores():
 def login():
     return render_template("login.html")
 
+# --- INICIO DE LA MODIFICACIÓN: Ruta para el favicon ---
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'static'),
+                               'favicon.svg', mimetype='image/svg+xml')
+# --- FIN DE LA MODIFICACIÓN ---
+
 # Llamada única para registrar todos los blueprints
 register_blueprints(app)
 
@@ -145,7 +152,6 @@ if __name__ == "__main__":
 
     start_bot_thread()
 
-    # --- INICIO DE LA MODIFICACIÓN: Usar WSGIServer de Gevent explícitamente ---
     from gevent import pywsgi
     from geventwebsocket.handler import WebSocketHandler
     
@@ -155,8 +161,6 @@ if __name__ == "__main__":
         ('0.0.0.0', 5000), 
         app, 
         handler_class=WebSocketHandler,
-        log=logging.getLogger('geventwebsocket.handler') # Redirigir logs de gevent
+        log=logging.getLogger('geventwebsocket.handler')
     )
     server.serve_forever()
-    # La línea socketio.run(...) ya no es necesaria y se ha eliminado.
-    # --- FIN DE LA MODIFICACIÓN ---

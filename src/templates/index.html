@@ -102,21 +102,15 @@
             </h2>
             <div id="collapsePortfolio" class="accordion-collapse collapse show" aria-labelledby="headingPortfolio" data-bs-parent="#mainAccordion">
                 <div class="accordion-body">
+                    <!-- INICIO DE LA MODIFICACIÓN -->
+                    <div class="d-flex justify-content-end mb-3">
+                        <button type="button" id="portfolioColumnBtn" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#portfolioColumnConfigModal"><i class="fas fa-sliders-h me-2"></i>Columnas</button>
+                    </div>
+                    <!-- FIN DE LA MODIFICACIÓN -->
                     <div class="table-responsive">
                         <table id="portfolioTable" class="table table-bordered table-hover w-100">
                             <thead class="table-dark">
-                                <tr>
-                                    <th>Símbolo</th>
-                                    <th>Cantidad</th>
-                                    <th>P. Compra</th>
-                                    <th>Pagado Total</th>
-                                    <th>P. Actual</th>
-                                    <th>Var. % Día</th>
-                                    <th>Valor Actual</th>
-                                    <th>Gan/Pérd Total</th>
-                                    <th>Gan/Pérd %</th>
-                                    <th>Acciones</th>
-                                </tr>
+                                <!-- El encabezado se genera dinámicamente -->
                             </thead>
                             <tbody id="portfolioTableBody"></tbody>
                             <tfoot>
@@ -276,6 +270,26 @@
         </div>
     </div>
 </div>
+
+<!-- INICIO DE LA MODIFICACIÓN -->
+<div class="modal fade" id="portfolioColumnConfigModal" tabindex="-1" aria-labelledby="portfolioColumnConfigModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="portfolioColumnConfigModalLabel">Seleccionar Columnas del Portafolio</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="portfolioColumnConfigForm" class="row g-2"></form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" id="savePortfolioColumnPrefs" class="btn btn-primary">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- FIN DE LA MODIFICACIÓN -->
 
 <div class="modal fade" id="closingColumnConfigModal" tabindex="-1" aria-labelledby="closingColumnConfigModalLabel" aria-hidden="true">
     <div class="modal-dialog">

@@ -26,11 +26,16 @@
             </div>
             <div class="collapse show" id="collapseKPIs">
                 <div class="card-body">
-                    <div class="d-flex justify-content-end align-items-center mb-3 gap-2">
-                        <button id="selectKPIStocksBtn" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#kpiSelectionModal"><i class="fas fa-check-square me-2"></i>Seleccionar Acciones</button>
-                        <button id="kpiColumnBtn" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#kpiColumnConfigModal"><i class="fas fa-sliders-h"></i> Columnas</button>
-                        <button id="updateKPIsBtn" class="btn btn-success"><i class="fas fa-sync-alt me-2"></i>Cargar/Actualizar KPIs</button>
+                    <!-- INICIO DE LA MODIFICACIÓN: Barra de herramientas unificada -->
+                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2" id="kpi-toolbar">
+                        <div class="d-flex gap-2">
+                            <button id="selectKPIStocksBtn" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#kpiSelectionModal"><i class="fas fa-check-square me-2"></i>Seleccionar Acciones</button>
+                            <button id="kpiColumnBtn" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#kpiColumnConfigModal"><i class="fas fa-sliders-h"></i> Columnas</button>
+                            <button id="updateKPIsBtn" class="btn btn-success"><i class="fas fa-sync-alt me-2"></i>Cargar/Actualizar KPIs</button>
+                        </div>
+                        <!-- Los botones de DataTables (Excel, CSV) y el campo de búsqueda se insertarán aquí con JS -->
                     </div>
+                    <!-- FIN DE LA MODIFICACIÓN -->
                     <div id="kpiUpdateAlert" class="alert d-none" role="alert"></div>
                     <div class="table-responsive">
                         <table id="kpiTable" class="table table-striped table-hover w-100"></table>
@@ -67,7 +72,7 @@
                             </div>
                              <div>
                                 <label for="dividendTextFilter" class="form-label form-label-sm">Valor a Buscar</label>
-                                <input type="text" id="dividendTextFilter" class="form-control form-control-sm" placeholder="Buscar...">
+                                <input type="text" id="dividendTextFilter" class="form-control form-control-sm" placeholder="Ej: COPEC, true, 1.12">
                             </div>
                              <div class="d-flex gap-1">
                                 <button id="applyDividendFilters" class="btn btn-primary btn-sm">Aplicar</button>
