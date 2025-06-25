@@ -1,101 +1,107 @@
-# src/scripts/ai_financial_service.py
-import os
-import json
+from __future__ import annotations
+import asyncio
 import logging
-import time
-from openai import OpenAI, RateLimitError
-from src.models import PromptConfig
-from src.extensions import db
+import os
+from typing import Optional
 
-logger = logging.getLogger(__name__)
+from playwright.async_api import async_playwright, Browser, Page, Playwright, BrowserContext, Error as PlaywrightError
 
-# --- INICIO DE LA MODIFICACIÓN: Definir el esquema de la función ---
-# Este esquema define la estructura del JSON que queremos recibir.
-FINANCIAL_KPI_FUNCTION_SCHEMA = {
-    "name": "get_financial_kpis_for_company",
-    "description": "Extrae los indicadores financieros clave para una empresa chilena específica.",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "roe": {
-                "type": "number",
-                "description": "El Retorno sobre el Patrimonio (Return on Equity) en porcentaje. ej: 15.2"
-            },
-            "debt_to_equity": {
-                "type": "number",
-                "description": "El ratio Deuda/Patrimonio."
-            },
-            "beta": {
-                "type": "number",
-                "description": "El coeficiente Beta de la acción."
-            },
-            "analyst_recommendation": {
-                "type": "string",
-                "description": "El consenso de recomendación de analistas.",
-                "enum": ["Comprar", "Mantener", "Vender", "N/A"]
-            },
-            "source": {
-                "type": "string",
-                "description": "La fuente principal de los datos (ej: 'Yahoo Finance')."
-            }
-        },
-        "required": ["roe", "debt_to_equity", "beta", "analyst_recommendation", "source"]
-    }
-}
-# --- FIN DE LA MODIFICACIÓN ---
+# --- INICIO DE LA CORRECCIÓN FINAL ---
+# Importamos la CLASE principal de la librería
+from playwright_stealth import Stealth
+# --- FIN DE LA CORRECCIÓN FINAL ---
 
-def get_advanced_kpis(nemo: str, prompt_id: str = "openai_kpi_finance") -> dict | None:
+from src.config import STORAGE_STATE_PATH
+from .bot_config import get_playwright_context_options, get_extra_headers
+
+_LOG = logging.getLogger(__name__)
+
+# Variables globales
+_PLAYWRIGHT: Optional[Playwright] = None
+_BROWSER: Optional[Browser] = None
+_PAGE: Optional[Page] = None
+_CONTEXT: Optional[BrowserContext] = None
+
+async def _get_playwright_instance() -> Playwright:
+    """Inicia y devuelve la instancia singleton de Playwright."""
+    global _PLAYWRIGHT
+    if _PLAYWRIGHT is None:
+        _LOG.info("[PageManager] Inicializando instancia principal de Playwright...")
+        _PLAYWRIGHT = await async_playwright().start()
+    return _PLAYWRIGHT
+
+async def get_page() -> Page:
     """
-    Usa la API de OpenAI con Function Calling para obtener KPIs financieros.
+    Punto de entrada principal. Crea un nuevo contexto y página aplicando
+    configuraciones de evasión y reutilizando el estado de la sesión.
     """
-    prompt_config = db.session.get(PromptConfig, prompt_id)
-    if not prompt_config:
-        logger.error(f"No se encontró la configuración de prompt con ID: {prompt_id}")
-        raise ValueError(f"Configuración de prompt '{prompt_id}' no encontrada.")
+    global _BROWSER, _PAGE, _CONTEXT
+    pw = await _get_playwright_instance()
 
-    client = OpenAI(api_key=prompt_config.api_key)
-    prompt = prompt_config.prompt_template.format(nemo=nemo)
-
-    try:
-        logger.info(f"[AI Service] Solicitando KPIs para {nemo} con gpt-4o y Function Calling...")
+    if _PAGE and not _PAGE.is_closed():
+        _LOG.info("[PageManager] ✓ Reutilizando conexión de página existente.")
+        return _PAGE
         
-        # --- INICIO DE LA MODIFICACIÓN: Nueva llamada a la API ---
-        response = client.chat.completions.create(
-            model=prompt_config.model_name, # Ahora usará "gpt-4o"
-            messages=[
-                {"role": "system", "content": "Eres un analista financiero experto."},
-                {"role": "user", "content": f"Obtén los KPIs financieros para la empresa chilena con el nemotécnico {nemo}."}
-            ],
-            tools=[{"type": "function", "function": FINANCIAL_KPI_FUNCTION_SCHEMA}],
-            tool_choice={"type": "function", "function": {"name": "get_financial_kpis_for_company"}} # Forzar el uso de la función
-        )
+    if _BROWSER and _BROWSER.is_connected():
+        _LOG.info("[PageManager] Reutilizando instancia de navegador existente.")
+    else:
+        _LOG.info("[PageManager] 🚀 Lanzando nueva instancia de navegador...")
+        _BROWSER = await pw.chromium.launch(headless=False)
 
-        message = response.choices[0].message
-        if not message.tool_calls:
-            logger.warning(f"La IA no utilizó la función para {nemo}. Respuesta: {message.content}")
-            return None
+    storage_state = STORAGE_STATE_PATH if os.path.exists(STORAGE_STATE_PATH) else None
+    if storage_state:
+        _LOG.info(f"[PageManager] Estado de sesión encontrado en {STORAGE_STATE_PATH}. Se cargará.")
+    
+    context_options = get_playwright_context_options(storage_state_path=storage_state)
+    _CONTEXT = await _BROWSER.new_context(**context_options)
+    
+    _CONTEXT.on("close", _save_session_state_sync_wrapper)
 
-        # Extraemos los argumentos de la llamada a la función, que ya son un JSON
-        function_args = json.loads(message.tool_calls[0].function.arguments)
-        logger.info(f"[AI Service] Argumentos de función recibidos para {nemo}: {function_args}")
-        # --- FIN DE LA MODIFICACIÓN ---
+    _PAGE = await _CONTEXT.new_page()
+    
+    await _PAGE.set_extra_http_headers(get_extra_headers())
+    
+    # --- INICIO DE LA CORRECCIÓN FINAL ---
+    # 1. Creamos una instancia de la clase Stealth.
+    stealth_config = Stealth()
+    # 2. Llamamos al método `apply_stealth_async` de la instancia.
+    await stealth_config.apply_stealth_async(_PAGE)
+    # --- FIN DE LA CORRECCIÓN FINAL ---
+    
+    _LOG.info("[PageManager] ✓ Nuevo contexto y página creados con evasión aplicada.")
+    
+    return _PAGE
 
-        # El resultado ya tiene la estructura correcta, solo validamos y devolvemos
-        cleaned_data = {
-            "roe": float(function_args.get("roe")) if function_args.get("roe") is not None else None,
-            "debt_to_equity": float(function_args.get("debt_to_equity")) if function_args.get("debt_to_equity") is not None else None,
-            "beta": float(function_args.get("beta")) if function_args.get("beta") is not None else None,
-            "analyst_recommendation": str(function_args.get("analyst_recommendation", "N/A")),
-            "source": str(function_args.get("source", "Desconocida"))
-        }
+def _save_session_state_sync_wrapper():
+    """Wrapper síncrono para poder llamarlo desde el evento 'on close'."""
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(_save_session_state())
+    except RuntimeError:
+        asyncio.run(_save_session_state())
 
-        logger.info(f"[AI Service] Datos extraídos para {nemo}: {cleaned_data}")
-        return cleaned_data
+async def _save_session_state():
+    """Guarda el estado actual del contexto (cookies, etc.) en un archivo."""
+    if _CONTEXT:
+        try:
+            await _CONTEXT.storage_state(path=STORAGE_STATE_PATH)
+            _LOG.info(f"[PageManager] ✓ Estado de la sesión guardado exitosamente en {STORAGE_STATE_PATH}")
+        except Exception as e:
+            _LOG.error(f"[PageManager] No se pudo guardar el estado de la sesión: {e}")
 
-    except RateLimitError as e:
-        # ... (el manejo de errores existente es correcto)
-        error_info = e.response.json().get('error', {})
-        # ...
-    except Exception as e:
-        logger.error(f"Error al procesar la solicitud de IA para {nemo}: {e}", exc_info=True)
-        return None
+async def close_browser() -> None:
+    """Cierra todos los recursos de Playwright de forma ordenada, guardando la sesión."""
+    global _BROWSER, _PLAYWRIGHT, _PAGE, _CONTEXT
+    _LOG.info("[PageManager] Iniciando cierre de recursos de Playwright...")
+    
+    await _save_session_state()
+
+    if _CONTEXT and not _CONTEXT.is_closed():
+        await _CONTEXT.close()
+    if _BROWSER and _BROWSER.is_connected():
+        await _BROWSER.close()
+    if _PLAYWRIGHT:
+        await _PLAYWRIGHT.stop()
+        
+    _BROWSER, _PLAYWRIGHT, _PAGE, _CONTEXT = None, None, None, None
+    _LOG.info("[PageManager] ✓ Recursos de Playwright cerrados.")

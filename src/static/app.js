@@ -25,11 +25,10 @@ window.app = {
     },
     
     // ---- 2. INICIALIZACIÓN ----
-    init() {
+ init() {
         uiManager.init();
         portfolioManager.init();
-        // dividendManager.init(); // <- ELIMINADO
-        window.closingManager.init();
+        closingManager.init();
         autoUpdater.init(uiManager); 
         this.initializeApp();
         this.setupWebSocket();
@@ -40,8 +39,21 @@ window.app = {
     async initializeApp() {
         uiManager.updateStatus('Inicializando...', 'info');
         this.updateRefreshButton();
-        await Promise.all([this.loadPreferences(), portfolioManager.loadHoldings()]);
+
+        // 1. Cargamos todas las preferencias y el portafolio en paralelo.
+        await Promise.all([
+            this.loadPreferences(), 
+            portfolioManager.loadHoldings(),
+            closingManager.loadPreferences()
+        ]);
+
+        // 2. Cargamos los datos de las acciones de mercado.
         await this.fetchAndDisplayStocks();
+        
+        // 3. AHORA, con el portafolio ya cargado, llamamos a la carga de datos de cierre.
+        if (window.closingManager) {
+            await window.closingManager.loadClosings();
+        }
         
         const savedInterval = sessionStorage.getItem('autoUpdateInterval');
         if (savedInterval) {
@@ -49,7 +61,7 @@ window.app = {
         }
     },
     
-    // ---- 3. LÓGICA DE DATOS ----
+    // ---- 4. LÓGICA DE DATOS ----
     async loadPreferences() {
         try {
             const [colsRes, filtersRes] = await Promise.all([fetch('/api/columns'), fetch('/api/filters')]);

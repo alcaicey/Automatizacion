@@ -123,11 +123,11 @@
                                 <tr class="table-group-divider" style="font-size: 1.1rem;">
                                     <th colspan="3" class="text-end"><h5>Totales:</h5></th>
                                     <th id="footerTotalPaid"></th>
-                                    <th colspan="2"></th> <!-- Celda vacía para P. Actual y Var. % -->
+                                    <th colspan="2"></th>
                                     <th id="footerTotalCurrentValue"></th>
                                     <th id="footerTotalGainLoss"></th>
                                     <th id="footerTotalGainLossPercent"></th>
-                                    <th></th> <!-- Celda vacía para Acciones -->
+                                    <th></th>
                                 </tr>
                             </tfoot>
                         </table>
@@ -154,8 +154,6 @@
                 </div>
             </div>
         </div>
-
-        <!-- SECCIÓN DE DIVIDENDOS ELIMINADA DE AQUÍ -->
         
         <!-- Sección: Cierre Bursátil -->
         <div class="accordion-item">
@@ -166,9 +164,15 @@
             </h2>
             <div id="collapseClosing" class="accordion-collapse collapse" aria-labelledby="headingClosing" data-bs-parent="#mainAccordion">
                 <div class="accordion-body">
-                    <div class="d-flex justify-content-end align-items-center mb-3 gap-2">
-                        <button id="updateClosingBtn" class="btn btn-info"><i class="fas fa-sync-alt me-2"></i>Actualizar Datos de Cierre</button>
-                        <button id="closingColumnBtn" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#closingColumnConfigModal"><i class="fas fa-sliders-h"></i> Columnas</button>
+                    <div class="d-flex justify-content-between align-items-center mb-3 gap-2 flex-wrap">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch" id="filterClosingByPortfolio" checked>
+                            <label class="form-check-label" for="filterClosingByPortfolio">Mostrar solo acciones de mi portafolio</label>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button id="updateClosingBtn" class="btn btn-info"><i class="fas fa-sync-alt me-2"></i>Actualizar</button>
+                            <button id="closingColumnBtn" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#closingColumnConfigModal"><i class="fas fa-sliders-h"></i> Columnas</button>
+                        </div>
                     </div>
                     <div id="closingUpdateAlert" class="alert d-none" role="alert"></div>
                     <div class="table-responsive">
@@ -187,7 +191,6 @@
             </h2>
             <div id="collapseControls" class="accordion-collapse collapse" aria-labelledby="headingControls" data-bs-parent="#mainAccordion">
                 <div class="accordion-body">
-                    <!-- Filtro por Códigos -->
                     <form id="stockFilterForm" class="mb-4 p-3 border rounded bg-body-tertiary">
                         <label class="form-label fw-bold mb-3">Filtrar Datos del Mercado por Códigos:</label>
                         <div class="row g-3 align-items-center">
@@ -206,7 +209,6 @@
                             </div>
                         </div>
                     </form>
-                    <!-- Añadir a Portafolio -->
                     <form id="portfolioForm" class="mb-4 p-3 border rounded bg-body-tertiary">
                          <label class="form-label fw-bold mb-3">Añadir Activo al Portafolio:</label>
                          <div class="row gy-2 gx-3 align-items-end">
@@ -227,7 +229,6 @@
                             </div>
                         </div>
                     </form>
-                    <!-- Crear Alerta -->
                     <form id="alertForm" class="mb-4 p-3 border rounded bg-body-tertiary">
                         <label class="form-label fw-bold mb-3">Crear Alerta de Precio:</label>
                         <div class="row gy-2 gx-2 align-items-end">
@@ -257,7 +258,7 @@
     </div>
 </div>
 
-<!-- Modal de Columnas de Acciones -->
+<!-- Modales -->
 <div class="modal fade" id="columnConfigModal" tabindex="-1" aria-labelledby="columnConfigModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -276,9 +277,6 @@
     </div>
 </div>
 
-<!-- Modal de Columnas para Dividendos (ELIMINADO DE AQUÍ) -->
-
-<!-- Modal de Columnas para Cierre Bursátil -->
 <div class="modal fade" id="closingColumnConfigModal" tabindex="-1" aria-labelledby="closingColumnConfigModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -305,7 +303,6 @@
 </div>
 {% endblock %}
 
-
 {% block scripts %}
 {{ super() }}
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
@@ -322,7 +319,6 @@
 <!-- Cargar Módulos -->
 <script src="{{ url_for('static', filename='uiManager.js') }}"></script>
 <script src="{{ url_for('static', filename='portfolioManager.js') }}"></script>
-<!-- <script src="{{ url_for('static', filename='dividendManager.js') }}"></script> -->
 <script src="{{ url_for('static', filename='closingManager.js') }}"></script>
 <script src="{{ url_for('static', filename='autoUpdater.js') }}"></script>
 

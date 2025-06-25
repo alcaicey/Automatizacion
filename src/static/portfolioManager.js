@@ -8,17 +8,14 @@ window.portfolioManager = {
         this.dom = {
             tableBody: document.getElementById('portfolioTableBody'),
             form: document.getElementById('portfolioForm'),
-            // Referencias para el Dashboard de Resumen
             totalPaid: document.getElementById('totalPaid'),
             totalCurrentValue: document.getElementById('totalCurrentValue'),
             totalGainLoss: document.getElementById('totalGainLoss'),
-            // Referencias para el Pie de Tabla (tfoot)
             footerTotalPaid: document.getElementById('footerTotalPaid'),
             footerTotalCurrentValue: document.getElementById('footerTotalCurrentValue'),
             footerTotalGainLoss: document.getElementById('footerTotalGainLoss'),
             footerTotalGainLossPercent: document.getElementById('footerTotalGainLossPercent'),
         };
-        this.loadHoldings();
         console.log('[Portfolio] Módulo inicializado.');
     },
 
@@ -32,15 +29,28 @@ window.portfolioManager = {
         }
     },
 
-    formatColoredNumber(number, isCurrency = false) {
+    formatColoredNumber(number, options = {}) {
+        const { isCurrency = false, isPercent = false } = options;
         if (isNaN(number) || number === null) return '--';
-        const options = isCurrency ? { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 } : {minimumFractionDigits: 2, maximumFractionDigits: 2};
+        
+        const currencyOptions = { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 };
+        const percentOptions = { minimumFractionDigits: 2, maximumFractionDigits: 2 };
+        const regularOptions = {minimumFractionDigits: 2, maximumFractionDigits: 2};
+
+        let displayOptions = regularOptions;
+        if (isCurrency) displayOptions = currencyOptions;
+        if (isPercent) displayOptions = percentOptions;
+
         const colorClass = number > 0 ? 'text-success' : (number < 0 ? 'text-danger' : 'text-muted');
-        return `<span class="fw-bold ${colorClass}">${number.toLocaleString('es-CL', options)}</span>`;
+        let formattedNumber = number.toLocaleString('es-CL', displayOptions);
+
+        if (isPercent) {
+            return `<span class="fw-bold ${colorClass}">${formattedNumber}%</span>`;
+        }
+        return `<span class="fw-bold ${colorClass}">${formattedNumber}</span>`;
     },
 
     render(stockPriceMap) {
-        console.log('[Portfolio] Renderizando tabla de portafolio.');
         if (!this.dom.tableBody) return;
         this.dom.tableBody.innerHTML = '';
         
@@ -49,7 +59,6 @@ window.portfolioManager = {
 
         if (this.holdings.length === 0) {
             this.dom.tableBody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">Aún no has añadido acciones a tu portafolio.</td></tr>';
-            // Limpiar Dashboard y Footer
             $(this.dom.totalPaid).add(this.dom.totalCurrentValue).add(this.dom.totalGainLoss).html('--');
             $(this.dom.footerTotalPaid).add(this.dom.footerTotalCurrentValue).add(this.dom.footerTotalGainLoss).add(this.dom.footerTotalGainLossPercent).html('');
             return;
@@ -59,17 +68,14 @@ window.portfolioManager = {
             const priceData = stockPriceMap.get(holding.symbol);
             const currentPrice = priceData ? parseFloat(String(priceData.PRECIO_CIERRE).replace(',', '.')) : null;
             const dailyVariation = priceData ? parseFloat(String(priceData.VARIACION).replace(',', '.')) : null;
-
             const holdingTotalPaid = holding.quantity * holding.purchase_price;
             const holdingCurrentValue = (currentPrice !== null && !isNaN(currentPrice)) ? holding.quantity * currentPrice : null;
             const holdingGainLoss = (holdingCurrentValue !== null) ? holdingCurrentValue - holdingTotalPaid : null;
             const holdingGainLossPercent = (holdingGainLoss !== null && holdingTotalPaid > 0) ? (holdingGainLoss / holdingTotalPaid) * 100 : null;
-
             portfolioTotalPaid += holdingTotalPaid;
             if (holdingCurrentValue !== null) {
                 portfolioTotalCurrentValue += holdingCurrentValue;
             }
-
             const row = `
                 <tr>
                     <td><strong>${holding.symbol}</strong></td>
@@ -77,10 +83,10 @@ window.portfolioManager = {
                     <td>${holding.purchase_price.toLocaleString('es-CL', {style:'currency', currency:'CLP'})}</td>
                     <td>${holdingTotalPaid.toLocaleString('es-CL', {style:'currency', currency:'CLP'})}</td>
                     <td>${(currentPrice !== null && !isNaN(currentPrice)) ? currentPrice.toLocaleString('es-CL', {style:'currency', currency:'CLP'}) : '<em>Esperando...</em>'}</td>
-                    <td>${(dailyVariation !== null && !isNaN(dailyVariation)) ? this.formatColoredNumber(dailyVariation) + '%' : 'N/A'}</td>
-                    <td>${(holdingCurrentValue !== null) ? this.formatColoredNumber(holdingCurrentValue, true) : 'N/A'}</td>
-                    <td>${(holdingGainLoss !== null) ? this.formatColoredNumber(holdingGainLoss, true) : 'N/A'}</td>
-                    <td>${(holdingGainLossPercent !== null) ? this.formatColoredNumber(holdingGainLossPercent) + '%' : 'N/A'}</td>
+                    <td>${(dailyVariation !== null && !isNaN(dailyVariation)) ? this.formatColoredNumber(dailyVariation, { isPercent: true }) : 'N/A'}</td>
+                    <td>${(holdingCurrentValue !== null) ? this.formatColoredNumber(holdingCurrentValue, { isCurrency: true }) : 'N/A'}</td>
+                    <td>${(holdingGainLoss !== null) ? this.formatColoredNumber(holdingGainLoss, { isCurrency: true }) : 'N/A'}</td>
+                    <td>${(holdingGainLossPercent !== null) ? this.formatColoredNumber(holdingGainLossPercent, { isPercent: true }) : 'N/A'}</td>
                     <td><button class="btn btn-danger btn-sm delete-holding-btn" data-id="${holding.id}"><i class="fas fa-trash"></i></button></td>
                 </tr>`;
             this.dom.tableBody.innerHTML += row;
@@ -89,16 +95,14 @@ window.portfolioManager = {
         const totalGainLoss = portfolioTotalCurrentValue - portfolioTotalPaid;
         const totalGainLossPercent = (portfolioTotalPaid > 0) ? (totalGainLoss / portfolioTotalPaid) * 100 : 0;
         
-        // Actualizar Dashboard
         $(this.dom.totalPaid).html(`<strong>${portfolioTotalPaid.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 })}</strong>`);
-        $(this.dom.totalCurrentValue).html(`<strong>${this.formatColoredNumber(portfolioTotalCurrentValue, true)}</strong>`);
-        $(this.dom.totalGainLoss).html(`<strong>${this.formatColoredNumber(totalGainLoss, true)}</strong>`);
+        $(this.dom.totalCurrentValue).html(`<strong>${this.formatColoredNumber(portfolioTotalCurrentValue, { isCurrency: true })}</strong>`);
+        $(this.dom.totalGainLoss).html(`<strong>${this.formatColoredNumber(totalGainLoss, { isCurrency: true })}</strong>`);
         
-        // Actualizar Footer de la tabla
         $(this.dom.footerTotalPaid).html(`<strong>${portfolioTotalPaid.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 })}</strong>`);
-        $(this.dom.footerTotalCurrentValue).html(`<strong>${this.formatColoredNumber(portfolioTotalCurrentValue, true)}</strong>`);
-        $(this.dom.footerTotalGainLoss).html(`<strong>${this.formatColoredNumber(totalGainLoss, true)}</strong>`);
-        $(this.dom.footerTotalGainLossPercent).html(`<strong>${this.formatColoredNumber(totalGainLossPercent) + '%'}</strong>`);
+        $(this.dom.footerTotalCurrentValue).html(`<strong>${this.formatColoredNumber(portfolioTotalCurrentValue, { isCurrency: true })}</strong>`);
+        $(this.dom.footerTotalGainLoss).html(`<strong>${this.formatColoredNumber(totalGainLoss, { isCurrency: true })}</strong>`);
+        $(this.dom.footerTotalGainLossPercent).html(`<strong>${this.formatColoredNumber(totalGainLossPercent, { isPercent: true })}</strong>`);
     },
     
     async handleAdd(event) {
@@ -121,6 +125,14 @@ window.portfolioManager = {
             this.dom.form.reset();
             await this.loadHoldings();
             window.app.renderAllTables();
+            
+            // --- INICIO DE LA MODIFICACIÓN ---
+            if (window.closingManager && typeof window.closingManager.loadClosings === 'function') {
+                console.log('[Portfolio] Refrescando tabla de Cierre Bursátil tras añadir activo.');
+                window.closingManager.loadClosings();
+            }
+            // --- FIN DE LA MODIFICACIÓN ---
+
         } catch (error) {
             alert(`Error al añadir: ${error.message}`);
         }
@@ -133,6 +145,14 @@ window.portfolioManager = {
                 if (!response.ok) throw new Error('No se pudo eliminar.');
                 await this.loadHoldings();
                 window.app.renderAllTables();
+
+                // --- INICIO DE LA MODIFICACIÓN ---
+                if (window.closingManager && typeof window.closingManager.loadClosings === 'function') {
+                    console.log('[Portfolio] Refrescando tabla de Cierre Bursátil tras eliminar activo.');
+                    window.closingManager.loadClosings();
+                }
+                // --- FIN DE LA MODIFICACIÓN ---
+
             } catch (error) {
                 alert(`Error al eliminar: ${error.message}`);
             }

@@ -1,73 +1,87 @@
 from __future__ import annotations
 import logging
-import os
 import random
 import asyncio
-from typing import Final, Tuple
+from typing import Final
 
 from playwright.async_api import Page, Locator, TimeoutError as PlaywrightTimeoutError
-# Ya no es necesario importar esto aquí
-# from .bot_data_capture import capture_session_time_via_network
 
 logger = logging.getLogger(__name__)
 
 class LoginError(Exception):
     pass
 
-TARGET_DATA_PAGE_URL: Final[str] = "https://www.bolsadesantiago.com/plus_acciones_precios"
-LOGIN_PAGE_URL_FRAGMENT = "sso.bolsadesantiago.com"
-LOGIN_IFRAME_SELECTOR = f"iframe[src*='{LOGIN_PAGE_URL_FRAGMENT}']"
+# Constantes
+BASE_URL: Final[str] = "https://www.bolsadesantiago.com"
+LOGIN_LANDING_PAGE_URL: Final[str] = f"{BASE_URL}/login"
+TARGET_DATA_PAGE_URL: Final[str] = f"{BASE_URL}/plus_acciones_precios"
+SSO_URL_FRAGMENT: Final[str] = "sso.bolsadesantiago.com"
+
+# Selectores
+HEADER_LOGIN_LINK_SELECTOR = '#menuppal-login a'
+LOGIN_PAGE_BUTTON_SELECTOR = 'button.btn:has-text("Ingresar")'
 USER_SEL = "#username"
 PASS_SEL = "#password"
+NAVBAR_TOGGLER_SELECTOR = 'button.navbar-toggler'
 
 async def type_like_human(element: Locator, text: str):
     await element.wait_for(state="visible", timeout=15000)
-    for char in text:
-        await element.press(char)
-        await asyncio.sleep(random.uniform(0.08, 0.25))
+    await element.fill(text)
 
 async def auto_login(page: Page, username: str, password: str) -> None:
-    """
-    Realiza el proceso de login y espera a que la navegación a la página de destino termine.
-    Lanza una excepción LoginError si falla.
-    """
     if not username or not password:
         logger.error("[Login] Credenciales vacías recibidas.")
         raise LoginError("Credenciales no encontradas en el entorno.")
         
-    logger.info("[Login] Buscando el formulario de inicio de sesión...")
+    logger.info("[Login] Iniciando flujo de login progresivo...")
     
     try:
-        search_context: Page | Locator = page
+        # PASOS 1 y 2: Navegar a la home y manejar menú responsivo
+        if BASE_URL not in page.url:
+            await page.goto(BASE_URL, wait_until="domcontentloaded", timeout=30000)
         
-        if LOGIN_PAGE_URL_FRAGMENT not in page.url:
-            logger.info("[Login] Buscando iframe de login...")
-            iframe_locator = page.locator(LOGIN_IFRAME_SELECTOR)
-            try:
-                await iframe_locator.wait_for(state="visible", timeout=10000)
-                search_context = page.frame_locator(LOGIN_IFRAME_SELECTOR)
-                logger.info("[Login] Iframe de login encontrado.")
-            except PlaywrightTimeoutError:
-                # Si no hay iframe, puede que ya estemos logueados. El llamador se encargará.
-                logger.warning("[Login] No se encontró iframe. Se asume que no es necesaria una acción de login aquí.")
-                return
+        navbar_toggler = page.locator(NAVBAR_TOGGLER_SELECTOR)
+        if await navbar_toggler.is_visible():
+            await navbar_toggler.click()
+            await page.wait_for_timeout(500)
+        
+        # PASO 3: Clic en "Ingresar a Mi Perfil"
+        header_login_link = page.locator(HEADER_LOGIN_LINK_SELECTOR).first
+        await header_login_link.click()
+        await page.wait_for_url(f"**{LOGIN_LANDING_PAGE_URL}", timeout=20000)
+        logger.info(f"[Login] En la página {page.url}")
 
+        # --- INICIO DE LA MODIFICACIÓN ---
+        # PASO 4: Clic en el botón "INGRESAR" y esperar a que el formulario de SSO esté listo
+        login_page_button = page.locator(LOGIN_PAGE_BUTTON_SELECTOR).first
+        await login_page_button.click()
+        
+        # En lugar de esperar por la URL, esperamos directamente por el campo de email en la página de SSO.
+        # Esto es mucho más fiable.
+        logger.info("[Login] Esperando a que el formulario de SSO sea visible...")
+        username_field = page.locator(USER_SEL)
+        await username_field.wait_for(state="visible", timeout=20000)
+        logger.info("[Login] Formulario de SSO detectado.")
+        # --- FIN DE LA MODIFICACIÓN ---
+
+        # PASO 5: Rellenar credenciales en la página de SSO
         logger.info("[Login] Rellenando credenciales...")
-        await type_like_human(search_context.locator(USER_SEL), username)
-        await type_like_human(search_context.locator(PASS_SEL), password)
+        await type_like_human(page.locator(USER_SEL), username)
+        await type_like_human(page.locator(PASS_SEL), password)
         
-        logger.info("[Login] Enviando formulario y esperando redirección...")
-        # Hacemos click y esperamos explícitamente a que la URL cambie a la página de destino.
-        # Esto es mucho más robusto que esperar un tiempo fijo.
-        async with page.expect_navigation(url=f"**{TARGET_DATA_PAGE_URL}**", timeout=45000):
-            await search_context.locator("input[type='submit']").click()
-        
-        logger.info("[Login] ✓ Redirección a la página de datos completada.")
+        # PASO 6: Enviar y esperar redirección final
+        logger.info("[Login] Enviando formulario y esperando redirección final...")
+        await page.locator("input[type='submit']").click()
+        await page.wait_for_load_state("networkidle", timeout=45000)
+
+        logger.info("[Login] ✓ Proceso de login completado.")
         
     except Exception as e:
         logger.error(f"[Login] Fallo crítico durante el proceso de auto-login: {e}", exc_info=True)
         try:
-            await page.screenshot(path="error_login_failed.png")
+            screenshot_path = "error_login_failed.png"
+            await page.screenshot(path=screenshot_path)
+            logger.info(f"Captura de pantalla del error guardada en: {screenshot_path}")
         except Exception as se:
             logger.error(f"No se pudo guardar la captura de pantalla del error: {se}")
         raise LoginError(f"No se pudo completar el auto-login: {e}")

@@ -20,10 +20,11 @@ from src.utils.json_utils import (
 logger = logging.getLogger(__name__)
 
 
-def store_prices_in_db(data_object: Dict | List, market_timestamp: datetime, app=None) -> None:
+def store_prices_in_db(data_object: Dict | List, market_timestamp: datetime, app=None, filtered_symbols: Optional[List[str]] = None) -> None:
     """
     Guarda precios desde un objeto de datos en memoria directamente en la DB
     usando operaciones masivas (bulk) y emite un evento `new_data`.
+    Si se proporciona `filtered_symbols`, solo se guardarán los registros para esos símbolos.
     """
     ctx = app.app_context() if app else nullcontext()
     with ctx:
@@ -35,13 +36,20 @@ def store_prices_in_db(data_object: Dict | List, market_timestamp: datetime, app
 
             ts = market_timestamp
             
-            # --- INICIO DE CORRECCIÓN: Lógica de Inserción Masiva ---
+            # --- INICIO DE LA MODIFICACIÓN ---
+            # Convertir la lista de filtros a un conjunto para búsquedas rápidas (O(1))
+            symbols_to_track = set(s.upper() for s in filtered_symbols) if filtered_symbols else None
+            
             all_stock_data = []
             for item in rows:
                 if not isinstance(item, dict): continue
                 
                 symbol = item.get('NEMO')
                 if not symbol: continue
+
+                # Si hay un filtro, y el símbolo actual no está en él, lo saltamos.
+                if symbols_to_track and symbol.upper() not in symbols_to_track:
+                    continue
 
                 def safe_float(value):
                     if value is None: return None
@@ -69,15 +77,21 @@ def store_prices_in_db(data_object: Dict | List, market_timestamp: datetime, app
                 all_stock_data.append(stock_price_obj)
 
             if not all_stock_data:
-                logger.info("No hay datos de acciones válidos para guardar.")
+                logger.info("No hay datos de acciones válidos para guardar (o ninguno pasó el filtro).")
+                # Aún si no hay nada que guardar, actualizamos el timestamp para que el frontend sepa que hubo una actualización.
+                lu = db.session.get(LastUpdate, 1) or LastUpdate(id=1)
+                lu.timestamp = ts
+                db.session.add(lu)
+                db.session.commit()
+                socketio.emit("new_data", {'message': 'Actualización completada, sin datos nuevos para guardar.'})
                 return
+
+            # --- FIN DE LA MODIFICACIÓN ---
 
             # Ejecutar la inserción masiva
             bind = db.session.get_bind()
             if bind.dialect.name == "postgresql":
-                # Método ultra-eficiente para PostgreSQL
                 stmt = insert(StockPrice).values(all_stock_data)
-                # Define qué hacer en caso de conflicto (la PK es symbol+timestamp)
                 update_dict = {
                     c.name: c for c in stmt.excluded if not c.primary_key
                 }
@@ -87,11 +101,8 @@ def store_prices_in_db(data_object: Dict | List, market_timestamp: datetime, app
                 )
                 db.session.execute(stmt)
             else:
-                # Fallback para SQLite: sigue siendo masivo pero menos optimizado
                 db.session.bulk_insert_mappings(StockPrice, all_stock_data)
             
-            # --- FIN DE CORRECCIÓN ---
-
             lu = db.session.get(LastUpdate, 1) or LastUpdate(id=1)
             lu.timestamp = ts
             db.session.add(lu)
@@ -104,8 +115,6 @@ def store_prices_in_db(data_object: Dict | List, market_timestamp: datetime, app
             logger.exception("Error al guardar precios en la DB o emitir evento: %s", e)
             db.session.rollback()
 
-
-# ... (el resto del archivo db_io.py no necesita cambios)
 def get_latest_data() -> Dict[str, Any]:
     """
     Devuelve los datos más recientes. Prioriza la base de datos.
@@ -118,7 +127,6 @@ def get_latest_data() -> Dict[str, Any]:
             translated_data = [p.to_dict() for p in prices]
             return {"data": translated_data, "timestamp": latest_update.strftime("%d/%m/%Y %H:%M:%S"), "source": "database"}
 
-        # Fallback a archivos si la base de datos está vacía
         latest_json_path = get_latest_json_file()
         if latest_json_path and os.path.exists(latest_json_path):
             with open(latest_json_path, encoding="utf-8") as f:
@@ -217,7 +225,6 @@ def save_filtered_comparison_history(market_timestamp: datetime, app=None):
     """
     ctx = app.app_context() if app else nullcontext()
     with ctx:
-        # 1. Verificar horario de mercado (9:30 a 16:00)
         market_hour = market_timestamp.hour
         market_minute = market_timestamp.minute
         is_trading_hours = (market_hour == 9 and market_minute >= 30) or \
@@ -227,7 +234,6 @@ def save_filtered_comparison_history(market_timestamp: datetime, app=None):
             logger.info(f"Fuera de horario de mercado ({market_timestamp.strftime('%H:%M:%S')}). No se guardará el historial filtrado.")
             return
 
-        # 2. Obtener los filtros de acciones
         stock_filter = StockFilter.query.first()
         if not stock_filter or stock_filter.all or not stock_filter.codes_json:
             logger.info("No hay filtros de acciones específicos configurados. No se guardará el historial filtrado.")
@@ -236,16 +242,14 @@ def save_filtered_comparison_history(market_timestamp: datetime, app=None):
         try:
             stock_codes_to_track = json.loads(stock_filter.codes_json)
             if not stock_codes_to_track:
-                return # No hay nada que rastrear
+                return
 
-            # 3. Comparar los últimos dos registros para los códigos filtrados
             comparison_data = compare_last_two_db_entries(stock_codes=stock_codes_to_track)
 
             if not comparison_data or 'changes' not in comparison_data:
                 logger.info("No se encontraron cambios para las acciones filtradas.")
                 return
 
-            # 4. Preparar y guardar los datos en la nueva tabla
             new_history_entries = []
             for change in comparison_data.get('changes', []):
                 entry = FilteredStockHistory(

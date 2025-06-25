@@ -4,80 +4,92 @@ import logging
 import traceback
 import time
 from datetime import datetime
+from typing import List, Optional
 from flask import current_app
 from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError
 
-# --- Lógica del Bot ---
 from .bot_page_manager import get_page
-from .bot_login import auto_login, LoginError, TARGET_DATA_PAGE_URL
+from .bot_login import auto_login, LoginError, TARGET_DATA_PAGE_URL, BASE_URL
 from .bot_data_capture import capture_market_time, capture_premium_data_via_network, validate_premium_data, DataCaptureError
-
-# --- Utilidades y Extensiones ---
 from src.utils.db_io import store_prices_in_db, save_filtered_comparison_history
 from src.extensions import socketio
 from src.routes.errors import log_error
 from src.utils.page_utils import _ensure_target_page
-from src.utils.time_utils import get_fallback_market_time # <-- IMPORTACIÓN NUEVA
+from src.utils.time_utils import get_fallback_market_time
 
 logger = logging.getLogger(__name__)
 _bot_running_lock = asyncio.Lock()
 _is_first_run_since_startup = True
 
 async def check_if_logged_in(page: Page) -> bool:
-    logger.info("[Service] Verificando si existe una sesión activa en la página actual...")
+    """
+    Verifica si la sesión está activa comprobando la (in)visibilidad del botón de login.
+    """
+    logger.info("[Service] Verificando si existe una sesión activa...")
+    
+    # El botón de login tiene el ID 'menuppal-login' y solo se muestra si NO hay sesión.
+    login_button = page.locator('#menuppal-login')
+    
     try:
-        await page.locator("span.badge:has-text('Tiempo Real')").first.wait_for(state="visible", timeout=10000)
-        logger.info("[Service] ✓ Sesión activa encontrada (indicador 'Tiempo Real').")
-        return True
-    except PlaywrightTimeoutError:
-        logger.warning("[Service] No se encontró indicador de sesión activa.")
+        # Usamos un timeout corto. Si el botón de login es visible, significa que NO estamos logueados.
+        await login_button.wait_for(state="visible", timeout=5000)
+        logger.warning("[Service] Botón de 'Ingresar' encontrado. No hay sesión activa.")
         return False
+    except TimeoutError:
+        # Si el botón de login NO es visible después de 5 segundos, es una señal fuerte
+        # de que ya estamos logueados (porque en su lugar se muestra el perfil del usuario).
+        logger.info("[Service] ✓ No se encontró el botón de 'Ingresar'. Se asume sesión activa.")
+        return True
 
 async def perform_session_health_check(page: Page, username: str, password: str) -> None:
     """
-    Verifica la salud de la sesión. Si no es válida, fuerza un re-login.
+    Verifica la salud de la sesión desde la página principal y fuerza un re-login si es necesario.
     """
     logger.info("[Health Check] Verificando estado de la sesión...")
-    await page.goto(TARGET_DATA_PAGE_URL, wait_until="domcontentloaded", timeout=20000)
     
+    # 1. SIEMPRE vamos a la página principal primero para un chequeo limpio.
+    await page.goto(BASE_URL, wait_until="domcontentloaded", timeout=20000)
+    
+    # 2. Comprobamos si estamos logueados desde la página principal.
     is_logged_in = await check_if_logged_in(page)
     
+    # 3. Si no lo estamos, llamamos a nuestro robusto auto_login.
     if not is_logged_in:
-        logger.warning("[Health Check] Sesión no válida. Forzando re-login...")
+        logger.warning("[Health Check] Sesión no válida o expirada. Forzando re-login...")
         await auto_login(page, username, password)
-        if not await check_if_logged_in(page):
-            raise LoginError("El re-login forzado falló.")
-        logger.info("[Health Check] ✓ Re-login exitoso, sesión renovada.")
+        
+        # 4. Verificación final post-login.
+        await page.goto(TARGET_DATA_PAGE_URL, wait_until="domcontentloaded", timeout=20000)
+        premium_badge = page.locator("span.badge:has-text('Tiempo Real')")
+        try:
+            await premium_badge.wait_for(state="visible", timeout=10000)
+            logger.info("[Health Check] ✓ Re-login exitoso y verificado en la página de datos.")
+        except TimeoutError:
+            raise LoginError("El re-login forzado falló. No se pudo acceder a la página de datos premium.")
     else:
         logger.info("[Health Check] ✓ La sesión existente es válida.")
 
 async def _attempt_data_capture(page: Page) -> tuple[datetime | None, dict | None]:
     """
     Función interna que realiza un único intento de captura de datos.
-    Separa la lógica de captura para poder reintentarla.
     """
     logger.info("Preparando captura concurrente y recarga de página...")
     
-    # Iniciar las tareas de escucha
     time_task = asyncio.create_task(capture_market_time(page, logger))
     data_task = asyncio.create_task(capture_premium_data_via_network(page, logger))
     
-    # Darle un instante a los listeners para que se registren
     await asyncio.sleep(0.1)
 
-    # Disparar la recarga de la página
     logger.info("Disparando recarga de página...")
     await page.reload(wait_until="domcontentloaded", timeout=30000)
 
-    # Esperar por las tareas de captura de datos.
     market_time, raw_data = await asyncio.gather(time_task, data_task)
     
     return market_time, raw_data
 
-async def run_bolsa_bot(app=None, username=None, password=None, **kwargs) -> str | None:
+async def run_bolsa_bot(app=None, username=None, password=None, filtered_symbols: Optional[List[str]] = None, **kwargs) -> str | None:
     global _is_first_run_since_startup
     
-    # Adquirir el lock para evitar ejecuciones concurrentes
     try:
         await asyncio.wait_for(_bot_running_lock.acquire(), timeout=0.1)
     except asyncio.TimeoutError:
@@ -88,18 +100,14 @@ async def run_bolsa_bot(app=None, username=None, password=None, **kwargs) -> str
         logger.info(f"=== INICIO DE EJECUCIÓN DEL BOT (Primera vez: {_is_first_run_since_startup}) ===")
         page = await get_page()
 
-        # --- FASE 1: Asegurar Sesión ---
-        # Siempre se realiza un chequeo de salud de la sesión
         logger.info("🚀 Fase 1: Chequeo y establecimiento de Sesión.")
         await perform_session_health_check(page, username, password)
         
-        # Si era la primera ejecución, notificamos al frontend que el navegador está listo.
         if _is_first_run_since_startup:
             _is_first_run_since_startup = False
             socketio.emit("initial_session_ready")
             logger.info("✓ Navegador y sesión inicial listos. Notificación enviada al frontend.")
 
-        # --- FASE 2: Captura de Datos de Acciones ---
         logger.info("🎬 Fase 2: Captura de Datos de Precios de Acciones.")
         
         if not await _ensure_target_page(page, logger):
@@ -126,35 +134,30 @@ async def run_bolsa_bot(app=None, username=None, password=None, **kwargs) -> str
                 logger.error(f"Error grave en el intento de captura de acciones {attempt}: {e}", exc_info=True)
 
             if attempt < max_attempts:
-                await asyncio.sleep(attempt * 2) # Espera incremental
+                await asyncio.sleep(attempt * 2)
             else:
                  logger.error("Se agotaron los reintentos de captura de acciones.")
         
-        # --- INICIO DE LA MODIFICACIÓN: Lógica de Fallback para la Hora del Mercado ---
         if not market_time:
             logger.warning("No se pudo interceptar la hora del mercado en tiempo real. Calculando hora de cierre de fallback.")
             market_time = get_fallback_market_time()
             logger.info(f"✓ Usando hora de fallback: {market_time.strftime('%Y-%m-%d %H:%M:%S %Z')}")
 
         if not raw_data:
-            # Si después de los reintentos no hay datos de precios, es un error fatal.
             raise DataCaptureError("No se pudieron capturar los datos de precios después de varios intentos.")
-        # --- FIN DE LA MODIFICACIÓN ---
         
         if not validate_premium_data(raw_data):
             raise DataCaptureError("El formato de los datos de acciones no es válido.")
         
         logger.info(f"✓ Datos de acciones capturados. Se usarán con el timestamp: {market_time.strftime('%Y-%m-%d %H:%M:%S')}")
         
-        # Guardar en la DB dentro del contexto de la app
         with (app or current_app).app_context():
-            store_prices_in_db(raw_data, market_time, app=app)
+            store_prices_in_db(raw_data, market_time, app=app, filtered_symbols=filtered_symbols)
             save_filtered_comparison_history(market_timestamp=market_time, app=app)
             
         return "update_complete"
 
     except Exception as e:
-        # Si algo falla (login, captura, etc.), reseteamos el flag para que el próximo intento sea completo.
         if isinstance(e, (LoginError, DataCaptureError)):
             _is_first_run_since_startup = True 
         

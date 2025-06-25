@@ -2,37 +2,23 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-import psutil
 from typing import Optional
 
-from playwright.async_api import async_playwright, Browser, Page, Playwright, BrowserContext, Error as PlaywrightError
+from playwright.async_api import async_playwright, Browser, Page, Playwright, BrowserContext
+
+# Importamos la CLASE principal, como indica la documentación de la v2.0.0
+from playwright_stealth import Stealth
+
+from src.config import STORAGE_STATE_PATH
+from .bot_config import get_playwright_context_options, get_extra_headers
 
 _LOG = logging.getLogger(__name__)
 
+# Variables globales
 _PLAYWRIGHT: Optional[Playwright] = None
 _BROWSER: Optional[Browser] = None
 _PAGE: Optional[Page] = None
 _CONTEXT: Optional[BrowserContext] = None
-
-# Puerto para el protocolo de depuración de Chrome (CDP)
-CDP_PORT = 9222
-CDP_ENDPOINT = f"http://localhost:{CDP_PORT}"
-USER_DATA_DIR = os.path.join(os.path.expanduser("~"), ".bolsa_santiago_bot")
-
-def _is_browser_process_running() -> bool:
-    """
-    Verifica si hay un proceso de Chrome/Chromium corriendo con el puerto de depuración remoto abierto.
-    """
-    try:
-        for proc in psutil.process_iter(['name', 'cmdline']):
-            # Buscamos un proceso de chrome que tenga el argumento del puerto de depuración
-            if proc.info['name'] in ('chrome.exe', 'chromium.exe', 'msedge.exe') and proc.info['cmdline']:
-                if f'--remote-debugging-port={CDP_PORT}' in proc.info['cmdline']:
-                    _LOG.info(f"[PageManager] Proceso de navegador encontrado con PID {proc.pid} y puerto {CDP_PORT}.")
-                    return True
-    except (psutil.NoSuchProcess, psutil.AccessDenied):
-        pass
-    return False
 
 async def _get_playwright_instance() -> Playwright:
     """Inicia y devuelve la instancia singleton de Playwright."""
@@ -44,62 +30,75 @@ async def _get_playwright_instance() -> Playwright:
 
 async def get_page() -> Page:
     """
-    Punto de entrada principal. Se conecta a un navegador existente si es posible,
-    o lanza uno nuevo si no hay ninguno.
+    Punto de entrada principal. Crea un nuevo contexto y página aplicando
+    configuraciones de evasión y reutilizando el estado de la sesión.
     """
     global _BROWSER, _PAGE, _CONTEXT
     pw = await _get_playwright_instance()
 
-    # Si ya tenemos una conexión de página válida, la reutilizamos.
     if _PAGE and not _PAGE.is_closed():
         _LOG.info("[PageManager] ✓ Reutilizando conexión de página existente.")
         return _PAGE
+        
+    if _BROWSER and _BROWSER.is_connected():
+        _LOG.info("[PageManager] Reutilizando instancia de navegador existente.")
+    else:
+        _LOG.info("[PageManager] 🚀 Lanzando nueva instancia de navegador...")
+        _BROWSER = await pw.chromium.launch(headless=False)
 
-    # Intentar conectarse a un navegador ya abierto
-    if _is_browser_process_running():
-        _LOG.info(f"[PageManager] 🟢 Proceso de navegador detectado. Intentando conectar a {CDP_ENDPOINT}...")
-        try:
-            browser = await pw.chromium.connect_over_cdp(CDP_ENDPOINT)
-            _LOG.info("[PageManager] ✓ Conexión sobre CDP exitosa.")
-            _BROWSER = browser
-            _CONTEXT = _BROWSER.contexts[0]
-            _PAGE = _CONTEXT.pages[0] if _CONTEXT.pages else await _CONTEXT.new_page()
-            return _PAGE
-        except PlaywrightError as e:
-            _LOG.warning(f"[PageManager] Falló la conexión sobre CDP: {e}. Se lanzará un nuevo navegador.")
-
-    # Si no hay navegador o la conexión falló, lanzar uno nuevo.
-    _LOG.info("[PageManager] 🚀 No hay navegador activo o la conexión falló. Lanzando nueva instancia...")
+    storage_state = STORAGE_STATE_PATH if os.path.exists(STORAGE_STATE_PATH) else None
+    if storage_state:
+        _LOG.info(f"[PageManager] Estado de sesión encontrado en {STORAGE_STATE_PATH}. Se cargará.")
     
-    # --- INICIO DE LA CORRECCIÓN: Volver a launch_persistent_context ---
-    # Este método es el correcto para manejar perfiles de usuario y es más estable.
-    # Le pasamos el argumento para que abra el puerto de depuración.
-    _CONTEXT = await pw.chromium.launch_persistent_context(
-        user_data_dir=USER_DATA_DIR,
-        headless=False,
-        args=[f"--remote-debugging-port={CDP_PORT}", "--start-maximized"]
-    )
+    context_options = get_playwright_context_options(storage_state_path=storage_state)
+    _CONTEXT = await _BROWSER.new_context(**context_options)
+    
+    _CONTEXT.on("close", _save_session_state_sync_wrapper)
+    
+    # --- INICIO DE LA CORRECCIÓN SEGÚN DOCUMENTACIÓN v2.0.0 ---
+    # 1. Creamos una instancia de la clase Stealth.
+    stealth_config = Stealth()
+    # 2. Aplicamos el stealth al CONTEXTO usando el método `apply_stealth_async`.
+    await stealth_config.apply_stealth_async(_CONTEXT)
     # --- FIN DE LA CORRECCIÓN ---
+
+    _PAGE = await _CONTEXT.new_page()
+    await _PAGE.set_extra_http_headers(get_extra_headers())
     
-    _BROWSER = _CONTEXT.browser
-    _PAGE = _CONTEXT.pages[0] if _CONTEXT.pages else await _CONTEXT.new_page()
-    
-    _LOG.info(f"[PageManager] ✓ Nuevo navegador lanzado con perfil persistente y escuchando en el puerto {CDP_PORT}.")
+    _LOG.info("[PageManager] ✓ Nuevo contexto y página creados con evasión aplicada.")
     
     return _PAGE
 
+def _save_session_state_sync_wrapper():
+    """Wrapper síncrono para poder llamarlo desde el evento 'on close'."""
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(_save_session_state())
+    except RuntimeError:
+        asyncio.run(_save_session_state())
+
+async def _save_session_state():
+    """Guarda el estado actual del contexto (cookies, etc.) en un archivo."""
+    if _CONTEXT:
+        try:
+            await _CONTEXT.storage_state(path=STORAGE_STATE_PATH)
+            _LOG.info(f"[PageManager] ✓ Estado de la sesión guardado exitosamente en {STORAGE_STATE_PATH}")
+        except Exception as e:
+            _LOG.error(f"[PageManager] No se pudo guardar el estado de la sesión: {e}")
+
 async def close_browser() -> None:
-    """Cierra todos los recursos de Playwright de forma ordenada."""
+    """Cierra todos los recursos de Playwright de forma ordenada, guardando la sesión."""
     global _BROWSER, _PLAYWRIGHT, _PAGE, _CONTEXT
     _LOG.info("[PageManager] Iniciando cierre de recursos de Playwright...")
     
-    # El contexto persistente debe cerrarse. Esto también cierra el navegador.
-    if _CONTEXT:
+    await _save_session_state()
+
+    if _CONTEXT and not _CONTEXT.is_closed():
         await _CONTEXT.close()
-        _LOG.info("[PageManager] ✓ Contexto y Navegador cerrados.")
-    
+    if _BROWSER and _BROWSER.is_connected():
+        await _BROWSER.close()
     if _PLAYWRIGHT:
         await _PLAYWRIGHT.stop()
-        _LOG.info("[PageManager] ✓ Instancia de Playwright detenida.")
         
     _BROWSER, _PLAYWRIGHT, _PAGE, _CONTEXT = None, None, None, None
+    _LOG.info("[PageManager] ✓ Recursos de Playwright cerrados.")

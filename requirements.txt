@@ -15,6 +15,7 @@ SQLAlchemy>=2.0.0
 
 # Playwright for automation
 playwright>=1.30.0
+playwright-stealth
 
 # Utilities
 psutil>=5.9.0

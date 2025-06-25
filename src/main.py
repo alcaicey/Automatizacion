@@ -1,3 +1,4 @@
+# src/main.py
 import asyncio
 import logging
 import os
@@ -14,15 +15,16 @@ load_dotenv()
 
 from src.config import SQLALCHEMY_DATABASE_URI, SQLALCHEMY_TRACK_MODIFICATIONS
 from src.extensions import db, socketio
-from src.models import Credential, User, StockPrice, LogEntry, ColumnPreference, StockFilter, LastUpdate
-from src.routes.api import api_bp
-from src.routes.architecture import architecture_bp
-from src.routes.errors import errors_bp
-from src.routes.user import user_bp
-from src.routes.crud_api import crud_bp  # Importar el nuevo blueprint
+from src.models import (
+    User, StockPrice, Credential, LogEntry, ColumnPreference, StockFilter, 
+    LastUpdate, Portfolio, Dividend, StockClosing, AdvancedKPI, KpiSelection, 
+    PromptConfig, DividendColumnPreference, ClosingColumnPreference, KpiColumnPreference
+)
+from src.routes import register_blueprints
 from src.utils.scheduler import stop_periodic_updates
 from src.scripts.bot_page_manager import close_browser
 
+# Configuración de logging
 logging.basicConfig(
     level=logging.INFO,
     format="[%(levelname)s] [%(name)s] %(asctime)s - %(message)s",
@@ -30,10 +32,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Configuración del bucle de eventos y el hilo del bot
 LOOP = asyncio.new_event_loop()
 BOT_THREAD = threading.Thread(target=LOOP.run_forever, daemon=True)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# Creación de la aplicación Flask
 app = Flask(__name__, static_folder=os.path.join(BASE_DIR, "static"), template_folder='templates')
 app.config.update(
     SQLALCHEMY_DATABASE_URI=SQLALCHEMY_DATABASE_URI,
@@ -41,23 +45,21 @@ app.config.update(
 )
 app.bot_event_loop = LOOP
 
+# Inicialización de extensiones
 CORS(app)
 db.init_app(app)
-socketio.init_app(app, cors_allowed_origins="*", async_mode="threading")
+socketio.init_app(app, cors_allowed_origins="*", async_mode="gevent")
 
-# --- INICIO DE LA CORRECCIÓN: Crear el mapeo de modelos al inicio ---
+# Mapeo de modelos para el CRUD genérico
 with app.app_context():
-    # Es necesario importar todos los modelos aquí para que se registren
-    # antes de intentar mapearlos.
     app.model_map = {
         model.__tablename__: model 
         for model in db.Model.__subclasses__() 
         if hasattr(model, '__tablename__')
     }
     logger.info(f"Modelos mapeados para el CRUD: {list(app.model_map.keys())}")
-# --- FIN DE LA CORRECCIÓN ---
 
-
+# --- Definición de rutas de páginas HTML ---
 @app.route("/")
 def home():
     return render_template("index.html")
@@ -68,7 +70,6 @@ def historico():
 
 @app.route("/dashboard")
 def dashboard():
-    # Asumiendo que tienes un dashboard.html
     return render_template("dashboard.html")
 
 @app.route("/logs")
@@ -87,18 +88,14 @@ def indicadores():
 def login():
     return render_template("login.html")
 
-# Registrar Blueprints
-app.register_blueprint(api_bp, url_prefix="/api")
-app.register_blueprint(user_bp, url_prefix="/api")
-app.register_blueprint(errors_bp, url_prefix="/api")
-app.register_blueprint(architecture_bp)
-app.register_blueprint(crud_bp, url_prefix="/api") # Registrar el blueprint del CRUD
+# Llamada única para registrar todos los blueprints
+register_blueprints(app)
 
 @app.route("/static/<path:path>")
-
 def static_files(path):
     return send_from_directory(app.static_folder, path)
 
+# --- Funciones de ciclo de vida de la aplicación ---
 def _cleanup_resources():
     logger.info("Iniciando cierre limpio de la aplicación...")
     stop_periodic_updates()
@@ -148,5 +145,18 @@ if __name__ == "__main__":
 
     start_bot_thread()
 
-    logger.info("🚀 Iniciando servidor Flask con Gevent. La aplicación está lista en http://localhost:5000")
-    socketio.run(app, host="0.0.0.0", port=5000, debug=False)
+    # --- INICIO DE LA MODIFICACIÓN: Usar WSGIServer de Gevent explícitamente ---
+    from gevent import pywsgi
+    from geventwebsocket.handler import WebSocketHandler
+    
+    logger.info("🚀 Iniciando servidor Flask con Gevent WSGIServer. La aplicación está lista en http://localhost:5000")
+    
+    server = pywsgi.WSGIServer(
+        ('0.0.0.0', 5000), 
+        app, 
+        handler_class=WebSocketHandler,
+        log=logging.getLogger('geventwebsocket.handler') # Redirigir logs de gevent
+    )
+    server.serve_forever()
+    # La línea socketio.run(...) ya no es necesaria y se ha eliminado.
+    # --- FIN DE LA MODIFICACIÓN ---
