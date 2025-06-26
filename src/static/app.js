@@ -1,7 +1,7 @@
-// src/static/js/app.js
+// src/static/app.js
 
 window.app = {
-    // ---- 1. ESTADO GLOBAL DE LA APLICACIÓN ----
+    // ---- 1. ESTADO GLOBAL DE LA APLICACIÓN (SIN CAMBIOS) ----
     state: {
         isUpdating: false,
         isFirstRun: true,
@@ -24,8 +24,8 @@ window.app = {
         stockFilters: { codes: [], all: true }
     },
     
-    // ---- 2. INICIALIZACIÓN ----
- init() {
+    // ---- 2. INICIALIZACIÓN (SIN CAMBIOS EN LA LÓGICA INTERNA) ----
+    init() {
         uiManager.init();
         portfolioManager.init();
         closingManager.init();
@@ -33,7 +33,7 @@ window.app = {
         this.initializeApp();
         this.setupWebSocket();
         this.attachEventListeners();
-        console.log('[App] Aplicación inicializada.');
+        console.log('[App] Aplicación inicializada por completo.');
     },
     
     async initializeApp() {
@@ -61,7 +61,7 @@ window.app = {
         }
     },
     
-    // ---- 4. LÓGICA DE DATOS ----
+    // ---- 3. LÓGICA DE DATOS (SIN CAMBIOS) ----
     async loadPreferences() {
         try {
             const [colsRes, filtersRes] = await Promise.all([fetch('/api/columns'), fetch('/api/filters')]);
@@ -77,6 +77,7 @@ window.app = {
             uiManager.renderColumnModal(this.state.columnPrefs.all, this.state.columnPrefs.visible, this.state.columnPrefs.config);
             uiManager.renderFilterInputs(this.state.stockFilters);
         } catch (error) {
+            console.error("Error en loadPreferences:", error);
             uiManager.updateStatus('Error al cargar preferencias.', 'danger');
         }
     },
@@ -101,6 +102,7 @@ window.app = {
 
             this.renderAllTables();
         } catch (error) {
+            console.error("Error en fetchAndDisplayStocks:", error);
             uiManager.updateStatus(`Error al cargar datos: ${error.message}`, 'danger');
         }
     },
@@ -110,7 +112,7 @@ window.app = {
         portfolioManager.render(this.state.stockPriceMap);
     },
 
-    // ---- 4. MANEJO DE ESTADO Y EVENTOS ----
+    // ---- 4. MANEJO DE ESTADO Y EVENTOS (SIN CAMBIOS) ----
     updateRefreshButton() {
         let text = this.state.isFirstRun ? 'Iniciar Navegador' : 'Actualizar Ahora';
         if (this.state.isUpdating) {
@@ -183,7 +185,7 @@ window.app = {
         this.renderAllTables();
     },
 
-    // ---- 5. CONFIGURACIÓN DE WEBSOCKETS ----
+    // ---- 5. CONFIGURACIÓN DE WEBSOCKETS (SIN CAMBIOS) ----
     setupWebSocket() {
         const socket = io();
         socket.on('connect', () => uiManager.updateStatus('Conectado al servidor.', 'success'));
@@ -229,28 +231,54 @@ window.app = {
         });
     },
 
-    // ---- 6. ASIGNACIÓN DE EVENT LISTENERS ----
+    // ---- 6. ASIGNACIÓN DE EVENT LISTENERS (SIN CAMBIOS) ----
     attachEventListeners() {
+        // Necesitamos asegurarnos de que los elementos existan antes de añadir listeners.
+        // Delegación de eventos es una buena alternativa, pero por ahora, esto funcionará
+        // ya que attachEventListeners se llama desde init(), que ahora espera al dashboard.
+        
         $(uiManager.dom.refreshBtn).on('click', () => this.handleUpdateClick(false));
         $(uiManager.dom.autoUpdateSelect).on('change', () => this.handleAutoUpdateChange());
         
-        $(uiManager.dom.stockFilterForm).on('submit', (e) => this.handleFilterSubmit(e));
-        $(uiManager.dom.saveColumnPrefsBtn).on('click', () => this.handleSaveColumnPrefs());
-        
-        $(uiManager.dom.clearFilterBtn).on('click', () => {
-            uiManager.dom.stockFilterForm.reset();
-            uiManager.dom.allStocksCheck.checked = true;
-            $(uiManager.dom.stockFilterForm).trigger('submit');
-        });
+        // Los formularios están dentro de widgets, por lo que podrían no existir siempre.
+        // Hacemos una comprobación antes de añadir el listener.
+        if(uiManager.dom.stockFilterForm) {
+            $(uiManager.dom.stockFilterForm).on('submit', (e) => this.handleFilterSubmit(e));
+        }
+        if(uiManager.dom.clearFilterBtn) {
+            $(uiManager.dom.clearFilterBtn).on('click', () => {
+                if (uiManager.dom.stockFilterForm) {
+                    uiManager.dom.stockFilterForm.reset();
+                    uiManager.dom.allStocksCheck.checked = true;
+                    $(uiManager.dom.stockFilterForm).trigger('submit');
+                }
+            });
+        }
+        if(uiManager.dom.saveColumnPrefsBtn) {
+            $(uiManager.dom.saveColumnPrefsBtn).on('click', () => this.handleSaveColumnPrefs());
+        }
 
-        $(portfolioManager.dom.form).on('submit', (e) => portfolioManager.handleAdd(e));
+        if(portfolioManager.dom.form) {
+            $(portfolioManager.dom.form).on('submit', (e) => portfolioManager.handleAdd(e));
+        }
+        // Para la tabla, usamos delegación de eventos, que es más robusto.
         $(portfolioManager.dom.tableBody).on('click', '.delete-holding-btn', function() {
             portfolioManager.handleDelete($(this).data('id'));
         });
     }
 };
 
-// ---- INICIAR LA APLICACIÓN ----
-$(document).ready(() => {
+// ---- INICIAR LA APLICACIÓN (ÚNICA MODIFICACIÓN IMPORTANTE) ----
+
+// -- Antes (Problemático) --
+// $(document).ready(() => {
+//     window.app.init();
+// });
+
+// -- Ahora (Correcto) --
+// Escuchamos el evento personalizado que dispara dashboardLayout.js cuando ha terminado de crear los widgets.
+// Esto garantiza que todos los elementos del DOM (tablas, formularios) existen antes de que app.js intente usarlos.
+document.addEventListener('dashboardReady', () => {
+    console.log("Evento 'dashboardReady' detectado. Iniciando app.js...");
     window.app.init();
 });

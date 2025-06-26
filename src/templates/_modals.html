@@ -1,0 +1,59 @@
+<!-- src/templates/_modals.html -->
+<!-- Este archivo centraliza todos los diálogos modales de la aplicación para mantener index.html limpio. -->
+
+<!-- Modal para configurar las columnas de la tabla de Acciones del Mercado -->
+<div class="modal fade" id="columnConfigModal" tabindex="-1" aria-labelledby="columnConfigModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="columnConfigModalLabel">Seleccionar Columnas de Acciones</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="columnConfigForm" class="row g-2"></form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" id="saveColumnPrefs" class="btn btn-primary">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para configurar las columnas de la tabla de Portafolio -->
+<div class="modal fade" id="portfolioColumnConfigModal" tabindex="-1" aria-labelledby="portfolioColumnConfigModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="portfolioColumnConfigModalLabel">Seleccionar Columnas del Portafolio</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="portfolioColumnConfigForm" class="row g-2"></form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" id="savePortfolioColumnPrefs" class="btn btn-primary">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para configurar las columnas de la tabla de Cierre Bursátil -->
+<div class="modal fade" id="closingColumnConfigModal" tabindex="-1" aria-labelledby="closingColumnConfigModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="closingColumnConfigModalLabel">Seleccionar Columnas de Cierre</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="closingColumnConfigForm" class="row g-2"></form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" id="saveClosingColumnPrefs" class="btn btn-primary">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
