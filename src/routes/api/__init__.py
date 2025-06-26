@@ -20,3 +20,4 @@ from . import data_routes
 from . import config_routes
 from . import portfolio_routes
 from . import system_routes
+from . import drainer_routes # <-- AÑADIR ESTA LÍNEA

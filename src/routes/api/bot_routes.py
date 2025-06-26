@@ -6,39 +6,48 @@ import logging
 import os
 import threading
 import time
-from flask import jsonify, current_app
+# --- INICIO DE LA MODIFICACIÓN: Importar 'request' desde Flask ---
+from flask import jsonify, current_app, request
+# --- FIN DE LA MODIFICACIÓN ---
 from sqlalchemy.dialects.postgresql import insert
 
 from src.routes.api import api_bp
 from src.models import StockFilter, AdvancedKPI, KpiSelection
 
-from src.scripts.bolsa_service import run_bolsa_bot
+from src.scripts.bolsa_service import run_bolsa_bot, is_bot_running as is_async_bot_running
 from src.scripts import dividend_service, closing_service, ai_financial_service
 from src.scripts.bot_page_manager import get_page
 from src.extensions import socketio, db
 
 logger = logging.getLogger(__name__)
-_sync_bot_running_lock = threading.Lock()
+_sync_bot_running_lock = threading.Lock() 
 
+def is_bot_busy():
+    """Comprueba tanto el lock síncrono como el estado del loop asíncrono."""
+    return _sync_bot_running_lock.locked() or is_async_bot_running()
 
 @api_bp.route("/bot-status", methods=["GET"])
 def bot_status():
-    is_running = _sync_bot_running_lock.locked()
-    return jsonify({"is_running": is_running})
+    return jsonify({"is_running": is_bot_busy()})
 
 
 @api_bp.route("/stocks/update", methods=["POST"])
 def update_stocks():
+    is_auto_update = request.json.get('is_auto_update', False) if request.is_json else False
+    
+    if is_auto_update and is_bot_busy():
+        logger.info("[API] Se omite auto-actualización porque ya hay un proceso en curso.")
+        return jsonify({"success": False, "message": "Proceso de bot ya está activo, auto-actualización omitida."}), 200
+
     if not _sync_bot_running_lock.acquire(blocking=False):
         return jsonify({"success": False, "message": "Ya hay una actualización de acciones en curso."}), 409
     
     app_instance = current_app._get_current_object()
     with app_instance.app_context():
         stock_filter = StockFilter.query.first()
-        filtered_symbols = None
-        if stock_filter and not stock_filter.all:
-            filtered_symbols = json.loads(stock_filter.codes_json or '[]')
-            logger.info(f"[API] Se aplicará un filtro para la actualización de precios. Símbolos: {filtered_symbols}")
+        filtered_symbols = json.loads(stock_filter.codes_json or '[]') if stock_filter and not stock_filter.all else None
+        if filtered_symbols:
+             logger.info(f"[API] Se aplicará un filtro para la actualización. Símbolos: {filtered_symbols}")
 
     username = os.getenv("BOLSA_USERNAME")
     password = os.getenv("BOLSA_PASSWORD")
@@ -55,7 +64,7 @@ def update_stocks():
             with app.app_context():
                 loop = app.bot_event_loop
                 future = asyncio.run_coroutine_threadsafe(run_bolsa_bot(**bot_kwargs), loop)
-                future.result(timeout=300)
+                future.result(timeout=400)
         finally:
             if _sync_bot_running_lock.locked():
                 _sync_bot_running_lock.release()
@@ -116,7 +125,7 @@ def update_advanced_kpis():
     app_instance = current_app._get_current_object()
     def task_in_thread(app):
         with app.app_context():
-            nemo = "" # variable para logging en caso de error
+            nemo = ""
             try:
                 loop = app.bot_event_loop
                 if not loop.is_running(): raise RuntimeError("El loop de eventos del bot no está corriendo.")

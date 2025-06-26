@@ -23,6 +23,7 @@ from .kpi_selection import KpiSelection
 from .prompt_config import PromptConfig 
 from .kpi_column_preference import KpiColumnPreference
 from .portfolio_column_preference import PortfolioColumnPreference
+from .anomalous_event import AnomalousEvent
 
 __all__ = [
     "User",
@@ -44,4 +45,8 @@ __all__ = [
     "PromptConfig",
     "KpiColumnPreference",
     "PortfolioColumnPreference",
+    "AnomalousEvent",
 ]
+
+# src/models/__init__.py
+# ... (imports existentes)

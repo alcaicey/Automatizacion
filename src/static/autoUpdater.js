@@ -3,45 +3,60 @@
 window.autoUpdater = {
     timerId: null,
     countdownInterval: null,
-    ui: null,
+    // Se elimina 'ui: null'
     
-    init(uiManager) {
-        this.ui = uiManager;
-        // Al iniciar, comprueba si hay una actualización pendiente en la sesión.
+    init() { // Se elimina el argumento uiManager
+        // Este listener se adjunta una vez, sin importar la página
+        const autoUpdateSelect = document.getElementById('autoUpdateSelect');
+        if (autoUpdateSelect) {
+            autoUpdateSelect.addEventListener('change', () => this.handleAutoUpdateChange());
+
+            // Restaurar el valor guardado en sessionStorage al cargar cualquier página
+            const savedInterval = sessionStorage.getItem('autoUpdateInterval');
+            if (savedInterval) {
+                autoUpdateSelect.value = savedInterval;
+            }
+        }
         this.resume(); 
         console.log('[AutoUpdater] Módulo inicializado y reanudado si es necesario.');
     },
+    // --- NUEVA FUNCIÓN ---
+    handleAutoUpdateChange() {
+        const select = document.getElementById('autoUpdateSelect');
+        if (!select) return;
 
-    // --- INICIO DE CORRECCIÓN: Función para verificar horario de mercado ---
+        const intervalValue = select.value;
+        sessionStorage.setItem('autoUpdateInterval', intervalValue);
+        
+        // Solo la página del dashboard (donde existe `window.app`) puede iniciar la actualización.
+        if (intervalValue === "off") {
+            this.stop();
+        } else if (window.app && typeof window.app.handleUpdateClick === 'function') {
+            this.start(intervalValue, () => window.app.handleUpdateClick(true));
+        }
+    },
+
     isTradingHours() {
         const now = new Date();
         const hour = now.getHours();
         const minute = now.getMinutes();
         
-        // Horario: 9:30 AM a 16:00 PM (4 PM)
         const isAfterOpen = (hour > 9) || (hour === 9 && minute >= 30);
         const isBeforeClose = hour < 16;
         
         const tradingHours = isAfterOpen && isBeforeClose;
         if (!tradingHours) {
             console.log('[AutoUpdater] Fuera de horario de mercado. No se programará actualización.');
-            this.ui.updateCountdown('(Fuera de horario)');
+            // Llamamos a la función interna para actualizar el texto
+            this.updateCountdownText('(Fuera de horario)');
         }
         return tradingHours;
     },
-    // --- FIN DE CORRECCIÓN ---
 
     start(intervalValue, updateCallback) {
-        this.stop(); // Detiene cualquier temporizador anterior
-        sessionStorage.removeItem('autoUpdateTarget'); // Limpiar estado antiguo
-
+        this.stop();
         if (intervalValue === "off") return;
-        
-        // --- INICIO DE CORRECCIÓN: Verificar horario antes de empezar ---
-        if (!this.isTradingHours()) {
-            return;
-        }
-        // --- FIN DE CORRECCIÓN ---
+        if (!this.isTradingHours()) return;
 
         const [min, max] = intervalValue.split('-').map(Number);
         const randomSeconds = Math.floor(Math.random() * (max * 60 - min * 60 + 1)) + (min * 60);
@@ -56,15 +71,12 @@ window.autoUpdater = {
 
     resume() {
         const targetTimestamp = sessionStorage.getItem('autoUpdateTarget');
-        // --- INICIO DE CORRECCIÓN: Verificar horario también al reanudar ---
         if (targetTimestamp && Date.now() < targetTimestamp && this.isTradingHours()) {
             console.log('[AutoUpdater] Reanudando temporizador de actualización pendiente.');
             this.schedule(parseInt(targetTimestamp), () => window.app.handleUpdateClick(true));
         } else {
-            // Si hay un target pero estamos fuera de horario, lo limpiamos.
             sessionStorage.removeItem('autoUpdateTarget');
         }
-        // --- FIN DE CORRECCIÓN ---
     },
 
     schedule(targetTimestamp, updateCallback) {
@@ -79,18 +91,16 @@ window.autoUpdater = {
         this.timerId = setTimeout(() => {
             console.log('[AutoUpdater] Disparando actualización automática.');
             sessionStorage.removeItem('autoUpdateTarget');
-            // --- INICIO DE CORRECCIÓN: Última verificación de horario antes de ejecutar ---
             if (this.isTradingHours()) {
                 updateCallback();
             } else {
                 console.log('[AutoUpdater] Tiempo cumplido, pero ya estamos fuera de horario. Se cancela la ejecución.');
-                // Reinicia el ciclo para el día siguiente si es necesario (o simplemente no hace nada)
-                const intervalValue = window.app ? window.app.uiManager.dom.autoUpdateSelect.value : 'off';
+                const select = document.getElementById('autoUpdateSelect');
+                const intervalValue = select ? select.value : 'off';
                 if(intervalValue !== 'off') {
                     this.start(intervalValue, updateCallback);
                 }
             }
-            // --- FIN DE CORRECCIÓN ---
         }, remainingMs);
 
         this.startCountdown(Math.ceil(remainingMs / 1000));
@@ -101,7 +111,7 @@ window.autoUpdater = {
         if (this.countdownInterval) clearInterval(this.countdownInterval);
         this.timerId = null;
         this.countdownInterval = null;
-        this.ui.updateCountdown('');
+        this.updateCountdownText(''); // Usamos la función interna
         sessionStorage.removeItem('autoUpdateTarget');
     },
 
@@ -114,16 +124,33 @@ window.autoUpdater = {
             if (remaining <= 0) {
                 clearInterval(this.countdownInterval);
                 this.countdownInterval = null;
-                this.ui.updateCountdown('Actualizando...');
+                this.updateCountdownText('Actualizando...');
                 return;
             }
             const minutes = Math.floor(remaining / 60);
             const seconds = remaining % 60;
-            this.ui.updateCountdown(`(Próxima en ${minutes}:${seconds < 10 ? '0' : ''}${seconds})`);
+            this.updateCountdownText(`(Próxima en ${minutes}:${seconds < 10 ? '0' : ''}${seconds})`);
             remaining--;
         };
         
         update();
         this.countdownInterval = setInterval(update, 1000);
+    },
+    
+    // --- NUEVA FUNCIÓN INTERNA ---
+    updateCountdownText(text) {
+        const countdownEl = document.getElementById('countdownTimer');
+        if (countdownEl) {
+            countdownEl.textContent = text;
+        }
     }
 };
+// --- INICIO DE LA MODIFICACIÓN: Inicialización global ---
+// Ahora se inicializa en todas las páginas para que el estado persista.
+document.addEventListener('DOMContentLoaded', () => {
+    // Solo inicializamos si el componente existe en el DOM (en el navbar)
+    if (document.getElementById('globalAutoUpdater')) {
+        autoUpdater.init();
+    }
+});
+// --- FIN DE LA MODIFICACIÓN ---

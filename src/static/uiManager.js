@@ -1,129 +1,142 @@
-// src/static/js/uiManager.js
+// src/static/uiManager.js
 
-window.uiManager = {
-    dataTable: null,
-    dom: {},
+const uiManager = {
+    dom: {}, // El DOM específico de las tablas ya no se cachea aquí
 
     init() {
+        // Cacheamos solo elementos globales que siempre existen en la página
         this.dom = {
+            refreshBtn: document.getElementById('refreshBtn'),
+            autoUpdateSelect: document.getElementById('autoUpdateSelect'),
+            countdownTimer: document.getElementById('countdownTimer'),
             statusMessage: document.getElementById('statusMessage'),
+            lastUpdate: document.getElementById('lastUpdate'),
             loadingOverlay: document.getElementById('loadingOverlay'),
             loadingMessage: document.getElementById('loadingMessage'),
-            refreshBtn: document.getElementById('refreshBtn'),
-            stocksTable: document.getElementById('stocksTable'),
-            columnConfigForm: document.getElementById('columnConfigForm'),
-            saveColumnPrefsBtn: document.getElementById('saveColumnPrefs'),
+            // Referencias a modales y formularios que están siempre en el DOM del layout
             columnConfigModal: document.getElementById('columnConfigModal'),
-            stockFilterForm: document.getElementById('stockFilterForm'),
-            clearFilterBtn: document.getElementById('clearBtn'),
-            countdownTimer: document.getElementById('countdownTimer'),
-            allStocksCheck: document.getElementById('allStocksCheck'),
-            stockCodeInputs: document.querySelectorAll('.stock-code'),
-            lastUpdate: document.getElementById('lastUpdate'),
-            autoUpdateSelect: document.getElementById('autoUpdateSelect')
+            columnConfigForm: document.getElementById('columnConfigForm'),
+            saveColumnPrefsBtn: document.getElementById('saveColumnPrefs')
         };
-        console.log('[UI] Módulo inicializado y DOM cacheado.');
+        console.log('[UI] Módulo inicializado y DOM global cacheado.');
     },
 
-    updateStatus(message, type = 'info') {
-        if (!this.dom.statusMessage) return;
-        const icons = { info: 'info-circle', success: 'check-circle', warning: 'exclamation-triangle', danger: 'x-circle' };
-        this.dom.statusMessage.innerHTML = `<i class="fas fa-${icons[type]} me-2"></i><span>${message}</span>`;
-        this.dom.statusMessage.className = `alert alert-${type} small py-2`;
-    },
-
-    toggleLoading(show, message = 'Cargando...') {
-        if (!this.dom.loadingOverlay || !this.dom.loadingMessage) return;
-        this.dom.loadingMessage.textContent = message;
-        this.dom.loadingOverlay.classList.toggle('d-none', !show);
-    },
-    
-    updateRefreshButton(text, isDisabled) {
-        if (!this.dom.refreshBtn) return;
-        this.dom.refreshBtn.innerHTML = text; // No se necesita el icono aquí, app.js lo añade
-        this.dom.refreshBtn.disabled = isDisabled;
-    },
-
-    updateCountdown(text) {
-        if (this.dom.countdownTimer) this.dom.countdownTimer.textContent = text;
-    },
-    
-    renderColumnModal(allColumns, visibleColumns, config) {
-        if (!this.dom.columnConfigForm) return;
-        this.dom.columnConfigForm.innerHTML = '';
-        allColumns.forEach(col => {
-            const isChecked = visibleColumns.includes(col);
-            const label = (config[col] && config[col].title) || col.replace(/_/g, ' ');
-            this.dom.columnConfigForm.innerHTML += `
-                <div class="col-6"><div class="form-check">
-                    <input class="form-check-input" type="checkbox" value="${col}" id="col-check-${col}" ${isChecked ? 'checked' : ''}>
-                    <label class="form-check-label" for="col-check-${col}">${label}</label>
-                </div></div>`;
-        });
-    },
-
-    renderFilterInputs(stockFilters) {
-        if (!this.dom.allStocksCheck || !this.dom.stockCodeInputs) return;
-        this.dom.allStocksCheck.checked = stockFilters.all;
-        this.dom.stockCodeInputs.forEach((input, index) => {
-            input.value = stockFilters.codes[index] || '';
-        });
-    },
-    
-    createNumberRenderer(isPercent = false, locale = 'es-CL', options = {}) {
-        return function(data, type, row) {
-            if (type === 'display') {
-                if (data === null || data === undefined || data === '') return 'N/A';
-                const number = parseFloat(String(data).replace(",", "."));
-                if (isNaN(number)) return data;
-    
-                const colorClass = number > 0 ? 'text-success' : (number < 0 ? 'text-danger' : '');
-                let formattedNumber = number.toLocaleString(locale, options);
-                if (isPercent) formattedNumber += '%';
-                
-                return `<span class="fw-bold ${colorClass}">${formattedNumber}</span>`;
-            }
-            return data;
-        };
-    },
-
-    renderTable(stocks, timestamp, visibleColumns, columnConfig) {
-        if (this.dataTable) {
-            this.dataTable.destroy();
-            $(this.dom.stocksTable).empty();
-        }
-
-        if (!stocks || stocks.length === 0) {
-            this.updateStatus('No hay datos de mercado para mostrar.', 'warning');
+    renderTable(data, timestamp, visibleColumns, columnConfig) {
+        const tableElement = document.getElementById('stocksTable');
+        // Si el widget de "Datos del Mercado" no está visible, el elemento no existirá.
+        // En ese caso, simplemente no hacemos nada.
+        if (!tableElement) {
+            console.log('[UI] Widget de tabla de acciones no encontrado. Se omite el renderizado.');
             return;
         }
 
-        const allHeadings = Object.keys(stocks[0]);
-        let headingsToRender = visibleColumns.filter(h => allHeadings.includes(h));
-        
-        if (headingsToRender.length === 0 && allHeadings.length > 0) {
-            headingsToRender = allHeadings;
+        if ($.fn.DataTable.isDataTable(tableElement)) {
+            $(tableElement).DataTable().destroy();
         }
 
-        const dtColumns = headingsToRender.map(key => ({
+        const columns = visibleColumns.map(key => ({
             data: key,
-            title: (columnConfig[key] && columnConfig[key].title) || key.replace(/_/g, ' '),
-            render: (columnConfig[key] && columnConfig[key].render) || null
+            title: columnConfig[key]?.title || key,
+            render: columnConfig[key]?.render || ((d) => d === null ? '' : d)
         }));
-        
-        this.dataTable = $(this.dom.stocksTable).DataTable({
-            data: stocks,
-            columns: dtColumns,
-            responsive: true,
-            language: { url: 'https:/cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' },
-            dom: 'Bfrtip',
-            buttons: ['excelHtml5', 'csvHtml5'],
-            order: []
-        });
 
-        this.updateStatus(`Mostrando ${stocks.length} acciones. Fuente: database`, 'success');
-        if (this.dom.lastUpdate) {
-            this.dom.lastUpdate.innerHTML = `<i class="fas fa-clock me-1"></i>Última act: ${timestamp}`;
+        $(tableElement).DataTable({
+            data: data,
+            columns: columns,
+            responsive: true,
+            autoWidth: false,
+            language: this.getDataTablesLang(),
+            dom: 'Bfrtip',
+            buttons: ['excel', 'csv'],
+            order: [[2, 'desc']] // Ordenar por variación por defecto
+        });
+        
+        // Actualizamos el estado general, que es global
+        this.updateStatus(`Mostrando ${data.length} acciones. Fuente: ${timestamp}`, 'success');
+    },
+
+    renderColumnModal(allColumns, visibleColumns, columnConfig) {
+        if (!this.dom.columnConfigForm) return;
+        this.dom.columnConfigForm.innerHTML = allColumns.map(col => `
+            <div class="col-6 col-md-4">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" value="${col}" id="col_${col}" ${visibleColumns.includes(col) ? 'checked' : ''}>
+                    <label class="form-check-label" for="col_${col}">${columnConfig[col]?.title || col}</label>
+                </div>
+            </div>
+        `).join('');
+    },
+    
+    renderFilterInputs(filters) {
+        const stockFilterForm = document.getElementById('stockFilterForm');
+        if (!stockFilterForm) return;
+
+        const stockCodeInputs = stockFilterForm.querySelectorAll('.stock-code');
+        const allStocksCheck = stockFilterForm.querySelector('#allStocksCheck');
+
+        if(stockCodeInputs.length > 0) {
+            stockCodeInputs.forEach((input, index) => {
+                input.value = filters.codes[index] || '';
+            });
         }
+        if(allStocksCheck) {
+            allStocksCheck.checked = filters.all;
+        }
+    },
+    
+    updateStatus(message, type) {
+        if (!this.dom.statusMessage) return;
+        this.dom.statusMessage.className = `alert alert-${type} small py-2`;
+        this.dom.statusMessage.innerHTML = `<i class="fas fa-info-circle me-1"></i> ${message}`;
+    },
+
+    updateLastUpdateTimestamp(timestamp) {
+        if(!this.dom.lastUpdate) return;
+        this.dom.lastUpdate.innerHTML = `<i class="fas fa-clock me-1"></i>Última act: ${timestamp}`;
+    },
+
+    updateRefreshButton(html, isDisabled) {
+        if (!this.dom.refreshBtn) return;
+        this.dom.refreshBtn.innerHTML = html;
+        this.dom.refreshBtn.disabled = isDisabled;
+    },
+    
+    toggleLoading(show, message = 'Cargando...') {
+        if(!this.dom.loadingOverlay) return;
+        this.dom.loadingMessage.textContent = message;
+        this.dom.loadingOverlay.classList.toggle('d-none', !show);
+    },
+
+    createNumberRenderer(isPercent = false, locale = 'es-CL', options = {}) {
+        return function(data, type) {
+            if (type !== 'display' || data === null || data === undefined) return data;
+            const num = parseFloat(String(data).replace(",", "."));
+            if (isNaN(num)) return data;
+            
+            let finalOptions = options;
+            if (isPercent) {
+                finalOptions = { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2, ...options };
+            }
+            
+            let formatted = new Intl.NumberFormat(locale, finalOptions).format(num);
+
+            if (isPercent) {
+                const color = num > 0 ? 'text-success' : num < 0 ? 'text-danger' : 'text-muted';
+                return `<span class="fw-bold ${color}">${formatted} %</span>`;
+            }
+            return formatted;
+        };
+    },
+
+    getDataTablesLang() {
+        return {
+            "search": "Buscar:",
+            "lengthMenu": "Mostrar _MENU_ registros",
+            "info": "Mostrando _START_ a _END_ de _TOTAL_ registros",
+            "infoEmpty": "Mostrando 0 a 0 de 0 registros",
+            "infoFiltered": "(filtrado de _MAX_ registros totales)",
+            "zeroRecords": "No se encontraron registros coincidentes",
+            "paginate": { "first": "Primero", "last": "Último", "next": "Siguiente", "previous": "Anterior" }
+        };
     }
 };

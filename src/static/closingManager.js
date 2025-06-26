@@ -4,16 +4,17 @@ window.closingManager = {
     dataTable: null,
     dom: {},
     socket: null,
+    isInitialized: false,
     columnPrefs: {
         all: [],
         visible: [],
     },
     columnConfig: {
         'nemo': { title: 'Símbolo' },
-        'fec_fij_cie': { title: 'Fecha Cierre', render: (d) => new Date(d + 'T00:00:00Z').toLocaleDateString('es-CL', { timeZone: 'UTC' }) },
-        'precio_cierre_ant': { title: 'Precio Cierre', render: (d) => d ? d.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' }) : 'N/A' },
-        'monto_ant': { title: 'Monto Transado', render: (d) => d ? d.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }) : 'N/A' },
-        'un_transadas_ant': { title: 'Unidades', render: (d) => d ? d.toLocaleString('es-CL') : 'N/A' },
+        'fec_fij_cie': { title: 'Fecha Cierre', render: (d) => d ? new Date(d + 'T00:00:00Z').toLocaleDateString('es-CL', { timeZone: 'UTC' }) : '' },
+        'precio_cierre_ant': { title: 'Precio Cierre', render: (d) => d != null ? d.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' }) : 'N/A' },
+        'monto_ant': { title: 'Monto Transado', render: (d) => d != null ? d.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }) : 'N/A' },
+        'un_transadas_ant': { title: 'Unidades', render: (d) => d != null ? d.toLocaleString('es-CL') : 'N/A' },
         'neg_ant': { title: 'N° Negocios' },
         'ren_actual': { title: 'Rend. Actual (%)' },
         'razon_pre_uti': { title: 'Razón P/U' },
@@ -23,98 +24,119 @@ window.closingManager = {
         'PESO_IGPA': { title: 'Peso IGPA (%)' },
     },
 
-    init() {
-        // --- INICIO DE LA CORRECCIÓN: Guardar el contexto ---
-        const self = this; 
-        // --- FIN DE LA CORRECCIÓN ---
+    init(socket) {
+        this.socket = socket;
+        console.log('[ClosingManager] Módulo inicializado y en espera de su widget.');
+        
+        // La función de flecha asegura que 'this' dentro del callback
+        // es el objeto 'closingManager'.
+        document.addEventListener('widgetAdded', (event) => {
+            const widgetElement = event.detail.element;
+            if (widgetElement.querySelector('#closingTable')) {
+                this.setupWidget(widgetElement);
+            }
+        });
 
-        self.dom = {
-            updateBtn: document.getElementById('updateClosingBtn'),
-            table: document.getElementById('closingTable'),
-            alert: document.getElementById('closingUpdateAlert'),
-            filterSwitch: document.getElementById('filterClosingByPortfolio'),
-            columnBtn: document.getElementById('closingColumnBtn'),
+        this.attachSocketListeners();
+    },
+
+    setupWidget(widgetElement) {
+        if (this.isInitialized) return;
+        console.log('[ClosingManager] Widget de Cierre Bursátil detectado. Configurando...');
+
+        this.dom = {
+            updateBtn: widgetElement.querySelector('#updateClosingBtn'),
+            table: widgetElement.querySelector('#closingTable'),
+            alert: widgetElement.querySelector('#closingUpdateAlert'),
+            filterSwitch: widgetElement.querySelector('#filterClosingByPortfolio'),
+            columnBtn: widgetElement.querySelector('#closingColumnBtn'),
             columnModal: document.getElementById('closingColumnConfigModal'),
             columnForm: document.getElementById('closingColumnConfigForm'),
             saveColumnPrefsBtn: document.getElementById('saveClosingColumnPrefs'),
         };
 
-        if (!self.dom.table) return;
-
-        self.socket = io();
-        self.attachEventListeners();
-        self.loadPreferences(); 
+        this.attachWidgetEventListeners();
+        this.loadPreferences().then(() => {
+            this.loadClosings();
+        });
         
-        console.log('[ClosingManager] Módulo inicializado.');
+        this.isInitialized = true;
     },
 
-    attachEventListeners() {
-        const self = this;
-        self.dom.updateBtn.addEventListener('click', () => self.handleUpdateClick());
-        self.dom.saveColumnPrefsBtn.addEventListener('click', () => self.handleSavePrefs());
-        self.dom.filterSwitch.addEventListener('change', () => self.loadClosings());
+    attachSocketListeners() {
+        if (!this.socket) return;
+        this.socket.on('closing_update_complete', (result) => {
+            if (!this.isInitialized) return;
+            
+            this.dom.updateBtn.innerHTML = '<i class="fas fa-sync-alt me-2"></i>Actualizar';
+            this.dom.updateBtn.disabled = false;
+            
+            this.displayUpdateResult(result);
 
-        self.socket.on('closing_update_complete', (result) => {
-            self.dom.updateBtn.innerHTML = '<i class="fas fa-sync-alt me-2"></i>Actualizar';
-            self.dom.updateBtn.disabled = false;
-            self.displayUpdateResult(result);
             if (!result.error) {
-                self.loadClosings();
+                console.log('[ClosingManager] Actualización de cierre completa, recargando datos de la tabla...');
+                this.loadClosings();
             }
         });
     },
 
+    attachWidgetEventListeners() {
+        this.dom.updateBtn.addEventListener('click', () => this.handleUpdateClick());
+        this.dom.saveColumnPrefsBtn.addEventListener('click', () => this.handleSavePrefs());
+        this.dom.filterSwitch.addEventListener('change', () => this.loadClosings());
+    },
+
     async loadClosings() {
-        const self = this;
+        if (!this.isInitialized) return;
+        uiManager.toggleLoading(true, 'Cargando datos de cierre...');
         try {
-            let nemos_to_filter = [];
-            if (self.dom.filterSwitch && self.dom.filterSwitch.checked) {
-                if (window.portfolioManager && window.portfolioManager.holdings.length > 0) {
-                    nemos_to_filter = window.portfolioManager.holdings.map(h => h.symbol);
-                } else if (window.portfolioManager && window.portfolioManager.holdings.length === 0) {
-                    self.renderTable([]);
+            const url = new URL(window.location.origin + '/api/closing');
+            
+            if (this.dom.filterSwitch && this.dom.filterSwitch.checked) {
+                const holdings = window.portfolioManager ? window.portfolioManager.state.holdings : [];
+                if (holdings.length > 0) {
+                    const portfolioSymbols = holdings.map(h => h.symbol);
+                    portfolioSymbols.forEach(nemo => url.searchParams.append('nemo', nemo));
+                } else {
+                    console.log('[ClosingManager] Filtro de portafolio activo, pero no hay holdings. Mostrando tabla vacía.');
+                    this.renderTable([]);
+                    uiManager.toggleLoading(false);
                     return;
                 }
-            }
-
-            const url = new URL(window.location.origin + '/api/closing');
-            if (nemos_to_filter.length > 0) {
-                nemos_to_filter.forEach(nemo => url.searchParams.append('nemo', nemo));
             }
 
             const response = await fetch(url);
             if (!response.ok) throw new Error('No se pudieron cargar los datos de cierre.');
             const data = await response.json();
-            self.renderTable(data);
+            this.renderTable(data);
         } catch (error) {
             console.error('Error al cargar datos de cierre:', error);
-            if (self.dataTable) {
-                self.dataTable.clear().draw();
-            }
+            this.renderTable([]);
+        } finally {
+            uiManager.toggleLoading(false);
         }
     },
     
     async loadPreferences() {
-        const self = this;
         try {
             const res = await fetch('/api/closing/columns');
             if (!res.ok) throw new Error('No se pudieron cargar las preferencias de columnas.');
             const data = await res.json();
-            self.columnPrefs.all = data.all_columns;
-            self.columnPrefs.visible = data.visible_columns;
-            self.renderColumnModal();
+            this.columnPrefs.all = data.all_columns;
+            this.columnPrefs.visible = data.visible_columns;
+            this.renderColumnModal();
         } catch (error) {
             console.error(error);
         }
     },
     
     renderColumnModal() {
-        const self = this;
-        self.dom.columnForm.innerHTML = '';
-        self.columnPrefs.all.forEach(colKey => {
-            const isChecked = self.columnPrefs.visible.includes(colKey);
-            const label = self.columnConfig[colKey]?.title || colKey.replace(/_/g, ' ');
-            self.dom.columnForm.innerHTML += `
+        if (!this.dom.columnForm) return;
+        this.dom.columnForm.innerHTML = '';
+        this.columnPrefs.all.forEach(colKey => {
+            const isChecked = this.columnPrefs.visible.includes(colKey);
+            const label = this.columnConfig[colKey]?.title || colKey.replace(/_/g, ' ');
+            this.dom.columnForm.innerHTML += `
                 <div class="col-6"><div class="form-check">
                     <input class="form-check-input" type="checkbox" value="${colKey}" id="close-col-${colKey}" ${isChecked ? 'checked' : ''}>
                     <label class="form-check-label" for="close-col-${colKey}">${label}</label>
@@ -123,33 +145,32 @@ window.closingManager = {
     },
 
     renderTable(data) {
-        const self = this;
-        if (self.dataTable) {
-            self.dataTable.destroy();
+        if (!this.isInitialized || !this.dom.table) return;
+
+        if ($.fn.DataTable.isDataTable(this.dom.table)) {
+            this.dataTable.clear().rows.add(data).draw();
+        } else {
+            const columns = this.columnPrefs.visible.map(key => ({
+                data: key,
+                title: this.columnConfig[key]?.title || key.replace(/_/g, ' '),
+                render: this.columnConfig[key]?.render || null,
+            }));
+
+            this.dataTable = $(this.dom.table).DataTable({
+                data,
+                columns,
+                order: [[0, 'asc']],
+                responsive: true,
+                language: uiManager.getDataTablesLang(),
+                dom: 'Bfrtip',
+                buttons: ['excelHtml5', 'csvHtml5'],
+            });
         }
-        $(self.dom.table).empty();
-
-        const columns = self.columnPrefs.visible.map(key => ({
-            data: key,
-            title: self.columnConfig[key]?.title || key.replace(/_/g, ' '),
-            render: self.columnConfig[key]?.render || null,
-        }));
-
-        self.dataTable = $(self.dom.table).DataTable({
-            data,
-            columns,
-            order: [[0, 'asc']],
-            responsive: true,
-            language: { url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' },
-            dom: 'Bfrtip',
-            buttons: ['excelHtml5', 'csvHtml5'],
-        });
     },
     
     async handleSavePrefs() {
-        const self = this;
-        const selected = Array.from(self.dom.columnForm.querySelectorAll('input:checked')).map(i => i.value);
-        self.columnPrefs.visible = selected;
+        const selected = Array.from(this.dom.columnForm.querySelectorAll('input:checked')).map(i => i.value);
+        this.columnPrefs.visible = selected;
         
         await fetch('/api/closing/columns', {
             method: 'POST',
@@ -157,15 +178,16 @@ window.closingManager = {
             body: JSON.stringify({ columns: selected })
         });
 
-        bootstrap.Modal.getInstance(self.dom.columnModal).hide();
-        self.renderTable(self.dataTable.rows().data().toArray());
+        bootstrap.Modal.getInstance(this.dom.columnModal).hide();
+        this.dataTable.destroy();
+        $(this.dom.table).empty();
+        this.renderTable(this.dataTable.rows().data().toArray());
     },
 
     async handleUpdateClick() {
-        const self = this;
-        self.dom.updateBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Actualizando...`;
-        self.dom.updateBtn.disabled = true;
-        self.dom.alert.classList.add('d-none');
+        this.dom.updateBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Actualizando...`;
+        this.dom.updateBtn.disabled = true;
+        this.dom.alert.classList.add('d-none');
 
         try {
             const response = await fetch('/api/closing/update', { method: 'POST' });
@@ -174,15 +196,14 @@ window.closingManager = {
                 throw new Error(errorData.message || 'El servidor no pudo iniciar el proceso.');
             }
         } catch (error) {
-            self.displayUpdateResult({ error: error.message });
-            self.dom.updateBtn.innerHTML = '<i class="fas fa-sync-alt me-2"></i>Actualizar';
-            self.dom.updateBtn.disabled = false;
+            this.displayUpdateResult({ error: error.message });
+            this.dom.updateBtn.innerHTML = '<i class="fas fa-sync-alt me-2"></i>Actualizar';
+            this.dom.updateBtn.disabled = false;
         }
     },
     
     displayUpdateResult(result) {
-        const self = this;
-        const alertEl = self.dom.alert;
+        const alertEl = this.dom.alert;
         if (result.error) {
             alertEl.className = 'alert alert-danger';
             alertEl.innerHTML = `<strong>Error:</strong> ${result.error}`;
@@ -193,3 +214,8 @@ window.closingManager = {
         alertEl.classList.remove('d-none');
     }
 };
+
+// La inicialización se maneja centralmente desde app.js, por lo que este listener global ya no es necesario aquí.
+// document.addEventListener('DOMContentLoaded', () => {
+//     closingManager.init();
+// });

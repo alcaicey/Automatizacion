@@ -39,3 +39,7 @@ SQLALCHEMY_TRACK_MODIFICATIONS = False
 # Selectores utilizados por pruebas para cerrar sesiones activas
 MIS_CONEXIONES_TITLE_SELECTOR = "#mis-conexiones-title"
 CERRAR_TODAS_SESIONES_SELECTOR = "#cerrar-sesiones"
+
+# URLs y selectores para manejo de sesiones activas
+ACTIVE_SESSIONS_URL_FRAGMENT = 'plus_dispositivos_conectados'
+CLOSE_ALL_SESSIONS_BUTTON_SELECTOR = 'button[ng-click="deshabilitarSesionesUsuario()"]'
