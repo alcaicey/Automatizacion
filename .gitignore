@@ -363,11 +363,7 @@ MigrationBackup/
 FodyWeavers.xsd
 src/logs_bolsa/
 
-<<<<<<< HEAD
-# Python virtual environments
-=======
 # Entornos virtuales de Python
->>>>>>> 8411c62 (Agrega exclusión de entornos virtuales en .gitignore)
 envLocal/
 venv/
 /venv/
