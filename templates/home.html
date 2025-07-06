@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mx-auto">
+    <h1 class="text-3xl font-bold mb-4">Bienvenido al Dashboard Financiero</h1>
+    <p>Aquí puedes ver datos financieros y gráficos relevantes para tus decisiones.</p>
+
+    <!-- Tabla de ejemplo -->
+    <table class="table-financial w-full text-left">
+        <thead>
+            <tr>
+                <th class="px-4 py-2">Nombre</th>
+                <th class="px-4 py-2">Precio</th>
+                <th class="px-4 py-2">Cambio</th>
+                <th class="px-4 py-2">Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="border px-4 py-2">Acción A</td>
+                <td class="border px-4 py-2">$150</td>
+                <td class="border px-4 py-2 text-green-600">+1.5%</td>
+                <td class="border px-4 py-2"><button class="btn-primary">Ver</button></td>
+            </tr>
+            <tr>
+                <td class="border px-4 py-2">Acción B</td>
+                <td class="border px-4 py-2">$200</td>
+                <td class="border px-4 py-2 text-red-600">-2.5%</td>
+                <td class="border px-4 py-2"><button class="btn-outline">Ver</button></td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+{% endblock %}

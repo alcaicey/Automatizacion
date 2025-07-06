@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="{{ url_for('static', filename='dist/output.css') }}" rel="stylesheet">
+    <title>{% block title %}Dashboard{% endblock %}</title>
+    <script src="{{ url_for('static', filename='js/toggleTheme.js') }}" defer></script>
+    <script src="https://unpkg.com/lucide-react@latest"></script>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900">
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <div id="sidebar" class="flex-none w-64 bg-white dark:bg-gray-800 overflow-y-auto">
+            <div class="p-4 text-2xl font-bold">App Logo</div>
+            <ul>
+                <!-- Example menu items -->
+                <li class="p-2 hover:bg-gray-200 dark:hover:bg-gray-700">
+                    <a href="#" class="flex items-center">
+                        <i data-lucide="bar-chart-2"></i>
+                        <span class="ml-2">Dashboard</span>
+                    </a>
+                </li>
+                <li class="p-2 hover:bg-gray-200 dark:hover:bg-gray-700">
+                    <a href="#" class="flex items-center">
+                        <i data-lucide="file-text"></i>
+                        <span class="ml-2">Logs</span>
+                    </a>
+                </li>
+                <!-- More items -->
+            </ul>
+        </div>
+
+        <!-- Main content -->
+        <div class="flex-1">
+            <!-- Header -->
+            <div class="flex justify-between items-center p-4 bg-white dark:bg-gray-800 shadow">
+                <div class="text-xl font-semibold">Financial Dashboard</div>
+                <button id="themeToggle" class="p-2 rounded bg-gray-300 dark:bg-gray-700">Toggle Dark Mode</button>
+            </div>
+
+            <!-- Main Panel -->
+            <div class="p-4">
+                {% block content %}{% endblock %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

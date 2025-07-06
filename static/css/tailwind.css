@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .btn-primary {
+    @apply bg-blue-600 text-white font-bold py-2 px-4 rounded;
+  }
+  .btn-outline {
+    @apply border border-blue-600 text-blue-600 font-bold py-2 px-4 rounded;
+  }
+  .btn-primary:hover {
+    @apply bg-blue-700;
+  }
+  .btn-outline:hover {
+    @apply bg-blue-600 text-white;
+  }
+}
+
+/* Custom styles specific to financial layouts */
+.table-financial {
+  @apply min-w-full divide-y divide-gray-200;
+}
+.table-financial thead {
+  @apply bg-gray-50 sticky top-0;
+}
+.table-financial tbody tr:nth-child(even) {
+  @apply bg-gray-100;
+}
+.table-financial tbody tr:hover {
+  @apply bg-gray-200;
+}
