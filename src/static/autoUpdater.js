@@ -1,26 +1,23 @@
 // src/static/js/autoUpdater.js
 
 window.autoUpdater = {
+    app: null, // Se asignará en init
     timerId: null,
     countdownInterval: null,
-    // Se elimina 'ui: null'
     
-    init() { // Se elimina el argumento uiManager
-        // Este listener se adjunta una vez, sin importar la página
+    init(appInstance) {
+        this.app = appInstance;
         const autoUpdateSelect = document.getElementById('autoUpdateSelect');
         if (autoUpdateSelect) {
             autoUpdateSelect.addEventListener('change', () => this.handleAutoUpdateChange());
-
-            // Restaurar el valor guardado en sessionStorage al cargar cualquier página
             const savedInterval = sessionStorage.getItem('autoUpdateInterval');
             if (savedInterval) {
                 autoUpdateSelect.value = savedInterval;
             }
         }
-        this.resume(); 
-        console.log('[AutoUpdater] Módulo inicializado y reanudado si es necesario.');
+        this.resume();
     },
-    // --- NUEVA FUNCIÓN ---
+
     handleAutoUpdateChange() {
         const select = document.getElementById('autoUpdateSelect');
         if (!select) return;
@@ -28,11 +25,10 @@ window.autoUpdater = {
         const intervalValue = select.value;
         sessionStorage.setItem('autoUpdateInterval', intervalValue);
         
-        // Solo la página del dashboard (donde existe `window.app`) puede iniciar la actualización.
         if (intervalValue === "off") {
             this.stop();
-        } else if (window.app && typeof window.app.handleUpdateClick === 'function') {
-            this.start(intervalValue, () => window.app.handleUpdateClick(true));
+        } else if (this.app) {
+            this.start(intervalValue);
         }
     },
 
@@ -46,16 +42,14 @@ window.autoUpdater = {
         
         const tradingHours = isAfterOpen && isBeforeClose;
         if (!tradingHours) {
-            console.log('[AutoUpdater] Fuera de horario de mercado. No se programará actualización.');
-            // Llamamos a la función interna para actualizar el texto
             this.updateCountdownText('(Fuera de horario)');
         }
         return tradingHours;
     },
 
-    start(intervalValue, updateCallback) {
+    start(intervalValue) {
         this.stop();
-        if (intervalValue === "off") return;
+        if (intervalValue === "off" || !this.app) return;
         if (!this.isTradingHours()) return;
 
         const [min, max] = intervalValue.split('-').map(Number);
@@ -63,43 +57,38 @@ window.autoUpdater = {
         
         const targetTimestamp = Date.now() + randomSeconds * 1000;
         sessionStorage.setItem('autoUpdateTarget', targetTimestamp);
-
-        console.log(`[AutoUpdater] Próxima actualización programada para ${new Date(targetTimestamp).toLocaleTimeString()}.`);
         
-        this.schedule(targetTimestamp, updateCallback);
+        console.log(`[AutoUpdater] Próxima actualización programada para ${new Date(targetTimestamp).toLocaleTimeString()}.`);
+        this.schedule(targetTimestamp);
     },
 
     resume() {
         const targetTimestamp = sessionStorage.getItem('autoUpdateTarget');
         if (targetTimestamp && Date.now() < targetTimestamp && this.isTradingHours()) {
             console.log('[AutoUpdater] Reanudando temporizador de actualización pendiente.');
-            this.schedule(parseInt(targetTimestamp), () => window.app.handleUpdateClick(true));
+            this.schedule(parseInt(targetTimestamp));
         } else {
             sessionStorage.removeItem('autoUpdateTarget');
         }
     },
 
-    schedule(targetTimestamp, updateCallback) {
+    schedule(targetTimestamp) {
         this.stop();
         
         const remainingMs = targetTimestamp - Date.now();
         if (remainingMs <= 0) {
             sessionStorage.removeItem('autoUpdateTarget');
-            return; 
+            return;
         }
 
-        this.timerId = setTimeout(() => {
-            console.log('[AutoUpdater] Disparando actualización automática.');
+        this.timerId = setTimeout(async () => {
             sessionStorage.removeItem('autoUpdateTarget');
             if (this.isTradingHours()) {
-                updateCallback();
+                console.log('[AutoUpdater] Disparando actualización automática.');
+                await this.app.fetchAndDisplayStocks(); // Llama directamente a la app principal
+                this.handleAutoUpdateChange(); // Reprogramar la siguiente
             } else {
-                console.log('[AutoUpdater] Tiempo cumplido, pero ya estamos fuera de horario. Se cancela la ejecución.');
-                const select = document.getElementById('autoUpdateSelect');
-                const intervalValue = select ? select.value : 'off';
-                if(intervalValue !== 'off') {
-                    this.start(intervalValue, updateCallback);
-                }
+                this.updateCountdownText('(Fuera de horario)');
             }
         }, remainingMs);
 
@@ -111,8 +100,7 @@ window.autoUpdater = {
         if (this.countdownInterval) clearInterval(this.countdownInterval);
         this.timerId = null;
         this.countdownInterval = null;
-        this.updateCountdownText(''); // Usamos la función interna
-        sessionStorage.removeItem('autoUpdateTarget');
+        this.updateCountdownText('');
     },
 
     startCountdown(totalSeconds) {
@@ -137,7 +125,6 @@ window.autoUpdater = {
         this.countdownInterval = setInterval(update, 1000);
     },
     
-    // --- NUEVA FUNCIÓN INTERNA ---
     updateCountdownText(text) {
         const countdownEl = document.getElementById('countdownTimer');
         if (countdownEl) {
@@ -145,12 +132,14 @@ window.autoUpdater = {
         }
     }
 };
-// --- INICIO DE LA MODIFICACIÓN: Inicialización global ---
-// Ahora se inicializa en todas las páginas para que el estado persista.
+
 document.addEventListener('DOMContentLoaded', () => {
-    // Solo inicializamos si el componente existe en el DOM (en el navbar)
-    if (document.getElementById('globalAutoUpdater')) {
-        autoUpdater.init();
+    // El autoUpdater se adjunta al navbar global, por lo que puede
+    // y debe inicializarse en todas las páginas para mantener el estado
+    // del intervalo seleccionado por el usuario en sessionStorage.
+    if (document.getElementById('autoUpdateSelect')) {
+        // Se llama sin la instancia de la app. El app se asignará
+        // dinámicamente solo en la página del dashboard.
+        autoUpdater.init(window.app || null);
     }
 });
-// --- FIN DE LA MODIFICACIÓN ---

@@ -3,31 +3,34 @@
 window.dividendManager = {
     dataTable: null,
     dom: {},
-    isInitialLoad: true, // <-- NUEVA PROPIEDAD
+    isInitialLoad: true,
     columnPrefs: {
         all: [],
         visible: [],
         config: {
-            'nemo': { title: 'Símbolo' },
+            'nemo': { title: 'Símbolo', data: 'nemo' },
             'is_ipsa': { 
                 title: 'IPSA', 
+                data: 'is_ipsa',
                 render: (data) => data ? '<i class="fas fa-check-circle text-primary"></i>' : '' 
             },
-            'descrip_vc': { title: 'Descripción' },
-            'fec_lim': { title: 'Fecha Límite', render: (d) => new Date(d + 'T00:00:00Z').toLocaleDateString('es-CL', { timeZone: 'UTC' }) },
-            'fec_pago': { title: 'Fecha Pago', render: (d) => new Date(d + 'T00:00:00Z').toLocaleDateString('es-CL', { timeZone: 'UTC' }) },
-            'moneda': { title: 'Moneda' },
-            'val_acc': { title: 'Valor', render: (d,t,r) => `${r.moneda} ${d.toLocaleString('es-CL', {minimumFractionDigits: 2, maximumFractionDigits: 4})}` },
-            'num_acc_ant': { title: 'Acc. Antiguas', render: (d) => d ? d.toLocaleString('es-CL') : 'N/A' },
-            'num_acc_der': { title: 'Acc. con Derecho', render: (d) => d ? d.toLocaleString('es-CL') : 'N/A' },
-            'num_acc_nue': { title: 'Acc. Nuevas', render: (d) => d ? d.toLocaleString('es-CL') : 'N/A' },
-            'pre_ant_vc': { title: 'Precio Antiguo', render: (d,t,r) => d ? `${r.moneda} ${d.toLocaleString('es-CL')}`: 'N/A' },
-            'pre_ex_vc': { title: 'Precio Ex-Div', render: (d,t,r) => d ? `${r.moneda} ${d.toLocaleString('es-CL')}`: 'N/A' },
+            'descrip_vc': { title: 'Descripción', data: 'short_description' },
+            'fec_lim': { title: 'Fecha Límite', data: 'limit_date', render: (d) => new Date(d + 'T00:00:00Z').toLocaleDateString('es-CL', { timeZone: 'UTC' }) },
+            'fec_pago': { title: 'Fecha Pago', data: 'payment_date', render: (d) => new Date(d + 'T00:00:00Z').toLocaleDateString('es-CL', { timeZone: 'UTC' }) },
+            'moneda': { title: 'Moneda', data: 'currency' },
+            'val_acc': { title: 'Valor', data: 'value_per_share', render: (d,t,r) => `${r.currency} ${d.toLocaleString('es-CL', {minimumFractionDigits: 2, maximumFractionDigits: 4})}` },
+            'num_acc_ant': { title: 'Acc. Antiguas', data: 'old_shares', render: (d) => d ? d.toLocaleString('es-CL') : 'N/A' },
+            'num_acc_der': { title: 'Acc. con Derecho', data: 'entitled_shares', render: (d) => d ? d.toLocaleString('es-CL') : 'N/A' },
+            'num_acc_nue': { title: 'Acc. Nuevas', data: 'new_shares', render: (d) => d ? d.toLocaleString('es-CL') : 'N/A' },
+            'pre_ant_vc': { title: 'Precio Antiguo', data: 'old_price', render: (d,t,r) => d ? `${r.currency} ${d.toLocaleString('es-CL')}`: 'N/A' },
+            'pre_ex_vc': { title: 'Precio Ex-Div', data: 'ex_dividend_price', render: (d,t,r) => d ? `${r.currency} ${d.toLocaleString('es-CL')}`: 'N/A' },
         }
     },
     socket: null,
+    uiManager: null,
 
-    init() {
+    init(uiManagerInstance) {
+        this.uiManager = uiManagerInstance;
         this.dom = {
             updateBtn: document.getElementById('updateDividendsBtn'),
             table: document.getElementById('dividendsTable'),
@@ -42,6 +45,9 @@ window.dividendManager = {
             textFilter: document.getElementById('dividendTextFilter'),
             applyFiltersBtn: document.getElementById('applyDividendFilters'),
             clearFiltersBtn: document.getElementById('clearDividendFilters'),
+            tableContainer: document.getElementById('dividendsTableContainer'),
+            loadingOverlay: document.getElementById('dividendsLoadingOverlay'),
+            errorContainer: document.getElementById('dividendsError'),
         };
 
         if (!this.dom.table) return;
@@ -61,8 +67,8 @@ window.dividendManager = {
         this.dom.saveColumnPrefsBtn.addEventListener('click', () => this.handleSavePrefs());
         
         this.dom.applyFiltersBtn.addEventListener('click', () => {
-            this.isInitialLoad = false; // El usuario aplicó filtros manualmente
-            this.applyCustomFilters();
+            this.isInitialLoad = false;
+            this.loadDividends();
         });
         this.dom.clearFiltersBtn.addEventListener('click', () => this.clearCustomFilters());
 
@@ -93,110 +99,88 @@ window.dividendManager = {
     },
 
     async loadDividends() {
+        if (this.isInitialLoad) {
+            this.setDefaultFilters();
+        }
+
+        const params = new URLSearchParams();
+        const startDate = this.dom.startDate.value;
+        const endDate = this.dom.endDate.value;
+        const columnFilter = this.dom.columnFilter.value;
+        const textFilter = this.dom.textFilter.value.trim();
+
+        if (startDate) params.append('start_date', startDate);
+        if (endDate) params.append('end_date', endDate);
+        
+        if (columnFilter === 'is_ipsa') {
+            if (textFilter === 'true') {
+                 params.append('is_ipsa', 'true');
+            }
+        } else if (textFilter) {
+            params.append('search_text', textFilter);
+            if (columnFilter) {
+                params.append('search_column', columnFilter);
+            }
+        }
+
+        if (this.dom.loadingOverlay) this.dom.loadingOverlay.style.display = 'flex';
+        if (this.dom.errorContainer) this.dom.errorContainer.style.display = 'none';
+
         try {
-            const response = await fetch('/api/dividends');
-            if (!response.ok) throw new Error('No se pudieron cargar los dividendos.');
+            const response = await fetch(`/api/dividends?${params.toString()}`);
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ error: 'Respuesta no válida del servidor' }));
+                throw new Error(errorData.error || 'No se pudieron cargar los dividendos.');
+            }
             const dividends = await response.json();
             this.renderTable(dividends);
-            // --- INICIO DE LA MODIFICACIÓN: Aplicar filtros después de cargar ---
-            this.applyCustomFilters(); 
-            // --- FIN DE LA MODIFICACIÓN ---
         } catch (error) {
             console.error('Error al cargar dividendos:', error);
-            this.dom.table.innerHTML = `<tr><td colspan="5" class="text-danger text-center">${error.message}</td></tr>`;
+            if (this.dom.errorContainer) {
+                this.dom.errorContainer.textContent = `Error: ${error.message}`;
+                this.dom.errorContainer.style.display = 'block';
+            }
+            this.renderTable([]);
+        } finally {
+            if (this.dom.loadingOverlay) this.dom.loadingOverlay.style.display = 'none';
         }
     },
     
     populateColumnFilterDropdown() {
+        const currentVal = this.dom.columnFilter.value;
         this.dom.columnFilter.innerHTML = '<option value="">Cualquier Columna</option>';
-        this.columnPrefs.visible.forEach((colKey, index) => {
+        this.dom.columnFilter.innerHTML += `<option value="is_ipsa">IPSA</option>`;
+        
+        this.columnPrefs.visible.forEach((colKey) => {
+            if (colKey === 'is_ipsa') return;
             const title = this.columnPrefs.config[colKey]?.title || colKey.replace(/_/g, ' ');
-            this.dom.columnFilter.innerHTML += `<option value="${index}">${title}</option>`;
+            this.dom.columnFilter.innerHTML += `<option value="${colKey}">${title}</option>`;
         });
+        this.dom.columnFilter.value = currentVal;
     },
 
-    applyCustomFilters() {
-        if (!this.dataTable) return;
+    setDefaultFilters() {
+        const today = new Date();
+        const future = new Date();
+        future.setMonth(today.getMonth() + 3);
 
-        // --- INICIO DE LA MODIFICACIÓN: Lógica de filtros por defecto ---
-        if (this.isInitialLoad) {
-            const today = new Date();
-            const future = new Date();
-            future.setMonth(today.getMonth() + 3);
+        const formatDate = (date) => date.toISOString().split('T')[0];
 
-            // Función para formatear la fecha a YYYY-MM-DD
-            const formatDate = (date) => date.toISOString().split('T')[0];
-
-            this.dom.startDate.value = formatDate(today);
-            this.dom.endDate.value = formatDate(future);
-            this.dom.textFilter.value = 'true';
-            
-            // Encuentra el índice de la columna IPSA
-            const ipsaColIndex = this.columnPrefs.visible.indexOf('is_ipsa');
-            if (ipsaColIndex !== -1) {
-                this.dom.columnFilter.value = ipsaColIndex;
-            }
-        }
-        // --- FIN DE LA MODIFICACIÓN ---
-
-        const startDate = this.dom.startDate.value ? new Date(this.dom.startDate.value + 'T00:00:00Z') : null;
-        const endDate = this.dom.endDate.value ? new Date(this.dom.endDate.value + 'T23:59:59Z') : null;
-        let colIndex = this.dom.columnFilter.value; // Se usa 'let' para poder modificarlo
-        const searchText = this.dom.textFilter.value.trim().toLowerCase();
+        this.dom.startDate.value = formatDate(today);
+        this.dom.endDate.value = formatDate(future);
+        this.dom.textFilter.value = 'true';
+        this.dom.columnFilter.value = 'is_ipsa';
         
-        $.fn.dataTable.ext.search.pop();
-
-        $.fn.dataTable.ext.search.push(
-            (settings, data, dataIndex) => {
-                const rowData = this.dataTable.row(dataIndex).data();
-                
-                // 1. Filtro de Fecha
-                const dateColKey = 'fec_pago';
-                const dateColIndex = this.columnPrefs.visible.indexOf(dateColKey);
-                if ((startDate || endDate) && dateColIndex > -1) {
-                    const cellDateStr = rowData[dateColKey];
-                    if (!cellDateStr) return false;
-                    const cellDate = new Date(cellDateStr + 'T00:00:00Z');
-                    if ((startDate && cellDate < startDate) || (endDate && cellDate > endDate)) {
-                        return false;
-                    }
-                }
-
-                // 2. Filtro de Texto
-                if (searchText) {
-                    if (colIndex) { // Búsqueda en columna específica
-                        const columnKey = this.columnPrefs.visible[colIndex];
-                        const cellValue = rowData[columnKey];
-                        if (String(cellValue).toLowerCase().indexOf(searchText) === -1) {
-                            return false;
-                        }
-                    } else { // Búsqueda en todas las columnas
-                        let matchFound = false;
-                        for (const key of this.columnPrefs.visible) {
-                            const cellValue = rowData[key];
-                            if (cellValue !== null && String(cellValue).toLowerCase().indexOf(searchText) !== -1) {
-                                matchFound = true;
-                                break;
-                            }
-                        }
-                        if (!matchFound) return false;
-                    }
-                }
-                return true;
-            }
-        );
-        this.dataTable.draw();
+        this.isInitialLoad = false;
     },
     
     clearCustomFilters() {
-        this.isInitialLoad = false; // El usuario limpió los filtros
+        this.isInitialLoad = false;
         this.dom.startDate.value = '';
         this.dom.endDate.value = '';
         this.dom.columnFilter.value = '';
         this.dom.textFilter.value = '';
-        
-        $.fn.dataTable.ext.search.pop();
-        this.dataTable.draw();
+        this.loadDividends();
     },
 
     renderColumnModal() {
@@ -213,28 +197,63 @@ window.dividendManager = {
     },
 
     renderTable(data) {
-        if (this.dataTable) this.dataTable.destroy();
-        $(this.dom.table).empty();
+        if (this.dataTable) {
+            this.dataTable.destroy();
+            $(this.dom.table).empty();
+        }
+
+        if (!data || data.length === 0) {
+            this.dataTable = $(this.dom.table).DataTable({
+                data: [],
+                columns: this.columnPrefs.visible.map(key => ({ 
+                    title: this.columnPrefs.config[key]?.title || key 
+                })),
+                responsive: true,
+                language: { 
+                    url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json',
+                    emptyTable: "Ningún dato disponible en esta tabla"
+                },
+                dom: 't',
+            });
+            return;
+        }
 
         const dtColumns = this.columnPrefs.visible.map(key => ({
-            data: key,
+            data: this.columnPrefs.config[key]?.data || key,
             title: this.columnPrefs.config[key]?.title || key,
             render: this.columnPrefs.config[key]?.render || null,
         }));
         
+        let orderColumnIndex = this.columnPrefs.visible.indexOf('fec_pago');
+        if (orderColumnIndex === -1) {
+            orderColumnIndex = this.columnPrefs.visible.indexOf('limit_date');
+        }
+        if (orderColumnIndex === -1) {
+            orderColumnIndex = 0;
+        }
+
         this.dataTable = $(this.dom.table).DataTable({
             data,
             columns: dtColumns,
-            order: [[ this.columnPrefs.visible.indexOf('fec_pago') || 1, 'asc' ]],
+            order: [[ orderColumnIndex, 'asc' ]],
             responsive: true,
             language: { url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' },
             dom: 'Bfrtip',
             buttons: ['excelHtml5', 'csvHtml5'],
+            initComplete: function () {
+                const dtContainer = $(this.api().table().container());
+                const toolbar = $('#dividends-toolbar');
+                if (toolbar.length) {
+                    dtContainer.find('.dt-buttons').appendTo(toolbar);
+                    dtContainer.find('.dataTables_filter').appendTo(toolbar);
+                    toolbar.find('.dataTables_filter input').attr('id', 'dividendsTableSearch');
+                }
+            }
         });
     },
     
     async handleSavePrefs() {
-        this.isInitialLoad = false; // El usuario guardó preferencias
+        this.isInitialLoad = false;
         const selected = Array.from(this.dom.columnForm.querySelectorAll('input:checked')).map(i => i.value);
         this.columnPrefs.visible = selected;
         
@@ -250,7 +269,7 @@ window.dividendManager = {
     },
 
     async handleUpdateClick() {
-        this.isInitialLoad = false; // El usuario pidió actualizar
+        this.isInitialLoad = false;
         const btn = this.dom.updateBtn;
         btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Actualizando...`;
         btn.disabled = true;

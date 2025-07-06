@@ -1,164 +1,117 @@
 # src/main.py
+
 import asyncio
 import logging
-import os
-import signal
-import sys
-import atexit
 import threading
+from flask import Flask, render_template
+from gevent.pywsgi import WSGIServer
+from geventwebsocket.handler import WebSocketHandler
 
-from flask import Flask, send_from_directory, render_template
-from flask_cors import CORS
-from dotenv import load_dotenv
-
-load_dotenv()
-
-from src.config import SQLALCHEMY_DATABASE_URI, SQLALCHEMY_TRACK_MODIFICATIONS
+from src import config
 from src.extensions import db, socketio
-from src.models import (
-    User, StockPrice, Credential, LogEntry, ColumnPreference, StockFilter, 
-    LastUpdate, Portfolio, Dividend, StockClosing, AdvancedKPI, KpiSelection, 
-    PromptConfig, DividendColumnPreference, ClosingColumnPreference, KpiColumnPreference,
-    PortfolioColumnPreference
-)
-from src.routes import register_blueprints
-from src.scripts.bot_page_manager import close_browser
+from src.routes.errors import errors_bp
+from src.routes.user import user_bp
+from src.routes.api import api_bp
+from src.routes.crud_api import crud_bp
+from src.routes.architecture import architecture_bp
 
-# Configuración de logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="[%(levelname)s] [%(name)s] %(asctime)s - %(message)s",
-    stream=sys.stdout
-)
+# Importar todos los modelos para que SQLAlchemy los reconozca
+from src.models import *
+
+# Configuración inicial del logger
+logging.basicConfig(level=logging.INFO,
+                    format='[%(levelname)s] [%(name)s] %(asctime)s - %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S')
 logger = logging.getLogger(__name__)
 
-# Configuración del bucle de eventos y el hilo del bot
-LOOP = asyncio.new_event_loop()
-BOT_THREAD = threading.Thread(target=LOOP.run_forever, daemon=True)
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+def create_app(config_module=config):
+    """Crea y configura la aplicación Flask, sin inicializar extensiones."""
+    app = Flask(__name__)
+    app.config.from_object(config_module)
+    return app
 
-# Creación de la aplicación Flask
-app = Flask(__name__, static_folder=os.path.join(BASE_DIR, "static"), template_folder='templates')
-app.config.update(
-    SQLALCHEMY_DATABASE_URI=SQLALCHEMY_DATABASE_URI,
-    SQLALCHEMY_TRACK_MODIFICATIONS=SQLALCHEMY_TRACK_MODIFICATIONS,
-)
-app.bot_event_loop = LOOP
+def main():
+    app = create_app()
 
-# Inicialización de extensiones
-CORS(app)
-db.init_app(app)
-socketio.init_app(app, cors_allowed_origins="*", async_mode="gevent")
+    # La inicialización de extensiones se hace aquí, en el scope principal.
+    db.init_app(app)
+    socketio.init_app(app, async_mode='gevent', cors_allowed_origins="*")
 
-# Mapeo de modelos para el CRUD genérico
-with app.app_context():
-    app.model_map = {
-        model.__tablename__: model 
-        for model in db.Model.__subclasses__() 
-        if hasattr(model, '__tablename__')
-    }
-    logger.info(f"Modelos mapeados para el CRUD: {list(app.model_map.keys())}")
+    # Configuración del logging a nivel de aplicación
+    logging.getLogger('werkzeug').setLevel(logging.WARNING)
 
-# --- Definición de rutas de páginas HTML ---
-@app.route("/")
-def home():
-    return render_template("index.html")
-
-@app.route("/historico")
-def historico():
-    return render_template("historico.html")
-
-@app.route("/dashboard")
-def dashboard():
-    return render_template("dashboard.html")
-
-@app.route("/logs")
-def logs():
-    return render_template("logs.html")
-
-@app.route("/mantenedores")
-def mantenedores():
-    return render_template("mantenedores.html")
-
-@app.route("/indicadores")
-def indicadores():
-    return render_template("indicadores.html")
-
-@app.route("/login")
-def login():
-    return render_template("login.html")
-
-# Ruta para el favicon
-@app.route('/favicon.ico')
-def favicon():
-    return send_from_directory(os.path.join(app.root_path, 'static'),
-                               'favicon.svg', mimetype='image/svg+xml')
-
-# Llamada única para registrar todos los blueprints
-register_blueprints(app)
-
-@app.route("/static/<path:path>")
-def static_files(path):
-    return send_from_directory(app.static_folder, path)
-
-# --- Funciones de ciclo de vida de la aplicación ---
-def _cleanup_resources():
-    logger.info("Iniciando cierre limpio de la aplicación...")
-    if BOT_THREAD.is_alive():
-        logger.info("Solicitando detención del bucle de eventos del bot...")
+    # Iniciar el loop de eventos del bot explícitamente en un hilo de fondo
+    def run_bot_loop(loop):
+        asyncio.set_event_loop(loop)
         try:
-            future = asyncio.run_coroutine_threadsafe(close_browser(), LOOP)
-            future.result(timeout=10)
-        except Exception as e:
-            logger.error(f"Error al cerrar navegador: {e}")
+            logger.info("Iniciando el event loop del bot en un hilo de fondo...")
+            loop.run_forever()
         finally:
-            LOOP.call_soon_threadsafe(LOOP.stop)
-            BOT_THREAD.join(timeout=5)
-            if not BOT_THREAD.is_alive():
-                logger.info("✓ Hilo del bot finalizado correctamente.")
+            if loop.is_running():
+                loop.run_until_complete(loop.shutdown_asyncgens())
+            loop.close()
+            logger.info("El event loop del bot se ha detenido y cerrado.")
+
+    bot_loop = asyncio.new_event_loop()
+    app.bot_event_loop = bot_loop
     
-atexit.register(_cleanup_resources)
+    bot_thread = threading.Thread(target=run_bot_loop, args=(bot_loop,), daemon=True)
+    bot_thread.start()
+    logger.info("Hilo del bot de Playwright iniciado.")
 
-def graceful_shutdown(signum, frame):
-    logger.info(f"Recibida señal de apagado ({signum})...")
-    sys.exit(0)
-
-signal.signal(signal.SIGINT, graceful_shutdown)
-signal.signal(signal.SIGTERM, graceful_shutdown)
-
-def load_saved_credentials(app_context):
-    with app_context:
-        if not (os.getenv("BOLSA_USERNAME") and os.getenv("BOLSA_PASSWORD")):
-            try:
-                cred = Credential.query.first()
-                if cred:
-                    os.environ["BOLSA_USERNAME"] = cred.username
-                    os.environ["BOLSA_PASSWORD"] = cred.password
-                    logger.info("✓ Credenciales cargadas desde la base de datos.")
-            except Exception as e:
-                logger.error(f"No se pudieron cargar las credenciales desde la DB: {e}")
-
-def start_bot_thread():
-    if not BOT_THREAD.is_alive():
-        logger.info("Iniciando hilo de fondo para el bot de Playwright...")
-        BOT_THREAD.start()
-
-if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-        load_saved_credentials(app.app_context())
+        # Lógica para registrar los modelos para el CRUD genérico
+        app.model_map = {}
+        for model in db.Model.__subclasses__():
+            if hasattr(model, '__tablename__'):
+                app.model_map[model.__tablename__] = model
+        logger.info(f"Modelos mapeados para el CRUD: {list(app.model_map.keys())}")
 
-    start_bot_thread()
 
-    from gevent import pywsgi
-    from geventwebsocket.handler import WebSocketHandler
+    # Registrar las rutas de las páginas
+    @app.route('/')
+    def index(): return render_template('dashboard.html')
+    @app.route('/dashboard')
+    def dashboard(): return render_template('dashboard.html')
+    @app.route('/historico')
+    def historico(): return render_template('historico.html')
+    @app.route('/indicadores')
+    def indicadores(): return render_template('indicadores.html')
+    @app.route('/logs')
+    def logs(): return render_template('logs.html')
+    @app.route('/mantenedores')
+    def mantenedores(): return render_template('mantenedores.html')
+    @app.route('/login')
+    def login(): return render_template('login.html')
+
+    @app.route('/favicon.ico')
+    def favicon():
+        return app.send_static_file('favicon.svg')
+
+    # Registrar Blueprints
+    app.register_blueprint(errors_bp)
+    app.register_blueprint(user_bp)
+    app.register_blueprint(api_bp, url_prefix='/api')
+    app.register_blueprint(crud_bp, url_prefix='/api/crud')
+    app.register_blueprint(architecture_bp)
+
+    port = app.config.get('PORT', 5000)
+    logger.info(f"🚀 Iniciando servidor Flask con Gevent WSGIServer. La aplicación está lista en http://localhost:{port}")
+    http_server = WSGIServer(('0.0.0.0', port), app, handler_class=WebSocketHandler)
     
-    logger.info("🚀 Iniciando servidor Flask con Gevent WSGIServer. La aplicación está lista en http://localhost:5000")
-    
-    server = pywsgi.WSGIServer(
-        ('0.0.0.0', 5000), 
-        app, 
-        handler_class=WebSocketHandler,
-        log=logging.getLogger('geventwebsocket.handler')
-    )
-    server.serve_forever()
+    try:
+        http_server.serve_forever()
+    except (KeyboardInterrupt, SystemExit):
+        logger.info("Servidor detenido por el usuario o el sistema.")
+    finally:
+        logger.info("Iniciando limpieza de recursos...")
+        if bot_loop.is_running():
+            logger.info("Deteniendo el event loop del bot...")
+            bot_loop.call_soon_threadsafe(bot_loop.stop)
+        
+        bot_thread.join(timeout=5)
+        logger.info("Limpieza completada. Adiós.")
+
+if __name__ == '__main__':
+    main()

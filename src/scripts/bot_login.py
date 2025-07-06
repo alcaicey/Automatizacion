@@ -39,6 +39,7 @@ async def click_like_human(page: Page, locator: Locator):
     await asyncio.sleep(random.uniform(0.2, 0.6))
     await locator.click()
     await asyncio.sleep(random.uniform(0.5, 1.0))
+
 async def _handle_active_sessions(page: Page) -> bool:
     if ACTIVE_SESSIONS_URL_FRAGMENT in page.url:
         logger.warning("[Login] ¡Página de múltiples sesiones detectada! Intentando cerrar todas las sesiones...")
@@ -67,24 +68,27 @@ async def auto_login(page: Page, username: str, password: str) -> Page:
                 logger.warning(f"[Login] La página fue cerrada. Recreando para el intento #{attempt}...")
                 page = await recreate_page()
 
-            logger.info(f"[Login] Intento de login #{attempt}...")
+            logger.info(f"[Login] Intento de login #{attempt}: Navegando a la página principal.")
             
-            # --- INICIO DE LA MODIFICACIÓN: Espera más robusta ---
-            await page.goto(BASE_URL, wait_until="networkidle", timeout=60000)
-            
-            # A veces, la página principal tiene un overlay o se reorganiza con JS.
-            # Esperamos explícitamente a que el botón de login esté listo.
-            logger.info("[Login] Esperando a que la página principal esté completamente interactiva...")
-            header_login_link = page.locator(HEADER_LOGIN_LINK_SELECTOR).first
-            await header_login_link.wait_for(state="visible", timeout=20000)
-            # --- FIN DE LA MODIFICACIÓN ---
+            await page.goto(BASE_URL, wait_until="networkidle", timeout=45000)
+            await asyncio.sleep(random.uniform(1.5, 3.0))
 
+            # VERIFICACIÓN ANTI-BOT PROACTIVA
+            if "validate.perfdrive.com" in page.url:
+                logger.warning(f"[Login] ¡Anti-bot detectado en el intento #{attempt}! Esperando para reintentar...")
+                await asyncio.sleep(random.uniform(10.0, 15.0))
+                continue # Salta al siguiente intento del bucle
+
+            logger.info("[Login] Esperando a que el enlace de login esté visible...")
+            header_login_link = page.locator(HEADER_LOGIN_LINK_SELECTOR).first
+            await header_login_link.wait_for(state="visible", timeout=25000)
+            
             navbar_toggler = page.locator(NAVBAR_TOGGLER_SELECTOR)
             if await navbar_toggler.is_visible():
                 await click_like_human(page, navbar_toggler)
             
             await click_like_human(page, header_login_link)
-            await page.wait_for_url(f"**{LOGIN_LANDING_PAGE_URL}", timeout=20000)
+            await page.wait_for_url(f"**{LOGIN_LANDING_PAGE_URL}", timeout=25000)
 
             login_page_button = page.locator(LOGIN_PAGE_BUTTON_SELECTOR).first
             await click_like_human(page, login_page_button)
@@ -92,7 +96,7 @@ async def auto_login(page: Page, username: str, password: str) -> Page:
             username_field = page.locator(USER_SEL)
             await username_field.wait_for(state="visible", timeout=20000)
             
-            logger.info("[Login] Rellenando credenciales (simulación humana)...")
+            logger.info("[Login] Rellenando credenciales...")
             await type_like_human(username_field, username)
             await type_like_human(page.locator(PASS_SEL), password)
             
@@ -102,25 +106,30 @@ async def auto_login(page: Page, username: str, password: str) -> Page:
             
             await page.wait_for_load_state("domcontentloaded", timeout=45000)
             await asyncio.sleep(random.uniform(2.5, 4.0))
-            
-            if "validate.perfdrive.com" in page.url:
-                logger.error("[Login] ¡DETECTADO ANTI-BOT! Redirigido a página de CAPTCHA.")
-                await page.screenshot(path="captcha_detected.png")
-                raise LoginError("Bloqueado por sistema Anti-Bot (Radware CAPTCHA).")
-            
+
             if await _handle_active_sessions(page):
-                logger.warning("[Login] Sesiones cerradas. Reiniciando el flujo de login.")
+                logger.warning("[Login] Sesiones múltiples cerradas. Reiniciando el flujo de login.")
                 continue 
             
             logger.info("[Login] ✓ Proceso de login completado con éxito.")
             return page
 
+        except PlaywrightTimeoutError as e:
+            if attempt < max_attempts:
+                logger.warning(f"[Login] Timeout en intento #{attempt} ({e}). Reintentando...")
+                await page.screenshot(path=f"login_timeout_attempt_{attempt}.png")
+                await asyncio.sleep(random.uniform(5.0, 8.0))
+                continue
+            else:
+                logger.error(f"[Login] Timeout final en intento #{attempt}. Fallo crítico.")
+                raise LoginError(f"Error de Timeout no recuperable tras {attempt} intentos: {e}")
+
         except PlaywrightError as e:
             if "Target page, context or browser has been closed" in str(e):
                 logger.error(f"[Login] El anti-bot cerró la página durante el intento #{attempt}. Se reintentará.")
-                page = None
+                page = None # Forzar la recreación de la página
                 if attempt < max_attempts:
-                    await asyncio.sleep(random.uniform(5.0, 8.0))
+                    await asyncio.sleep(random.uniform(7.0, 10.0))
                     continue
             
             if attempt == max_attempts:

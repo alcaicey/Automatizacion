@@ -9,7 +9,8 @@ from src.extensions import db
 from src.utils.db_io import get_latest_data
 from src.models import (
     ColumnPreference, StockFilter, Credential, Dividend, DividendColumnPreference,
-    StockClosing, ClosingColumnPreference, KpiColumnPreference, PortfolioColumnPreference
+    StockClosing, ClosingColumnPreference, KpiColumnPreference, PortfolioColumnPreference,
+    PromptConfig
 )
 
 logger = logging.getLogger(__name__)
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 # ENDPOINTS DE CONFIGURACIÓN DE COLUMNAS
 # ===================================================================
 
-@api_bp.route("/columns", methods=["GET", "POST"])
+@api_bp.route("/columns", methods=["GET", "POST"]) # type: ignore
 def handle_columns():
     """Gestiona las preferencias de columnas para la tabla de Acciones."""
     with current_app.app_context():
@@ -32,13 +33,13 @@ def handle_columns():
         if request.method == 'POST':
             data = request.get_json()
             if not data or 'columns' not in data: return jsonify({'error': 'Falta la lista de columnas'}), 400
-            prefs = db.session.get(ColumnPreference, 1) or ColumnPreference(id=1)
+            prefs = db.session.get(ColumnPreference, 1) or ColumnPreference(id=1) # type: ignore
             prefs.columns_json = json.dumps(data['columns'])
             db.session.add(prefs)
             db.session.commit()
             return jsonify({'success': True})
 
-@api_bp.route("/portfolio/columns", methods=["GET", "POST"])
+@api_bp.route("/portfolio/columns", methods=["GET", "POST"]) # type: ignore
 def handle_portfolio_columns():
     """Gestiona las preferencias de columnas para la tabla de Portafolio."""
     with current_app.app_context():
@@ -56,13 +57,13 @@ def handle_portfolio_columns():
             data = request.get_json()
             if not data or 'columns' not in data:
                 return jsonify({'error': 'Falta la lista de columnas'}), 400
-            prefs = db.session.get(PortfolioColumnPreference, 1) or PortfolioColumnPreference(id=1)
+            prefs = db.session.get(PortfolioColumnPreference, 1) or PortfolioColumnPreference(id=1) # type: ignore
             prefs.columns_json = json.dumps(data['columns'])
             db.session.add(prefs)
             db.session.commit()
             return jsonify({'success': True})
 
-@api_bp.route("/dividends/columns", methods=["GET", "POST"])
+@api_bp.route("/dividends/columns", methods=["GET", "POST"]) # type: ignore
 def handle_dividend_columns():
     """Gestiona las preferencias de columnas para la tabla de Dividendos."""
     with current_app.app_context():
@@ -74,13 +75,13 @@ def handle_dividend_columns():
         if request.method == 'POST':
             data = request.get_json()
             if not data or 'columns' not in data: return jsonify({'error': 'Falta la lista de columnas'}), 400
-            prefs = db.session.get(DividendColumnPreference, 1) or DividendColumnPreference(id=1)
+            prefs = db.session.get(DividendColumnPreference, 1) or DividendColumnPreference(id=1) # type: ignore
             prefs.columns_json = json.dumps(data['columns'])
             db.session.add(prefs)
             db.session.commit()
             return jsonify({'success': True})
 
-@api_bp.route("/closing/columns", methods=["GET", "POST"])
+@api_bp.route("/closing/columns", methods=["GET", "POST"]) # type: ignore
 def handle_closing_columns():
     """Gestiona las preferencias de columnas para la tabla de Cierre Bursátil."""
     with current_app.app_context():
@@ -95,13 +96,13 @@ def handle_closing_columns():
         if request.method == 'POST':
             data = request.get_json()
             if not data or 'columns' not in data: return jsonify({'error': 'Falta la lista de columnas'}), 400
-            prefs = db.session.get(ClosingColumnPreference, 1) or ClosingColumnPreference(id=1)
+            prefs = db.session.get(ClosingColumnPreference, 1) or ClosingColumnPreference(id=1) # type: ignore
             prefs.columns_json = json.dumps(data['columns'])
             db.session.add(prefs)
             db.session.commit()
             return jsonify({'success': True})
 
-@api_bp.route("/kpis/columns", methods=["GET", "POST"])
+@api_bp.route("/kpis/columns", methods=["GET", "POST"]) # type: ignore
 def handle_kpi_columns():
     """Gestiona las preferencias de columnas para la tabla de KPIs."""
     with current_app.app_context():
@@ -121,9 +122,59 @@ def handle_kpi_columns():
             data = request.get_json()
             if not data or 'columns' not in data:
                 return jsonify({'error': 'Falta la lista de columnas'}), 400
-            prefs = db.session.get(KpiColumnPreference, 1) or KpiColumnPreference(id=1)
+            prefs = db.session.get(KpiColumnPreference, 1) or KpiColumnPreference(id=1) # type: ignore
             prefs.columns_json = json.dumps(data['columns'])
             db.session.add(prefs)
+            db.session.commit()
+            return jsonify({'success': True})
+
+@api_bp.route("/kpi-prompt", methods=["GET", "POST"]) # type: ignore
+def handle_kpi_prompt():
+    """Gestiona el prompt utilizado para la generación de KPIs por IA."""
+    PROMPT_ID = "openai_kpi_finance"
+    with current_app.app_context():
+        if request.method == 'GET':
+            prompt_config = db.session.get(PromptConfig, PROMPT_ID)
+            # Devolver un prompt por defecto si no hay ninguno en la BD
+            if not prompt_config:
+                default_prompt = (
+                    "Para la acción {nemo} con los siguientes datos de cierre:\n"
+                    "```json\n{closing_data}\n```\n\n"
+                    "Por favor, proporciona la siguiente información en formato JSON. No incluyas explicaciones adicionales fuera del JSON.\n"
+                    "El JSON debe tener la siguiente estructura:\n"
+                    "{\n"
+                    "  \"kpis\": {\n"
+                    "    \"roe\": <valor_numerico>,\n"
+                    "    \"beta\": <valor_numerico>,\n"
+                    "    \"debt_to_equity\": <valor_numerico>\n"
+                    "  },\n"
+                    "  \"analyst_recommendation\": \"<Comprar/Mantener/Vender>\",\n"
+                    "  \"main_source\": \"<URL o nombre de la fuente principal>\",\n"
+                    "  \"details\": {\n"
+                    "    \"roe\": {\"source\": \"<URL/Fuente específica para ROE>\", \"calculation\": \"<Explicación de cómo se obtuvo el ROE>\"},\n"
+                    "    \"beta\": {\"source\": \"<URL/Fuente específica para Beta>\", \"calculation\": \"<Explicación de cómo se obtuvo Beta>\"},\n"
+                    "    \"debt_to_equity\": {\"source\": \"<URL/Fuente específica para Deuda/Patrimonio>\", \"calculation\": \"<Explicación de cómo se obtuvo>\"},\n"
+                    "    \"analyst_recommendation\": {\"source\": \"<URL/Fuente del consenso>\", \"calculation\": \"<Metodología del consenso>\"}\n"
+                    "  }\n"
+                    "}"
+                )
+                return jsonify({'prompt': default_prompt})
+            return jsonify({'prompt': prompt_config.prompt_template})
+        
+        if request.method == 'POST':
+            data = request.get_json()
+            if not data or 'prompt' not in data:
+                return jsonify({'error': 'Falta el texto del prompt'}), 400
+            
+            prompt_config = db.session.get(PromptConfig, PROMPT_ID)
+            if not prompt_config:
+                return jsonify({
+                    'error': 'La configuración de prompt no existe en la base de datos. '
+                             'Debe ser creada primero a través del script de inicialización.'
+                }), 404
+            
+            prompt_config.prompt_template = data['prompt']
+            db.session.add(prompt_config)
             db.session.commit()
             return jsonify({'success': True})
 
@@ -131,7 +182,7 @@ def handle_kpi_columns():
 # ENDPOINTS DE FILTROS Y CREDENCIALES
 # ===================================================================
 
-@api_bp.route("/filters", methods=["GET", "POST"])
+@api_bp.route("/filters", methods=["GET", "POST"]) # type: ignore
 def handle_filters():
     with current_app.app_context():
         if request.method == 'GET':
@@ -142,34 +193,25 @@ def handle_filters():
         if request.method == 'POST':
             data = request.get_json()
             if not data: return jsonify({'error': 'No se recibieron datos'}), 400
-            stock_filter = db.session.get(StockFilter, 1) or StockFilter(id=1)
+            stock_filter = db.session.get(StockFilter, 1) or StockFilter(id=1) # type: ignore
             stock_filter.codes_json = json.dumps(data.get('codes', []))
             stock_filter.all = data.get('all', False)
             db.session.add(stock_filter)
             db.session.commit()
             return jsonify({'success': True})
 
-@api_bp.route("/credentials", methods=["GET", "POST"])
-def handle_credentials():
-    with current_app.app_context():
-        if request.method == 'GET':
-            cred = Credential.query.first()
-            has_creds = bool(cred or (os.getenv("BOLSA_USERNAME") and os.getenv("BOLSA_PASSWORD")))
-            return jsonify({"has_credentials": has_creds})
-        
-        if request.method == 'POST':
-            data = request.get_json() or {}
-            username, password = data.get("username"), data.get("password")
-            if not username or not password: return jsonify({"error": "Faltan credenciales."}), 400
-            
-            os.environ["BOLSA_USERNAME"], os.environ["BOLSA_PASSWORD"] = username, password
-            
-            if bool(data.get("remember")):
-                cred = db.session.get(Credential, 1) or Credential(id=1)
-                cred.username, cred.password = username, password
-                db.session.add(cred)
-            else:
-                Credential.query.delete()
-            
-            db.session.commit()
-            return jsonify({"success": True})
+@api_bp.route('/credentials', methods=['POST'])
+def update_credentials():
+    data = request.get_json()
+    if not data or 'username' not in data or 'password' not in data:
+        return jsonify({"success": False, "message": "Datos incompletos."}), 400
+
+    # Eliminar credenciales antiguas
+    Credential.query.delete()
+
+    # Guardar nuevas credenciales
+    new_credential = Credential(username=data['username'], password=data['password'])
+    db.session.add(new_credential)
+    db.session.commit()
+
+    return jsonify({"success": True, "message": "Credenciales guardadas con éxito."})

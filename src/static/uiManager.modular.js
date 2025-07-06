@@ -1,6 +1,8 @@
-// src/static/uiManager.js
+// src/static/uiManager.modular.js
+// Este archivo es una copia de uiManager.js, pero refactorizado para ser un módulo ES.
+// El único cambio es la palabra clave `export`.
 
-const uiManager = {
+export const uiManager = {
     app: null, // Referencia a la instancia principal de la App
 
     init(appInstance) {
@@ -8,44 +10,33 @@ const uiManager = {
         console.log('[UI] Módulo inicializado.');
     },
 
-    renderTable(tableId, data, columns, extraOptions = {}) {
-        console.log(`[UI] Renderizando tabla '${tableId}'. Datos recibidos:`, data);
-
-        // Guarda de seguridad: verificar que DataTables se ha cargado.
-        if (!$.fn.dataTable) {
-            console.error("[UI] La librería DataTables ($.fn.dataTable) no está disponible. Asegúrate de que los scripts del CDN se hayan cargado correctamente. Abortando renderizado de la tabla.");
-            this.app.uiManager.updateStatus('Error: No se pudo cargar la librería de tablas.', 'danger');
-            return;
-        }
+    renderTable(data, tableId, columns, buttons = ['excel', 'csv']) {
+        console.log(`[UI] Renderizando tabla '${tableId}'. Datos recibidos:`, JSON.stringify(data, null, 2));
 
         const tableElement = document.getElementById(tableId);
         if (!tableElement) {
-            console.warn(`[UI] Se intentó renderizar la tabla '${tableId}', pero el elemento no se encontró en el DOM. Abortando para evitar errores.`);
+            console.warn(`[UI] Elemento de tabla con ID '${tableId}' no encontrado. Se omite el renderizado.`);
             return;
         }
 
         try {
-            if ($.fn.dataTable.isDataTable(`#${tableId}`)) {
-                const dt = $(`#${tableId}`).DataTable();
-                dt.clear();
-                dt.rows.add(data);
-                dt.columns.adjust().draw();
-            } else {
-                const dtConfig = {
-                    data: data,
-                    columns: columns,
-                    responsive: true,
-                    autoWidth: false,
-                    processing: false,
-                    language: this.getDataTablesLang(),
-                    dom: 'Bfrtip',
-                    buttons: ['excel', 'csv'],
-                    order: [[2, 'desc']], // Asumiendo que la 3ª columna es siempre un buen criterio
-                    ...extraOptions
-                };
-
-                $(tableElement).DataTable(dtConfig);
+            if ($.fn.DataTable.isDataTable(tableElement)) {
+                $(tableElement).DataTable().destroy();
             }
+
+            const dtConfig = {
+                data: data,
+                columns: columns,
+                responsive: true,
+                autoWidth: false,
+                processing: false,
+                language: this.getDataTablesLang(),
+                dom: 'Bfrtip',
+                buttons: buttons,
+                order: [[2, 'desc']] // Asumiendo que la 3ª columna es siempre un buen criterio
+            };
+
+            $(tableElement).DataTable(dtConfig);
             console.log(`[UI] DataTables para '${tableId}' inicializado.`);
             
         } catch (error) {
@@ -170,18 +161,5 @@ const uiManager = {
             totalGainLossEl.textContent = formatCurrency(summary.total_gain_loss);
             totalGainLossEl.className = (summary.total_gain_loss || 0) >= 0 ? 'h5 mb-0 text-success' : 'h5 mb-0 text-danger';
         }
-    },
-    
-    showWidget(widgetId, addToLayout = false) {
-        const widgetElement = document.getElementById(widgetId);
-        if (widgetElement) {
-            widgetElement.style.display = ''; // O 'block', 'flex', etc., según el layout
-            // Si addToLayout es true, notificamos a dashboardLayout para que lo añada al grid.
-            if (addToLayout && this.app.dashboardLayout) {
-                this.app.dashboardLayout.addWidget(widgetId);
-            }
-        } else {
-            console.warn(`[UI] showWidget: No se encontró el widget con id '${widgetId}'.`);
-        }
     }
-};
+}; 

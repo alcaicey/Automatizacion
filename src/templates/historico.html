@@ -22,22 +22,25 @@
     <div class="card shadow-sm">
         <div class="card-body">
             <!-- INICIO DE LA CORRECCIÓN: Añadir formulario de filtro -->
-            <form id="stockFilterForm" class="mb-4 p-3 border rounded bg-body-tertiary">
-                <div class="row g-3 align-items-center">
-                    <div class="col-12"><label class="form-label fw-bold">Filtrar Comparación por Códigos:</label></div>
-                    {% for i in range(5) %}
-                    <div class="col"><input type="text" class="form-control stock-code" placeholder="Ej: COPEC" maxlength="12"></div>
-                    {% endfor %}
-                    <div class="col-auto">
-                        <div class="form-check form-switch fs-5">
-                            <input class="form-check-input" type="checkbox" role="switch" id="allStocksCheck">
-                            <label class="form-check-label" for="allStocksCheck">Todas</label>
-                        </div>
+            <form id="stockFilterForm" class="row g-3 align-items-end mb-3 p-3 border rounded bg-body-tertiary">
+                <div class="col-md-8">
+                    <label class="form-label">Comparar por Símbolos (dejar vacío para ver todos)</label>
+                    <div class="row g-2">
+                        <div class="col"><input type="text" id="stockCode1" class="form-control stock-code" placeholder="Ej: COPEC" maxlength="12"></div>
+                        <div class="col"><input type="text" id="stockCode2" class="form-control stock-code" placeholder="Ej: SQM-B" maxlength="12"></div>
+                        <div class="col"><input type="text" id="stockCode3" class="form-control stock-code" placeholder="Ej: CMPC" maxlength="12"></div>
+                        <div class="col"><input type="text" id="stockCode4" class="form-control stock-code" placeholder="Ej: LTM" maxlength="12"></div>
                     </div>
-                    <div class="col-12 d-flex justify-content-end gap-2 mt-3">
-                        <button type="button" id="clearBtn" class="btn btn-outline-secondary"><i class="fas fa-eraser me-1"></i>Limpiar</button>
-                        <button type="submit" class="btn btn-primary"><i class="fas fa-search me-1"></i>Aplicar Filtro</button>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" role="switch" id="allStocksCheck">
+                        <label class="form-check-label" for="allStocksCheck">Todas</label>
                     </div>
+                </div>
+                <div class="col-12 d-flex justify-content-end gap-2 mt-3">
+                    <button type="button" id="clearBtn" class="btn btn-outline-secondary"><i class="fas fa-eraser me-1"></i>Limpiar</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-search me-1"></i>Aplicar Filtro</button>
                 </div>
             </form>
             <!-- FIN DE LA CORRECCIÓN -->

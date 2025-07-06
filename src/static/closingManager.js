@@ -1,6 +1,7 @@
 // src/static/js/closingManager.js
 
-window.closingManager = {
+const closingManager = {
+    app: null, // Referencia a la instancia de la App
     dataTable: null,
     dom: {},
     socket: null,
@@ -24,8 +25,8 @@ window.closingManager = {
         'PESO_IGPA': { title: 'Peso IGPA (%)' },
     },
 
-    init(socket) {
-        this.socket = socket;
+    init(appInstance) {
+        this.app = appInstance;
         console.log('[ClosingManager] Módulo inicializado y en espera de su widget.');
         
         // La función de flecha asegura que 'this' dentro del callback
@@ -64,8 +65,8 @@ window.closingManager = {
     },
 
     attachSocketListeners() {
-        if (!this.socket) return;
-        this.socket.on('closing_update_complete', (result) => {
+        if (!this.app || !this.app.socket) return;
+        this.app.socket.on('closing_update_complete', (result) => {
             if (!this.isInitialized) return;
             
             this.dom.updateBtn.innerHTML = '<i class="fas fa-sync-alt me-2"></i>Actualizar';
@@ -88,19 +89,19 @@ window.closingManager = {
 
     async loadClosings() {
         if (!this.isInitialized) return;
-        uiManager.toggleLoading(true, 'Cargando datos de cierre...');
+        this.app.uiManager.toggleLoading(true, 'Cargando datos de cierre...');
         try {
             const url = new URL(window.location.origin + '/api/closing');
             
             if (this.dom.filterSwitch && this.dom.filterSwitch.checked) {
-                const holdings = window.portfolioManager ? window.portfolioManager.state.holdings : [];
+                const holdings = this.app.portfolioManager ? this.app.portfolioManager.state.holdings : [];
                 if (holdings.length > 0) {
                     const portfolioSymbols = holdings.map(h => h.symbol);
                     portfolioSymbols.forEach(nemo => url.searchParams.append('nemo', nemo));
                 } else {
                     console.log('[ClosingManager] Filtro de portafolio activo, pero no hay holdings. Mostrando tabla vacía.');
                     this.renderTable([]);
-                    uiManager.toggleLoading(false);
+                    this.app.uiManager.toggleLoading(false);
                     return;
                 }
             }
@@ -113,7 +114,7 @@ window.closingManager = {
             console.error('Error al cargar datos de cierre:', error);
             this.renderTable([]);
         } finally {
-            uiManager.toggleLoading(false);
+            this.app.uiManager.toggleLoading(false);
         }
     },
     
@@ -161,7 +162,7 @@ window.closingManager = {
                 columns,
                 order: [[0, 'asc']],
                 responsive: true,
-                language: uiManager.getDataTablesLang(),
+                language: this.app.uiManager.getDataTablesLang(),
                 dom: 'Bfrtip',
                 buttons: ['excelHtml5', 'csvHtml5'],
             });

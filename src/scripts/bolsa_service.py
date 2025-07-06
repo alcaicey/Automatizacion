@@ -60,6 +60,8 @@ async def perform_session_health_check(page: Page, username: str, password: str)
     if not is_logged_in:
         logger.warning("[Health Check] Sesión no válida o expirada. Forzando re-login...")
         page = await auto_login(page, username, password)
+        if not page:
+            raise LoginError("El proceso de auto-login falló después de múltiples reintentos.")
     else:
         logger.info("[Health Check] ✓ La sesión existente es válida.")
     

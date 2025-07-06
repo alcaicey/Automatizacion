@@ -1,14 +1,16 @@
 // src/static/drainerManager.js
 
 const drainerManager = {
+    app: null,
     dataTable: null,
     isInitialized: false,
     isAnalyzing: false,
     socket: null,
     dom: {},
 
-    init(socket) {
-        this.socket = socket;
+    init(appInstance) {
+        this.app = appInstance;
+        this.socket = appInstance.socket;
         console.log("[DrainerManager] Módulo en espera de su widget.");
 
         document.addEventListener('widgetAdded', (event) => {
@@ -78,7 +80,7 @@ const drainerManager = {
                 }
             ],
             responsive: true, autoWidth: false,
-            language: uiManager.getDataTablesLang(),
+            language: this.app.uiManager.getDataTablesLang(),
             order: [[0, 'desc']]
         });
     },

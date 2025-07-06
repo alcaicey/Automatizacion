@@ -1,7 +1,7 @@
 {# templates/_navbar.html #}
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
   <div class="container-fluid">
-    <a class="navbar-brand" href="{{ url_for('home') }}">
+    <a class="navbar-brand" href="{{ url_for('index') }}">
       <i class="fas fa-chart-line me-2"></i>Bolsa App
     </a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
@@ -13,7 +13,7 @@
     <div class="collapse navbar-collapse" id="navbarNav">
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
         <li class="nav-item">
-          <a class="nav-link {{ 'active' if request.path == url_for('home') else '' }}" href="{{ url_for('home') }}">
+          <a class="nav-link {{ 'active' if request.path == '/' else '' }}" href="/">
             <i class="fas fa-home me-1"></i>Inicio
           </a>
         </li>
@@ -50,9 +50,16 @@
       </ul>
 
       <div class="d-flex align-items-center">
-        <button id="themeToggle" class="btn btn-outline-secondary" type="button" aria-label="Toggle theme">
-          <i class="fas fa-moon me-2"></i>Modo Oscuro
-        </button>
+        <div class="dropdown">
+          <button id="themeDropdown" class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="fas fa-palette me-2"></i>Tema
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="themeDropdown">
+            <li><button class="dropdown-item" type="button" data-theme-value="light"><i class="fas fa-sun me-2"></i>Claro</button></li>
+            <li><button class="dropdown-item" type="button" data-theme-value="dark"><i class="fas fa-moon me-2"></i>Oscuro</button></li>
+            <li><button class="dropdown-item" type="button" data-theme-value="terminal"><i class="fas fa-terminal me-2"></i>Terminal</button></li>
+          </ul>
+        </div>
       </div>
     </div>
   </div>

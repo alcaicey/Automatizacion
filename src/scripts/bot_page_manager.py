@@ -65,6 +65,7 @@ async def get_page() -> Page:
             _LOG.info("[PageManager] 🚀 Lanzando nueva instancia de navegador Chromium con opciones de evasión...")
             # --- INICIO DE LA MODIFICACIÓN: Usar nuevas opciones de lanzamiento ---
             launch_options = get_browser_launch_options()
+            launch_options['headless'] = False  # MODIFICACIÓN CLAVE: Poner en False para ver la UI del bot
             _BROWSER = await pw.chromium.launch(**launch_options)
             # --- FIN DE LA MODIFICACIÓN ---
 

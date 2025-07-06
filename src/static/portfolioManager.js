@@ -1,6 +1,8 @@
 // src/static/portfolioManager.js
 
-const portfolioManager = {
+window.portfolioManager = {
+    app: null,
+    dataTable: null,
     state: {
         holdings: [],
         priceMap: new Map(),
@@ -21,11 +23,48 @@ const portfolioManager = {
         }
     },
 
-    init() {
-        console.log('[Portfolio] Módulo inicializado y en espera.');
-        this.loadPortfolioColumnPreferences(); // Cargar preferencias al inicio
+    init(appInstance) {
+        this.app = appInstance;
+        // No hacer nada aquí todavía. Esperar a que el widget esté listo.
+        this.waitForWidget();
     },
-    
+
+    waitForWidget() {
+        const checkInterval = setInterval(() => {
+            if (document.getElementById('portfolioTable')) {
+                clearInterval(checkInterval);
+                console.log('[Portfolio] Widget de portafolio detectado en el DOM. Inicializando...');
+                this.initialize();
+            }
+        }, 100); // Comprobar cada 100ms
+    },
+
+    initialize() {
+        this.fetchPortfolioData();
+        // Puedes añadir más lógica de inicialización aquí si es necesario
+    },
+
+    async fetchPortfolioData() {
+        try {
+            const response = await fetch('/api/portfolio/view');
+            if (!response.ok) throw new Error('No se pudo cargar la vista del portafolio.');
+            
+            const result = await response.json();
+            
+            if(result.summary) {
+                this.app.uiManager.updatePortfolioSummary(result.summary);
+            }
+
+            if(result.portfolio) {
+                this.render(result.portfolio);
+            }
+            
+        } catch (error) {
+            console.error('[Portfolio] Error al cargar datos:', error);
+            this.app.uiManager.updateStatus('Error al cargar portafolio.', 'danger');
+        }
+    },
+
     async loadHoldings() {
         try {
             const response = await fetch('/api/portfolio');
@@ -48,6 +87,56 @@ const portfolioManager = {
         }
     },
     
+    getDisplayData(allStocks) {
+        const stockPriceMap = new Map(allStocks.map(s => [s.NEMO, s]));
+
+        return this.state.holdings.map(h => {
+            const stockData = stockPriceMap.get(h.symbol) || {};
+            const currentPrice = stockData.PRECIO_CIERRE || 0;
+            const quantity = h.quantity;
+            const purchasePrice = h.purchase_price;
+            const totalPaid = quantity * purchasePrice;
+            const currentValue = quantity * currentPrice;
+            const gainLossTotal = currentValue - totalPaid;
+            const gainLossPercent = totalPaid > 0 ? (gainLossTotal / totalPaid) * 100 : 0;
+
+            return {
+                id: h.id, // Importante para la eliminación
+                symbol: h.symbol,
+                quantity: quantity,
+                purchase_price: purchasePrice,
+                total_paid: totalPaid,
+                current_price: currentPrice,
+                daily_variation_percent: stockData.VARIACION || 0,
+                current_value: currentValue,
+                gain_loss_total: gainLossTotal,
+                gain_loss_percent: gainLossPercent,
+                actions: `<button class="btn btn-sm btn-danger delete-holding-btn" data-id="${h.id}"><i class="fas fa-trash"></i></button>`
+            };
+        });
+    },
+
+    renderSummary(displayData) {
+        let totalPaid = 0;
+        let totalCurrentValue = 0;
+
+        displayData.forEach(d => {
+            totalPaid += d.total_paid;
+            totalCurrentValue += d.current_value;
+        });
+
+        const totalGainLoss = totalCurrentValue - totalPaid;
+
+        const formatCurrency = (val) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(val);
+
+        document.getElementById('totalPaid').textContent = formatCurrency(totalPaid);
+        document.getElementById('totalCurrentValue').textContent = formatCurrency(totalCurrentValue);
+        
+        const totalGainLossEl = document.getElementById('totalGainLoss');
+        totalGainLossEl.innerHTML = formatCurrency(totalGainLoss);
+        totalGainLossEl.className = totalGainLoss >= 0 ? 'h5 mb-0 text-success' : 'h5 mb-0 text-danger';
+    },
+    
     renderColumnModal() {
         const form = document.getElementById('portfolioColumnConfigForm');
         if (!form) return;
@@ -61,68 +150,22 @@ const portfolioManager = {
         `).join('');
     },
 
-    render(stockPriceMap) {
-        this.state.priceMap = stockPriceMap;
-        const table = document.getElementById('portfolioTable');
-        if (!table) return;
+    render(data) {
+        if (!this.app) return;
 
-        // 1. Reconstruir el encabezado dinámicamente
-        const thead = table.querySelector('thead');
-        if (thead) {
-            thead.innerHTML = `<tr>
-                ${this.state.columnPrefs.visible.map(colId => {
-                    const colDef = this.state.columnPrefs.all.find(c => c.id === colId);
-                    return `<th>${colDef ? colDef.title : colId}</th>`;
-                }).join('')}
-            </tr>`;
-        }
-
-        // 2. Renderizar el cuerpo
-        const tableBody = table.querySelector('tbody');
-        if (!tableBody) return;
-
-        let totalPaid = 0;
-        let totalCurrentValue = 0;
-
-        tableBody.innerHTML = this.state.holdings.map(h => {
-            const stockData = this.state.priceMap.get(h.symbol) || {};
-            const data = {
-                symbol: h.symbol,
-                quantity: h.quantity,
-                purchase_price: h.purchase_price,
-                total_paid: h.quantity * h.purchase_price,
-                current_price: stockData.PRECIO_CIERRE || 0,
-                daily_variation_percent: stockData.VARIACION || 0,
-                current_value: h.quantity * (stockData.PRECIO_CIERRE || 0),
-                get gain_loss_total() { return this.current_value - this.total_paid; },
-                get gain_loss_percent() { return this.total_paid > 0 ? (this.gain_loss_total / this.total_paid) * 100 : 0; },
-                actions: `<button class="btn btn-sm btn-danger delete-holding-btn" data-id="${h.id}"><i class="fas fa-trash"></i></button>`
-            };
-            
-            totalPaid += data.total_paid;
-            totalCurrentValue += data.current_value;
-
-            return `<tr>
-                ${this.state.columnPrefs.visible.map(colId => {
-                    let cellContent = data[colId];
-                    let cellClass = '';
-
-                    if (['purchase_price', 'total_paid', 'current_price', 'current_value', 'gain_loss_total'].includes(colId)) {
-                        cellContent = uiManager.createNumberRenderer() (cellContent, 'display');
-                    } else if (['daily_variation_percent', 'gain_loss_percent'].includes(colId)) {
-                        cellContent = uiManager.createNumberRenderer(true) (cellContent, 'display');
-                    }
-
-                    if (colId === 'gain_loss_total' || colId === 'gain_loss_percent') {
-                        cellClass = data[colId] >= 0 ? 'text-success' : 'text-danger';
-                    }
-                    
-                    return `<td class="${cellClass} fw-bold">${cellContent}</td>`;
-                }).join('')}
-            </tr>`;
-        }).join('');
+        const columns = [
+            { data: 'symbol', title: 'Símbolo' },
+            { data: 'quantity', title: 'Cantidad' },
+            { data: 'purchase_price', title: 'Precio Compra', render: this.app.uiManager.createNumberRenderer() },
+            { data: 'total_paid', title: 'Total Pagado', render: this.app.uiManager.createNumberRenderer() },
+            { data: 'current_price', title: 'Precio Actual', render: this.app.uiManager.createNumberRenderer() },
+            { data: 'current_value', title: 'Valor Actual', render: this.app.uiManager.createNumberRenderer() },
+            { data: 'gain_loss_total', title: 'Ganancia/Pérdida', render: this.app.uiManager.createNumberRenderer() },
+            { data: 'gain_loss_percent', title: '% Gan./Pérd.', render: this.app.uiManager.createNumberRenderer(true) },
+            { data: 'actions', title: 'Acciones', orderable: false, defaultContent: '' }
+        ];
         
-        this.updateTotals(totalPaid, totalCurrentValue);
+        this.app.uiManager.renderTable('portfolioTable', data, columns);
     },
 
     updateTotals(totalPaid, totalCurrentValue) {
@@ -179,7 +222,7 @@ const portfolioManager = {
             if (!response.ok) throw new Error('Error al añadir al portafolio');
             form.reset();
             await this.loadHoldings();
-            this.render(window.app.state.stockPriceMap); // Re-renderizar
+            this.render(this.app.state.stockPriceMap); // Re-renderizar
         } catch (error) {
             console.error('Error en handleAdd de portafolio:', error);
         }
@@ -191,7 +234,7 @@ const portfolioManager = {
             const response = await fetch(`/api/portfolio/${id}`, { method: 'DELETE' });
             if (!response.ok) throw new Error('Error al eliminar del portafolio');
             await this.loadHoldings();
-            this.render(window.app.state.stockPriceMap); // Re-renderizar
+            this.render(this.app.state.stockPriceMap); // Re-renderizar
         } catch (error) {
             console.error('Error en handleDelete de portafolio:', error);
         }

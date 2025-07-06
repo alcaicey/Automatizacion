@@ -76,9 +76,174 @@
         <h5 id="loadingMessage" class="text-light">Cargando...</h5>
     </div>
 </div>
+
+<!-- Plantillas para Widgets -->
+<template id="portfolioTemplate">
+    <div class="grid-stack-item-content">
+        <div class="widget-header">
+            <h5 class="widget-title"><i class="fas fa-briefcase me-2"></i>Mi Portafolio</h5>
+            <div class="widget-controls">
+                <button class="btn btn-sm btn-outline-secondary" onclick="uiManager.openModal('portfolioColumnConfigModal')"><i class="fas fa-sliders-h"></i></button>
+                <button type="button" class="btn btn-sm btn-danger remove-widget-btn"><i class="fas fa-times"></i></button>
+            </div>
+        </div>
+        <div class="widget-body">
+            <div id="portfolio-summary" class="row text-center mb-3">
+                <div class="col-4">
+                    <h6>Pagado</h6>
+                    <p id="totalPaid" class="h5 mb-0">--</p>
+                </div>
+                <div class="col-4">
+                    <h6>Valor Actual</h6>
+                    <p id="totalCurrentValue" class="h5 mb-0">--</p>
+                </div>
+                <div class="col-4">
+                    <h6>Ganancia/Pérdida</h6>
+                    <p id="totalGainLoss" class="h5 mb-0">--</p>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table id="portfolioTable" class="table table-sm table-hover">
+                    <thead></thead>
+                    <tbody>
+                        <tr><td colspan="100%" class="text-center p-4">Cargando portafolio...</td></tr>
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-group-divider fw-bold">
+                            <td id="footer-label" colspan="3">Totales:</td>
+                            <td id="footerTotalPaid"></td>
+                            <td></td>
+                            <td id="footerTotalCurrentValue"></td>
+                            <td id="footerTotalGainLoss"></td>
+                            <td id="footerTotalGainLossPercent"></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</template>
+
+<template id="newsTemplate">
+    <div class="grid-stack-item-content">
+        <div class="widget-header">
+            <h5 class="widget-title"><i class="fas fa-newspaper me-2"></i>Últimas Noticias</h4>
+            <div class="widget-controls">
+                <button id="newsRefreshBtn" class="btn btn-sm btn-outline-secondary"><i class="fas fa-sync-alt"></i></button>
+                <button type="button" class="btn btn-sm btn-danger remove-widget-btn"><i class="fas fa-times"></i></button>
+            </div>
+        </div>
+        <div class="widget-body" id="news-widget-body">
+            <div id="news-loading" class="text-center p-4">
+                <div class="spinner-border spinner-border-sm" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+                <span class="ms-2">Cargando noticias...</span>
+            </div>
+            <ul id="news-list" class="list-group list-group-flush d-none">
+                <!-- Las noticias se insertarán aquí -->
+            </ul>
+        </div>
+    </div>
+</template>
+
+<template id="controlsTemplate">
+    <div class="grid-stack-item-content">
+        <div class="widget-header">
+            <h5><i class="fas fa-cogs me-2"></i>Configuración y Acciones</h5>
+            <div class="widget-controls">
+                <button type="button" class="btn btn-sm btn-danger remove-widget-btn"><i class="fas fa-times"></i></button>
+            </div>
+        </div>
+        <div class="widget-body">
+            <form id="stockFilterForm" class="mb-3 p-2 border rounded bg-body-tertiary small">
+                <label class="form-label fw-bold">Filtrar Datos del Mercado:</label>
+                <div class="row g-2">
+                    <div class="col-6"><input type="text" class="form-control form-control-sm stock-code" placeholder="COPEC"></div>
+                    <div class="col-6"><input type="text" class="form-control form-control-sm stock-code" placeholder="SQM-B"></div>
+                    <div class="col-6"><input type="text" class="form-control form-control-sm stock-code" placeholder="CMPC"></div>
+                    <div class="col-6"><input type="text" class="form-control form-control-sm stock-code" placeholder="FALABELLA"></div>
+                </div>
+                <div class="form-check form-switch mt-2">
+                    <input class="form-check-input" type="checkbox" role="switch" id="allStocksCheck" checked>
+                    <label class="form-check-label" for="allStocksCheck">Todas</label>
+                </div>
+                <div class="d-flex justify-content-end gap-2 mt-2">
+                    <button type="button" id="clearBtn" class="btn btn-sm btn-outline-secondary">Limpiar</button>
+                    <button type="submit" class="btn btn-sm btn-primary">Aplicar</button>
+                </div>
+            </form>
+            <form id="portfolioForm" class="mb-3 p-2 border rounded bg-body-tertiary small">
+                <label class="form-label fw-bold">Añadir Activo:</label>
+                <div class="row g-2 align-items-end">
+                    <div class="col-12"><input type="text" id="portfolioSymbol" class="form-control form-control-sm" placeholder="Símbolo" required></div>
+                    <div class="col-6"><input type="number" step="any" id="portfolioQuantity" class="form-control form-control-sm" placeholder="Cantidad" required></div>
+                    <div class="col-6"><input type="number" step="any" id="portfolioPrice" class="form-control form-control-sm" placeholder="Precio Compra" required></div>
+                    <div class="col-12"><button type="submit" class="btn btn-sm btn-info w-100">Añadir a Portafolio</button></div>
+                </div>
+            </form>
+        </div>
+    </div>
+</template>
+
+<template id="alertsTemplate">
+    <div class="grid-stack-item-content">
+        <div class="widget-header">
+            <h5><i class="fas fa-bell me-2"></i>Alertas de Precio</h5>
+            <div class="widget-controls">
+                <button type="button" class="btn btn-sm btn-danger remove-widget-btn"><i class="fas fa-times"></i></button>
+            </div>
+        </div>
+        <div class="widget-body">
+            <form id="alertForm" class="p-2 border rounded bg-body-tertiary small mb-3">
+                <div class="row g-2 align-items-end">
+                    <div class="col-12"><input type="text" id="alertSymbol" class="form-control form-control-sm" placeholder="Símbolo" required></div>
+                    <div class="col-6"><input type="number" step="0.01" id="alertPrice" class="form-control form-control-sm" placeholder="Precio Obj." required></div>
+                    <div class="col-6">
+                        <select id="alertCondition" class="form-select form-select-sm">
+                            <option value="above">Suba &gt;=</option>
+                            <option value="below">Baje &lt;=</option>
+                        </select>
+                    </div>
+                    <div class="col-12"><button type="submit" class="btn btn-sm btn-warning w-100">Crear Alerta</button></div>
+                </div>
+            </form>
+            <div id="alert-list-container" style="max-height: 200px; overflow-y: auto;">
+                <div id="alert-loading" class="text-center p-2">
+                    <div class="spinner-border spinner-border-sm" role="status"></div>
+                </div>
+                <ul id="alert-list" class="list-group list-group-flush d-none"></ul>
+            </div>
+        </div>
+    </div>
+</template>
+
+<template id="drainersTemplate">
+    <div class="grid-stack-item-content">
+        <div class="widget-header">
+            <h5><i class="fas fa-search-dollar me-2"></i>Análisis de Adelantamientos</h5>
+            <div class="widget-controls">
+                <button type="button" class="btn btn-sm btn-danger remove-widget-btn"><i class="fas fa-times"></i></button>
+            </div>
+        </div>
+        <div class="widget-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <p class="text-muted small mb-0">Detecta eventos anómalos.</p>
+                <button id="runAnalysisBtn" class="btn btn-primary"><i class="fas fa-play-circle me-2"></i>Ejecutar Análisis</button>
+            </div>
+            <div id="drainerAlert" class="alert d-none" role="alert"></div>
+            <div class="table-responsive">
+                <table id="drainersTable" class="table table-striped table-hover w-100"></table>
+            </div>
+        </div>
+    </div>
+</template>
+
 {% endblock %}
 {% block scripts %}
 {{ super() }}
+<!-- LIBRERÍAS DE TERCEROS -->
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
@@ -90,14 +255,19 @@
 <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
 <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gridstack@10.1.2/dist/gridstack-all.js"></script>
-<script src="{{ url_for('static', filename='dashboardLayout.js') }}"></script>
+
+<!-- MÓDULOS DE LA APLICACIÓN -->
 <script src="{{ url_for('static', filename='uiManager.js') }}"></script>
 <script src="{{ url_for('static', filename='portfolioManager.js') }}"></script>
 <script src="{{ url_for('static', filename='closingManager.js') }}"></script>
+<script src="{{ url_for('static', filename='newsManager.js') }}"></script>
+<script src="{{ url_for('static', filename='alertManager.js') }}"></script>
 <script src="{{ url_for('static', filename='drainerManager.js') }}"></script>
-<script src="{{ url_for('static', filename='controlsManager.js') }}"></script> <!-- AÑADIR ESTA LÍNEA -->
+<script src="{{ url_for('static', filename='controlsManager.js') }}"></script>
 <script src="{{ url_for('static', filename='autoUpdater.js') }}"></script>
+<script src="{{ url_for('static', filename='dashboardLayout.js') }}"></script>
 <script src="{{ url_for('static', filename='eventHandlers.js') }}"></script>
+
+<!-- SCRIPT PRINCIPAL (AL FINAL) -->
 <script src="{{ url_for('static', filename='app.js') }}"></script>
-<script src="{{ url_for('static', filename='alerts.js') }}"></script>
 {% endblock %}

@@ -8,12 +8,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const allStocksCheck = document.getElementById('allStocksCheck');
     const clearBtn = document.getElementById('clearBtn');
 
-    function initDataTable(selector, options) {
+    function initDataTable(selector, options, toolbarSelector = null) {
         if ($.fn.dataTable.isDataTable(selector)) {
             $(selector).DataTable().destroy();
         }
         $(selector).empty();
-        return $(selector).DataTable(options);
+        
+        const defaultOptions = {
+            dom: 'Bfrtip',
+            buttons: ['excelHtml5', 'csvHtml5'],
+            responsive: true,
+            language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' },
+            initComplete: function () {
+                if (toolbarSelector) {
+                    const dtContainer = $(this.api().table().container());
+                    const toolbar = $(toolbarSelector);
+                    if (toolbar.length) {
+                        toolbar.find('.dt-buttons, .dataTables_filter').remove();
+                        dtContainer.find('.dt-buttons').appendTo(toolbar);
+                        dtContainer.find('.dataTables_filter').appendTo(toolbar);
+                        toolbar.find('.dataTables_filter input').attr('id', `${$(selector).attr('id')}Search`);
+                    }
+                }
+            }
+        };
+
+        return $(selector).DataTable({...defaultOptions, ...options});
     }
 
     function initializeComparisonFilter() {
@@ -48,9 +68,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         { data: 'new', title: 'Nuevas' }, { data: 'removed', title: 'Eliminadas' },
                         { data: 'error_count', title: 'Errores' }, { data: 'status', title: 'Estado' }
                     ],
-                    order: [[1, 'desc']], dom: 'Bfrtip', buttons: ['excelHtml5', 'csvHtml5'], responsive: true,
-                    language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' }
-                });
+                    order: [[1, 'desc']]
+                }, '#history-toolbar');
             }).catch(error => console.error("Error en loadHistory:", error));
     }
 
@@ -94,15 +113,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!data || Object.keys(data).length === 0 || (!data.changes && !data.new && !data.removed)) {
             comparisonTable = initDataTable('#comparisonTable', {
                 columns: columnsDefinition.map(c => ({ title: c.title })),
-                data: [], dom: 'Bfrtip', buttons: ['excelHtml5', 'csvHtml5'], responsive: true,
-                language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' }
-            });
+                data: []
+            }, '#comparison-toolbar');
             $('#comparisonTable tbody').html(`<tr><td colspan="${columnsDefinition.length}" class="text-center">No se encontraron diferencias.</td></tr>`);
             return;
         }
 
         const rows = [];
-        (data.changes || []).forEach(c => rows.push({ ...c, type: 'cambio' }));
+        (data.changes || []).forEach(c => rows.push({ ...c, symbol: c.new.symbol, type: 'cambio' }));
         (data.new || []).forEach(n => rows.push({ new: n, symbol: n.symbol, type: 'nueva' }));
         (data.removed || []).forEach(r => rows.push({ old: r, symbol: r.symbol, type: 'eliminada' }));
         (data.unchanged || []).forEach(u => rows.push({ old: u, new: u, symbol: u.symbol, type: 'sin_cambios' }));
@@ -112,10 +130,8 @@ document.addEventListener('DOMContentLoaded', () => {
             createdRow: function(row, data) {
                 const typeClasses = {'nueva': 'table-primary', 'eliminada': 'table-secondary', 'cambio': data.abs_diff > 0 ? 'table-success' : 'table-danger'};
                 if (typeClasses[data.type]) $(row).addClass(typeClasses[data.type]);
-            },
-            dom: 'Bfrtip', buttons: ['excelHtml5', 'csvHtml5'], responsive: true,
-            language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' }
-        });
+            }
+        }, '#comparison-toolbar');
         
         initializeComparisonFilter();
     }

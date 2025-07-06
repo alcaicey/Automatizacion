@@ -31,6 +31,7 @@
                         <div class="d-flex gap-2">
                             <button id="selectKPIStocksBtn" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#kpiSelectionModal"><i class="fas fa-check-square me-2"></i>Seleccionar Acciones</button>
                             <button id="kpiColumnBtn" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#kpiColumnConfigModal"><i class="fas fa-sliders-h"></i> Columnas</button>
+                            <button id="kpiPromptBtn" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#kpiPromptModal"><i class="fas fa-robot me-2"></i>Prompt IA</button>
                             <button id="updateKPIsBtn" class="btn btn-success"><i class="fas fa-sync-alt me-2"></i>Cargar/Actualizar KPIs</button>
                         </div>
                         <!-- Los botones de DataTables (Excel, CSV) y el campo de búsqueda se insertarán aquí con JS -->
@@ -55,7 +56,7 @@
             <div class="collapse show" id="collapseDividends">
                 <div class="card-body">
                     <!-- Fila de Controles -->
-                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3 p-3 border rounded bg-body-tertiary">
+                    <div id="dividends-toolbar" class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3 p-3 border rounded bg-body-tertiary">
                         <!-- Filtros Personalizados -->
                         <div class="d-flex flex-wrap gap-2 align-items-end">
                             <div>
@@ -86,8 +87,19 @@
                         </div>
                     </div>
                     <div id="dividendChangesAlert" class="alert d-none" role="alert"></div>
-                    <div class="table-responsive">
-                        <table id="dividendsTable" class="table table-striped table-hover w-100"></table>
+                    <div id="dividendsTableContainer" class="position-relative">
+                        <!-- Overlay de carga -->
+                        <div id="dividendsLoadingOverlay" class="position-absolute top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-light bg-opacity-75" style="display: none; z-index: 10;">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Cargando...</span>
+                            </div>
+                        </div>
+                        <!-- Contenedor de Errores -->
+                        <div id="dividendsError" class="alert alert-danger" style="display: none;"></div>
+                        <!-- Tabla -->
+                        <div class="table-responsive">
+                            <table id="dividendsTable" class="table table-sm table-hover w-100"></table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -149,6 +161,47 @@
     </div>
 </div>
 
+<!-- Modal para el Prompt de IA -->
+<div class="modal fade" id="kpiPromptModal" tabindex="-1" aria-labelledby="kpiPromptModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="kpiPromptModalLabel">Prompt para Generación de KPIs con IA</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <p class="form-text">Este es el prompt que se utiliza para solicitar a la IA que genere los indicadores. Puedes modificarlo para ajustar los resultados. Usa <code>{nemo}</code> donde quieras insertar el símbolo de la acción y <code>{closing_data}</code> para los datos de cierre.</p>
+                    <textarea id="kpiPromptTextarea" class="form-control" rows="15"></textarea>
+                </div>
+                <div id="promptUpdateAlert" class="alert d-none" role="alert"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" id="saveKpiPromptBtn" class="btn btn-primary">Guardar Prompt</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Detalles de Fila de KPI -->
+<div class="modal fade" id="kpiRowDetailModal" tabindex="-1" aria-labelledby="kpiRowDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="kpiRowDetailModalLabel">Detalles de Generación para <span id="detailModalNemo"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="kpiRowDetailBody">
+                <!-- El contenido se cargará aquí dinámicamente -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -170,4 +223,12 @@
 
 <!-- Orquestador de la página de Indicadores -->
 <script src="{{ url_for('static', filename='indicadores.js') }}"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Inicializar el orquestador de la página de Indicadores
+        // Se le pasa el uiManager global si está disponible.
+        window.pageOrchestrator.init(window.uiManager || {});
+    });
+</script>
 {% endblock %}

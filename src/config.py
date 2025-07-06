@@ -21,6 +21,9 @@ STORAGE_STATE_PATH = os.path.join(LOGS_DIR, 'playwright_state.json')
 USERNAME = os.environ.get('BOLSA_USERNAME', 'postgres')
 PASSWORD = os.environ.get('BOLSA_PASSWORD', 'postgres')
 
+# Puerto para el servidor Flask
+PORT = int(os.environ.get('FLASK_PORT', 5000))
+
 # URLs y selectores del bot
 TARGET_DATA_PAGE_URL = 'https://www.bolsadesantiago.com/plus_acciones_precios'
 

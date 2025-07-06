@@ -1,26 +1,30 @@
 // src/static/js/indicadores.js
 
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('[Indicadores] Página cargada. Inicializando módulos...');
+window.pageOrchestrator = {
+    modules: [
+        { name: 'financial-kpis', manager: window.kpiManager },
+        { name: 'dividends', manager: window.dividendManager }
+    ],
 
-    // Un objeto para mantener todos los gestores de módulos.
-    const indicatorModules = {
-        dividends: window.dividendManager,
-        'financial-kpis': window.kpiManager,
-    };
-
-    // Inicializa cada módulo que encuentre en la página.
-    for (const moduleName in indicatorModules) {
-        if (document.getElementById(`module-${moduleName}`)) {
-            const manager = indicatorModules[moduleName];
-            if (manager && typeof manager.init === 'function') {
+    init(uiManager) { // Acepta uiManager
+        console.log('[Indicadores] Página cargada. Inicializando módulos...');
+        
+        this.modules.forEach(module => {
+            if (module.manager && typeof module.manager.init === 'function') {
                 try {
-                    manager.init();
-                    console.log(`[Indicadores] Módulo '${moduleName}' inicializado.`);
+                    // Pasa uiManager a cada módulo que lo necesite
+                    if (module.name === 'dividends') {
+                        module.manager.init(uiManager);
+                    } else {
+                        module.manager.init();
+                    }
+                    console.log(`[Indicadores] Módulo '${module.name}' inicializado.`);
                 } catch (error) {
-                    console.error(`[Indicadores] Error al inicializar el módulo '${moduleName}':`, error);
+                    console.error(`Error inicializando el módulo '${module.name}':`, error);
                 }
+            } else {
+                console.warn(`[Indicadores] Módulo '${module.name}' o su método init no fue encontrado.`);
             }
-        }
+        });
     }
-});
+};

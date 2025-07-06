@@ -71,6 +71,49 @@ def _simulate_insider_tracking():
         )
     return None
 
+def _analyze_volume_spikes_with_pandas():
+    """Analiza picos de volumen usando Pandas para mayor eficiencia."""
+    try:
+        # 1. Cargar los datos directamente en un DataFrame de Pandas
+        # read_sql es muy eficiente para esto.
+        query = StockClosing.query.statement
+        df = pd.read_sql(query, db.session.bind)
+
+        if df.empty:
+            return []
+
+        # 2. Asegurarse que los tipos de datos son correctos
+        df['date'] = pd.to_datetime(df['date'])
+        df['volume'] = pd.to_numeric(df['volume'], errors='coerce')
+        
+        # 3. Calcular la media móvil del volumen por cada acción (nemo)
+        # Esto reemplaza bucles complejos con una sola operación vectorial.
+        df['volume_MA_20D'] = df.groupby('nemo')['volume'].transform(
+            lambda x: x.rolling(window=20, min_periods=5).mean()
+        )
+
+        # 4. Identificar picos donde el volumen actual es > 5 veces la media
+        df['is_spike'] = df['volume'] > (df['volume_MA_20D'] * 5)
+        
+        spike_events = df[df['is_spike']].copy()
+
+        # 5. Formatear los resultados para guardarlos en la BD
+        events_to_save = []
+        for _, row in spike_events.iterrows():
+            events_to_save.append(AnomalousEvent(
+                event_type='Volume Spike',
+                nemo=row['nemo'],
+                event_date=row['date'],
+                description=f"Volumen de {row['volume']} fue >5x la media de 20 días ({row['volume_MA_20D']:.0f}).",
+                severity='High'
+            ))
+        
+        return events_to_save
+
+    except Exception as e:
+        logger.error(f"Error en análisis de volumen con Pandas: {e}", exc_info=True)
+        return []
+
 def run_drainer_analysis():
     try:
         AnomalousEvent.query.delete()

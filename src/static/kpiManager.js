@@ -24,9 +24,11 @@ window.kpiManager = {
                 const classes = {
                     'Comprar': 'bg-success text-white',
                     'Mantener': 'bg-warning text-dark',
-                    'Vender': 'bg-danger text-white'
+                    'Vender': 'bg-danger text-white',
+                    'Pendiente': 'bg-secondary text-white',
+                    'Error': 'bg-danger text-white'
                 };
-                return `<span class="badge ${classes[data] || 'bg-secondary'}">${data}</span>`;
+                return `<span class="badge ${classes[data] || 'bg-info'}">${data}</span>`;
             }
         },
         'beta': { title: 'Beta', description: 'Medida de la volatilidad de la acción en comparación con el mercado. >1 más volátil, <1 menos volátil.', defaultContent: '<i>N/A</i>' },
@@ -66,11 +68,17 @@ window.kpiManager = {
             columnModal: new bootstrap.Modal(document.getElementById('kpiColumnConfigModal')),
             columnForm: document.getElementById('kpiColumnConfigForm'),
             saveColumnPrefsBtn: document.getElementById('saveKPIColumnPrefs'),
+            promptBtn: document.getElementById('kpiPromptBtn'),
+            promptModal: new bootstrap.Modal(document.getElementById('kpiPromptModal')),
+            promptTextarea: document.getElementById('kpiPromptTextarea'),
+            savePromptBtn: document.getElementById('saveKpiPromptBtn'),
+            promptUpdateAlert: document.getElementById('promptUpdateAlert'),
         };
         if (!this.dom.table) return;
 
         this.socket = io();
         this.attachEventListeners();
+        this.initPromptEditor();
         this.loadInitialData();
     },
     
@@ -99,6 +107,58 @@ window.kpiManager = {
             
             this.loadKpis();
         });
+
+        const dtContainer = $(this.dom.table).closest('.dataTables_wrapper');
+        $('.dt-buttons', dtContainer).appendTo(this.dom.toolbar);
+        $('.dataTables_filter', dtContainer).appendTo(this.dom.toolbar);
+        this.initTooltips();
+    },
+
+    initTooltips() {
+        const tooltipTriggerList = [].slice.call(this.dom.table.querySelectorAll('[title]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    },
+
+    initPromptEditor() {
+        this.dom.promptBtn.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/kpi-prompt');
+                if (!response.ok) throw new Error('No se pudo cargar el prompt.');
+                const data = await response.json();
+                this.dom.promptTextarea.value = data.prompt;
+                this.dom.promptUpdateAlert.classList.add('d-none');
+            } catch (error) {
+                this.showAlertInPrompt(error.message, 'danger');
+            }
+        });
+
+        this.dom.savePromptBtn.addEventListener('click', async () => {
+            const newPrompt = this.dom.promptTextarea.value;
+            try {
+                const response = await fetch('/api/kpi-prompt', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: newPrompt })
+                });
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Error al guardar el prompt.');
+                }
+                this.showAlertInPrompt('Prompt guardado con éxito.', 'success');
+            } catch (error) {
+                this.showAlertInPrompt(error.message, 'danger');
+            }
+        });
+    },
+
+    showAlertInPrompt(message, type) {
+        const alertEl = this.dom.promptUpdateAlert;
+        alertEl.className = `alert alert-${type}`;
+        alertEl.textContent = message;
+        alertEl.classList.remove('d-none');
+        setTimeout(() => alertEl.classList.add('d-none'), 4000);
     },
 
     async loadInitialData() {
@@ -108,13 +168,10 @@ window.kpiManager = {
 
     async loadKpis() {
         try {
-            // --- INICIO DE LA MODIFICACIÓN: Mostrar loading ---
             if (this.dataTable) {
-                // Si la tabla ya existe, mostrar un overlay o un mensaje simple
                 this.dataTable.clear().draw();
                 $(this.dom.table.tBodies[0]).html('<tr><td colspan="100%" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Actualizando datos...</td></tr>');
             }
-            // --- FIN DE LA MODIFICACIÓN ---
 
             const response = await fetch('/api/kpis'); 
             if (!response.ok) throw new Error('No se pudieron cargar los datos de KPIs.');
@@ -150,6 +207,13 @@ window.kpiManager = {
                     <label class="form-check-label" for="kpi-col-${colKey}">${label}</label>
                 </div></div>`;
         });
+        
+        // Listener para los botones de detalles (delegación de eventos)
+        $(this.dom.table.tBodies[0]).on('click', '.kpi-details-btn', (e) => {
+            const row = this.dataTable.row($(e.currentTarget).closest('tr'));
+            const rowData = row.data();
+            this.showRowDetails(rowData);
+        });
     },
     
     async handleSavePrefs() {
@@ -166,9 +230,7 @@ window.kpiManager = {
         this.loadKpis();
     },
 
-    // --- INICIO DE LA MODIFICACIÓN COMPLETA ---
     renderTable(data) {
-        // Manejo del caso sin datos o sin selección
         if (!data || data.length === 0) {
             if (this.dataTable) {
                 this.dataTable.destroy();
@@ -189,38 +251,97 @@ window.kpiManager = {
             return;
         }
 
-        // Si la tabla ya está inicializada, la actualizamos de forma eficiente
         if (this.dataTable) {
-            this.dataTable.clear().rows.add(data).draw();
-        } else { // Si no, la inicializamos por primera vez
-            const columns = this.columnPrefs.visible.map(key => ({
-                data: key,
-                title: this.columnConfig[key]?.title || key.replace(/_/g, ' '),
-                render: this.columnConfig[key]?.render || null,
-                defaultContent: this.columnConfig[key]?.defaultContent || ''
-            }));
-            
-            this.dataTable = $(this.dom.table).DataTable({
-                data: data,
-                columns: columns,
-                responsive: true,
-                stateSave: false, // Previene el "filtrado fantasma"
-                language: { url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' },
-                dom: "<'row'<'col-sm-12 col-md-6'B><'col-sm-12 col-md-6'f>>" +
-                     "<'row'<'col-sm-12'tr>>" +
-                     "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
-                buttons: ['excelHtml5', 'csvHtml5'],
-                order: [[0, 'asc']]
-            });
-            
-            // Mover los controles a la barra de herramientas personalizada una sola vez
-            const dtContainer = $(this.dom.table).closest('.dataTables_wrapper');
-            $('.dt-buttons', dtContainer).appendTo(this.dom.toolbar);
-            $('.dataTables_filter', dtContainer).appendTo(this.dom.toolbar);
+            this.dataTable.destroy();
+            $(this.dom.table).empty();
+        }
+
+        const columns = this.columnPrefs.visible.map(key => ({
+            data: key,
+            name: key,
+            title: this.columnConfig[key]?.title || key.replace(/_/g, ' '),
+            render: this.columnConfig[key]?.render,
+            defaultContent: this.columnConfig[key]?.defaultContent || '<i>N/A</i>'
+        }));
+
+        // Add details button column
+        columns.push({
+            data: null,
+            orderable: false,
+            searchable: false,
+            defaultContent: '<button class="btn btn-sm btn-outline-secondary kpi-details-btn" title="Ver detalles de IA"><i class="fas fa-info-circle"></i></button>',
+            className: 'text-center'
+        });
+
+        this.dataTable = $(this.dom.table).DataTable({
+            data: data,
+            columns: columns,
+            responsive: true,
+            language: { url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' },
+            dom: 'Bfrtip',
+            buttons: ['copy', 'csv', 'excel', 'pdf', 'print'],
+            initComplete: () => {
+                const dtContainer = $(this.dom.table).closest('.dataTables_wrapper');
+                $(this.dom.toolbar).find('.dt-buttons, .dataTables_filter').remove();
+                $('.dt-buttons', dtContainer).appendTo(this.dom.toolbar);
+                $('.dataTables_filter', dtContainer).appendTo(this.dom.toolbar);
+                $('.dataTables_filter input', this.dom.toolbar).attr('id', 'kpiTableSearch');
+                this.initTooltips();
+
+                console.log("[kpiManager] initComplete: Tabla renderizada. Buscando KPIs pendientes...");
+                
+                const riesgoColumnIndex = this.dataTable.column('riesgo:name').index();
+                console.log(`[kpiManager] Índice de la columna 'riesgo': ${riesgoColumnIndex}`);
+
+                if (riesgoColumnIndex !== undefined) {
+                    this.dataTable.rows().every(function () {
+                        const row = this;
+                        const rowData = row.data();
+                        
+                        if (rowData && rowData.riesgo_consenso === 'Pendiente') {
+                            const cell = row.node().cells[riesgoColumnIndex];
+                            console.log(`[kpiManager] Fila para '${rowData.nemo}' está pendiente. Disparando análisis.`);
+                            window.kpiManager.triggerAiAnalysis(cell, rowData.nemo);
+                        }
+                    });
+                } else {
+                     console.error("[kpiManager] No se pudo encontrar el índice de la columna 'riesgo'. El análisis automático no se ejecutará.");
+                }
+            }
+        });
+    },
+
+    async triggerAiAnalysis(cell, nemo) {
+        // La celda ahora contiene 'Pendiente', la reemplazamos con el spinner.
+        cell.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div> Cargando...';
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+            controller.abort();
+            console.error(`[kpiManager] Timeout de 15s excedido para el análisis de ${nemo}.`);
+        }, 15000); // 15 segundos de timeout
+
+        try {
+            const response = await fetch(`/api/kpi/analyze/${nemo}`, { signal: controller.signal });
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                const result = await response.json().catch(() => ({ error: 'Respuesta no válida del servidor' }));
+                throw new Error(result.error || `Error del servidor: ${response.status}`);
+            }
+
+            const result = await response.json();
+            const rowIndex = this.dataTable.row(cell.closest('tr')).index();
+            this.dataTable.row(rowIndex).data(result.data).draw(false);
+
+        } catch (error) {
+            clearTimeout(timeoutId);
+            console.error(`Error analizando ${nemo}:`, error);
+            const errorMessage = error.name === 'AbortError' ? 'Timeout' : (error.message || 'Error de red');
+            cell.innerHTML = `<span class="badge bg-danger" title="${errorMessage}"><i class="fas fa-exclamation-triangle"></i> Error</span>`;
         }
     },
-    // --- FIN DE LA MODIFICACIÓN COMPLETA ---
-    
+
     async openSelectionModal() {
         try {
             const response = await fetch('/api/kpis/selection');
@@ -268,7 +389,7 @@ window.kpiManager = {
             
             this.dom.selectionModal.hide();
             this.showAlert('Selección guardada. Los datos se cargarán ahora.', 'success');
-            this.loadKpis(); // <-- Llamada clave para recargar los datos
+            this.loadKpis();
         } catch (error) {
             this.showAlert(error.message, 'danger');
         }
@@ -312,5 +433,43 @@ window.kpiManager = {
                 if(alertEl) alertEl.classList.add('d-none');
             }, 5000);
         }
+    },
+
+    showRowDetails(data) {
+        const modal = new bootstrap.Modal(document.getElementById('kpiRowDetailModal'));
+        const nemoSpan = document.getElementById('detailModalNemo');
+        const body = document.getElementById('kpiRowDetailBody');
+
+        nemoSpan.textContent = data.nemo;
+        
+        let content = '<p>Detalles sobre la obtención de datos para esta acción:</p>';
+        
+        if (data.source_details && data.calculation_details) {
+            content += '<dl class="row">';
+            for (const key in data.source_details) {
+                // Mapear claves a títulos más legibles
+                const titleMap = {
+                    'roe': 'ROE',
+                    'beta': 'Beta',
+                    'debt_to_equity': 'Deuda/Patrimonio',
+                    'analyst_recommendation': 'Recomendación'
+                };
+                const title = titleMap[key] || key;
+
+                content += `
+                    <dt class="col-sm-3 border-top pt-2">${title}</dt>
+                    <dd class="col-sm-9 border-top pt-2">
+                        <p class="mb-1"><strong>Fuente:</strong> ${data.source_details[key] || 'No disponible'}</p>
+                        <p class="mb-0"><strong>Cálculo/Método:</strong> ${data.calculation_details[key] || 'No disponible'}</p>
+                    </dd>
+                `;
+            }
+            content += '</dl>';
+        } else {
+            content += '<p class="text-muted">No hay detalles adicionales disponibles para esta acción.</p>';
+        }
+
+        body.innerHTML = content;
+        modal.show();
     }
 };

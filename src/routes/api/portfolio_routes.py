@@ -43,6 +43,73 @@ def delete_from_portfolio(holding_id):
         db.session.commit()
         return '', 204
 
+@api_bp.route('/portfolio/view', methods=['GET'])
+def get_portfolio_data_view():
+    """
+    Retorna una vista completa de datos del portafolio, combinando holdings
+    con los precios de cierre más recientes y calculando un resumen.
+    """
+    try:
+        holdings = Portfolio.query.order_by(Portfolio.symbol).all()
+        
+        symbols = [h.symbol for h in holdings]
+        if not symbols:
+            return jsonify({"portfolio": [], "summary": {
+                "total_paid": 0, "total_current_value": 0, "total_gain_loss": 0
+            }})
+
+        # --- Consulta Robusta (Método Simple) ---
+        # Se itera sobre cada símbolo para obtener su último precio.
+        # Es menos eficiente para miles de símbolos, pero mucho más robusto.
+        latest_prices = {}
+        for symbol in symbols:
+            price_entry = StockClosing.query.filter_by(nemo=symbol).order_by(StockClosing.date.desc()).first()
+            if price_entry:
+                latest_prices[symbol] = {"price": price_entry.previous_day_close_price}
+            else:
+                latest_prices[symbol] = {"price": 0}
+        
+        portfolio_data = []
+        total_paid = 0
+        total_current_value = 0
+
+        for h in holdings:
+            price_info = latest_prices.get(h.symbol, {"price": 0})
+            current_price = price_info["price"]
+            
+            paid_value = h.quantity * h.purchase_price
+            current_value = h.quantity * current_price
+            gain_loss = current_value - paid_value
+            gain_loss_percent = (gain_loss / paid_value) * 100 if paid_value > 0 else 0
+
+            portfolio_data.append({
+                "id": h.id,
+                "symbol": h.symbol,
+                "quantity": h.quantity,
+                "purchase_price": h.purchase_price,
+                "total_paid": paid_value,
+                "current_price": current_price,
+                "daily_variation_percent": 0,
+                "current_value": current_value,
+                "gain_loss_total": gain_loss,
+                "gain_loss_percent": gain_loss_percent,
+                "actions": f'<button class="btn btn-sm btn-danger delete-holding-btn" data-id="{h.id}"><i class="fas fa-trash"></i></button>'
+            })
+            total_paid += paid_value
+            total_current_value += current_value
+
+        summary = {
+            "total_paid": total_paid,
+            "total_current_value": total_current_value,
+            "total_gain_loss": total_current_value - total_paid
+        }
+        
+        return jsonify({"portfolio": portfolio_data, "summary": summary})
+
+    except Exception as e:
+        logger.error(f"Error al generar la vista de datos del portafolio: {e}")
+        return jsonify({"error": "Error interno del servidor al procesar los datos del portafolio."}), 500
+
 @api_bp.route("/kpis/selection", methods=["GET", "POST"])
 def handle_kpi_selection():
     """Obtiene o actualiza la lista de acciones seleccionadas para KPIs."""
