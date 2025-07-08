@@ -67,7 +67,9 @@
             </div>
             <div class="table-responsive">
                 <table id="portfolioTable" class="table table-sm table-hover">
-                    <thead></thead>
+                    <thead>
+                        <!-- DataTables generará los <th> aquí -->
+                    </thead>
                     <tbody>
                         <!-- DataTables poblará este cuerpo dinámicamente. -->
                     </tbody>
@@ -111,45 +113,6 @@
     </div>
 </template>
 
-<template id="controlsTemplate">
-    <div class="grid-stack-item-content">
-        <div class="widget-header">
-            <h5><i class="fas fa-cogs me-2"></i>Configuración y Acciones</h5>
-            <div class="widget-controls">
-                <button type="button" class="btn btn-sm btn-danger remove-widget-btn"><i class="fas fa-times"></i></button>
-            </div>
-        </div>
-        <div class="widget-body">
-            <form id="stockFilterForm" class="mb-3 p-2 border rounded bg-body-tertiary small">
-                <label class="form-label fw-bold">Filtrar Datos del Mercado:</label>
-                <div class="row g-2">
-                    <div class="col-6"><input type="text" class="form-control form-control-sm stock-code" placeholder="COPEC"></div>
-                    <div class="col-6"><input type="text" class="form-control form-control-sm stock-code" placeholder="SQM-B"></div>
-                    <div class="col-6"><input type="text" class="form-control form-control-sm stock-code" placeholder="CMPC"></div>
-                    <div class="col-6"><input type="text" class="form-control form-control-sm stock-code" placeholder="FALABELLA"></div>
-                </div>
-                <div class="form-check form-switch mt-2">
-                    <input class="form-check-input" type="checkbox" role="switch" id="allStocksCheck" checked>
-                    <label class="form-check-label" for="allStocksCheck">Todas</label>
-                </div>
-                <div class="d-flex justify-content-end gap-2 mt-2">
-                    <button type="button" id="clearBtn" class="btn btn-sm btn-outline-secondary">Limpiar</button>
-                    <button type="submit" class="btn btn-sm btn-primary">Aplicar</button>
-                </div>
-            </form>
-            <form id="portfolioForm" class="mb-3 p-2 border rounded bg-body-tertiary small">
-                <label class="form-label fw-bold">Añadir Activo:</label>
-                <div class="row g-2 align-items-end">
-                    <div class="col-12"><input type="text" id="portfolioSymbol" class="form-control form-control-sm" placeholder="Símbolo" required></div>
-                    <div class="col-6"><input type="number" step="any" id="portfolioQuantity" class="form-control form-control-sm" placeholder="Cantidad" required></div>
-                    <div class="col-6"><input type="number" step="any" id="portfolioPrice" class="form-control form-control-sm" placeholder="Precio Compra" required></div>
-                    <div class="col-12"><button type="submit" class="btn btn-sm btn-info w-100">Añadir a Portafolio</button></div>
-                </div>
-            </form>
-        </div>
-    </div>
-</template>
-
 <template id="price-alertsTemplate">
     <div class="grid-stack-item-content">
         <div class="widget-header">
@@ -161,9 +124,16 @@
         <div class="widget-body">
             <form id="alertForm" class="p-2 border rounded bg-body-tertiary small mb-3">
                 <div class="row g-2 align-items-end">
-                    <div class="col-12"><input type="text" id="alertSymbol" class="form-control form-control-sm" placeholder="Símbolo" required></div>
-                    <div class="col-6"><input type="number" step="0.01" id="alertPrice" class="form-control form-control-sm" placeholder="Precio Obj." required></div>
+                    <div class="col-12">
+                        <label for="alertSymbol" class="visually-hidden">Símbolo</label>
+                        <input type="text" id="alertSymbol" class="form-control form-control-sm" placeholder="Símbolo" required>
+                    </div>
                     <div class="col-6">
+                        <label for="alertPrice" class="visually-hidden">Precio Objetivo</label>
+                        <input type="number" step="0.01" id="alertPrice" class="form-control form-control-sm" placeholder="Precio Obj." required>
+                    </div>
+                    <div class="col-6">
+                        <label for="alertCondition" class="visually-hidden">Condición</label>
                         <select id="alertCondition" class="form-select form-select-sm">
                             <option value="above">Suba &gt;=</option>
                             <option value="below">Baje &lt;=</option>
@@ -195,16 +165,19 @@
                 <p class="text-muted small mb-0">Detecta eventos anómalos.</p>
                 <button id="runAnalysisBtn" class="btn btn-primary"><i class="fas fa-play-circle me-2"></i>Ejecutar Análisis</button>
             </div>
-            <div id="drainerAlert" class="alert d-none" role="alert"></div>
+            <output id="drainerAlert" class="alert d-none" role="status"></output>
             <div class="table-responsive">
-                <table id="drainersTable" class="table table-striped table-hover w-100"></table>
+                <table id="drainersTable" class="table table-striped table-hover w-100">
+                    <thead></thead>
+                    <tbody></tbody>
+                </table>
             </div>
         </div>
     </div>
 </template>
 
 <!-- MODIFICACIÓN: Añadir la plantilla para el widget de Estado del Bot -->
-<template id="botStatusTemplate">
+<template id="bot-statusTemplate">
     <div class="grid-stack-item-content">
         <div class="widget-header">
             <h5 class="widget-title"><i class="fas fa-robot me-2"></i>Estado del Bot</h5>
@@ -213,18 +186,18 @@
             </div>
         </div>
         <div class="widget-body">
-            <div id="bot-status-alert" class="alert alert-secondary" role="alert">
+            <output id="bot-status-alert" class="alert alert-secondary" role="alert">
                 <div class="d-flex align-items-center">
                     <div class="spinner-border spinner-border-sm me-2" role="status">
                         <span class="visually-hidden">Cargando...</span>
                     </div>
                     <span>Obteniendo estado...</span>
                 </div>
-            </div>
+            </output>
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <small class="text-muted">Última act:</small>
-                    <small id="last-update-time" class="text-muted fw-bold">--</small>
+                    <output id="last-update-time" class="text-muted fw-bold">--</output>
                 </div>
                 <button id="update-now-btn" class="btn btn-success">
                     <i class="fas fa-sync-alt me-2"></i>Actualizar Ahora
@@ -262,7 +235,7 @@
                     <div class="col-6"><input type="text" class="form-control form-control-sm stock-code" placeholder="FALABELLA"></div>
                 </div>
                 <div class="form-check form-switch mt-2">
-                    <input class="form-check-input" type="checkbox" role="switch" id="allStocksCheck" checked="">
+                    <input class="form-check-input" type="checkbox" role="switch" id="allStocksCheck" aria-checked="true" checked>
                     <label class="form-check-label" for="allStocksCheck">Todas</label>
                 </div>
                 <div class="d-flex justify-content-end gap-2 mt-2">
@@ -283,54 +256,13 @@
     </div>
 </template>
 
-<template id="alertsTemplate">
-    <div class="grid-stack-item-content">
-        <div class="widget-header">
-            <h5><i class="fas fa-bell me-2"></i>Alertas de Precio</h5>
-            <div class="widget-controls">
-                <button type="button" class="btn btn-sm btn-danger remove-widget-btn"><i class="fas fa-times"></i></button>
-            </div>
-        </div>
-        <div class="widget-body">
-            <form id="alertForm" class="p-2 border rounded bg-body-tertiary small mb-3">
-                <div class="row g-2 align-items-end">
-                    <div class="col-12"><input type="text" id="alertSymbol" class="form-control form-control-sm" placeholder="Símbolo" required></div>
-                    <div class="col-6"><input type="number" step="0.01" id="alertPrice" class="form-control form-control-sm" placeholder="Precio Obj." required></div>
-                    <div class="col-6">
-                        <select id="alertCondition" class="form-select form-select-sm">
-                            <option value="above">Suba &gt;=</option>
-                            <option value="below">Baje &lt;=</option>
-                        </select>
-                    </div>
-                    <div class="col-12"><button type="submit" class="btn btn-sm btn-warning w-100">Crear Alerta</button></div>
-                </div>
-            </form>
-            <div id="alert-list-container" style="max-height: 200px; overflow-y: auto;">
-                <div id="alert-loading" class="text-center p-2">
-                    <div class="spinner-border spinner-border-sm" role="status"></div>
-                </div>
-                <ul id="alert-list" class="list-group list-group-flush d-none"></ul>
-            </div>
-        </div>
-    </div>
-</template>
 {% endblock %}
 
 {% block scripts %}
     {{ super() }}
-    <!-- GridStack -->
+    <!-- GridStack y dependencias -->
     <script src="https://cdn.jsdelivr.net/npm/gridstack@10.1.2/dist/gridstack-all.js"></script>
     
-    <!-- Managers y Lógica de UI -->
-    <script src="{{ url_for('static', filename='uiManager.js') }}"></script>
-    <script src="{{ url_for('static', filename='dashboardLayout.js') }}" type="module"></script>
-    <script src="{{ url_for('static', filename='portfolioManager.js') }}"></script>
-    <script src="{{ url_for('static', filename='newsManager.js') }}"></script>
-    <script src="{{ url_for('static', filename='alertManager.js') }}"></script>
-    <script src="{{ url_for('static', filename='botStatusManager.js') }}"></script>
-    <script src="{{ url_for('static', filename='drainerManager.js') }}"></script>
-    <script src="{{ url_for('static', filename='commandPalette.js') }}"></script>
-    
-    <!-- App Principal -->
-    <script src="{{ url_for('static', filename='app.js') }}" type="module"></script>
+    <!-- Scripts de la página -->
+    <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
 {% endblock %}

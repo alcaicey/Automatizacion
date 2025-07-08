@@ -110,6 +110,11 @@ def get_portfolio_data_view():
         logger.error(f"Error al generar la vista de datos del portafolio: {e}")
         return jsonify({"error": "Error interno del servidor al procesar los datos del portafolio."}), 500
 
+@api_bp.route('/portfolio/holdings', methods=['GET'])
+def get_portfolio_holdings_alias():
+    """Ruta alias para compatibilidad con el frontend. Llama a la vista principal."""
+    return get_portfolio_data_view()
+
 @api_bp.route("/kpis/selection", methods=["GET", "POST"])
 def handle_kpi_selection():
     """Obtiene o actualiza la lista de acciones seleccionadas para KPIs."""

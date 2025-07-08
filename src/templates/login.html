@@ -1,29 +1,30 @@
 {% extends 'base.html' %}
-{% block title %}Logs del Sistema{% endblock %}
+{% block title %}Iniciar Sesión{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-    <h1 class="mb-4">Logs del Sistema</h1>
-
-    <div class="card shadow-sm">
-        <div class="card-body">
-            <div class="mb-3">
-              <input id="searchInput" class="form-control" placeholder="Buscar en logs...">
-            </div>
-
-            <div class="table-responsive">
-                <table id="logsTable" class="table table-striped table-hover w-100">
-                  <thead class="table-dark">
-                      <tr>
-                          <th style="width: 5%;">ID</th>
-                          <th style="width: 15%;">Fecha</th>
-                          <th style="width: 15%;">Acción/Fuente</th>
-                          <th>Mensaje</th>
-                          <th style="width: 5%;"></th>
-                      </tr>
-                  </thead>
-                  <tbody></tbody>
-                </table>
+<div class="container">
+    <div class="row justify-content-center mt-5">
+        <div class="col-md-6 col-lg-4">
+            <div class="card shadow-lg">
+                <div class="card-body p-4">
+                    <h2 class="card-title text-center mb-4">Iniciar Sesión</h2>
+                    <form id="loginForm">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Usuario</label>
+                            <input type="text" class="form-control" id="username" name="username" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Contraseña</label>
+                            <input type="password" class="form-control" id="password" name="password" required>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input type="checkbox" class="form-check-input" id="remember_me" name="remember_me">
+                            <label class="form-check-label" for="remember_me">Recordarme</label>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Ingresar</button>
+                    </form>
+                    <div id="login-error" class="alert alert-danger mt-3 d-none" role="alert"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -31,15 +32,7 @@
 {% endblock %}
 
 {% block scripts %}
-{{ super() }}
-<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-<script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
-<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.bootstrap5.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
-<script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
-<script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
-<script src="{{ url_for('static', filename='logs.js') }}"></script>
+    {{ super() }}
+    {# El script de login se carga como módulo para poder importar otras utilidades si es necesario #}
+    <script src="{{ url_for('static', filename='js/pages/login.js', v='1.0.2') }}" type="module"></script>
 {% endblock %}

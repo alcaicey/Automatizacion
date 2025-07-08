@@ -7,18 +7,22 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "jest",
-    "test:vite": "vitest"
+    "test": "vitest"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@babel/preset-env": "^7.28.0",
     "@testing-library/jest-dom": "^6.6.3",
+    "babel-jest": "^30.0.4",
+    "date-fns": "^4.1.0",
+    "eslint": "^9.30.1",
     "jest": "^30.0.4",
     "jest-environment-jsdom": "^30.0.4",
     "jquery": "^3.7.1",
     "jsdom": "^26.1.0",
-    "vitest": "^2.0.2"
+    "socket.io-client": "^4.8.1",
+    "vitest": "^3.2.4"
   }
 }

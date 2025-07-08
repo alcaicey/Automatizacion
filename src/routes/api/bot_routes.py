@@ -113,16 +113,11 @@ def update_stocks():
     def target_func(app, uname, pwd, symbols):
         try:
             with app.app_context():
-                loop = app.bot_event_loop
-                if not loop.is_running():
-                    raise RuntimeError("El loop de eventos del bot no está activo al iniciar la actualización de acciones.")
-                
-                future = asyncio.run_coroutine_threadsafe(
-                    run_bolsa_bot(app=app, username=uname, password=pwd, filtered_symbols=symbols), 
-                    loop
+                asyncio.run(
+                    run_bolsa_bot(app=app, username=uname, password=pwd, filtered_symbols=symbols)
                 )
-                future.result(timeout=400)
         except Exception as e:
+            # FIX: Asegurarse de que el mensaje de la excepción se loguea explícitamente.
             logger.error(f"Error CRÍTICO dentro del hilo de actualización de acciones: {e}", exc_info=True)
         finally:
             if _sync_bot_running_lock.locked():
@@ -222,3 +217,65 @@ def update_advanced_kpis():
 
     threading.Thread(target=task_in_thread, args=(app_instance,), daemon=True).start()
     return jsonify({"success": True, "message": "Proceso de actualización de KPIs iniciado para acciones seleccionadas."}), 202
+
+@socketio.on('manual_update')
+def handle_manual_update():
+    """
+    Manejador para el evento de Socket.IO 'manual_update'.
+    Inicia el mismo proceso que la ruta POST /api/stocks/update.
+    """
+    logger.info('[Socket.IO] Evento "manual_update" recibido desde el frontend. Iniciando actualización.')
+    # Reutilizamos la lógica existente para iniciar la actualización de acciones.
+    # Necesitamos un contexto de aplicación para esto.
+    with current_app.test_request_context('/api/stocks/update', method='POST'):
+        update_stocks()
+
+# --- INICIO DE LA CORRECCIÓN ---
+# Manejador de eventos de Socket.IO para iniciar la actualización del bot.
+# @socketio.on('request_bot_run')
+# def handle_bot_run_request():
+#     """
+#     Inicia la ejecución del bot de scraping en un hilo de fondo.
+#     Este evento es llamado por el cliente cuando el usuario hace clic en "Actualizar Ahora".
+#     """
+#     app_instance = current_app._get_current_object()
+    
+#     if is_bot_busy():
+#         logger.warning("[Socket.IO] Se recibió 'request_bot_run' pero el bot ya estaba ocupado.")
+#         # Opcional: emitir un evento de vuelta para informar al cliente.
+#         socketio.emit('bot_status', {'is_running': True, 'message': 'Actualización ya en curso.'})
+#         return
+
+#     logger.info("[Socket.IO] Recibido 'request_bot_run'. Iniciando hilo de actualización.")
+
+#     def target_func(app):
+#         """Función que se ejecutará en el hilo."""
+#         try:
+#             with app.app_context():
+#                 username = os.getenv("BOLSA_USERNAME")
+#                 password = os.getenv("BOLSA_PASSWORD")
+                
+#                 # Obtener filtros de acciones
+#                 stock_filter = StockFilter.query.first()
+#                 filtered_symbols = json.loads(stock_filter.codes_json or '[]') if stock_filter and not stock_filter.all else None
+
+#                 # Obtener el loop de eventos del bot y ejecutar la corrutina
+#                 loop = app.bot_event_loop
+#                 if not loop or not loop.is_running():
+#                     raise RuntimeError("El loop de eventos del bot no está disponible o no está corriendo.")
+                
+#                 future = asyncio.run_coroutine_threadsafe(
+#                     run_bolsa_bot(app=app, username=username, password=password, filtered_symbols=filtered_symbols),
+#                     loop
+#                 )
+#                 future.result(timeout=400) # Espera a que el bot termine, con un timeout generoso
+
+#         except Exception as e:
+#             logger.error(f"Error CRÍTICO dentro del hilo de actualización del bot (iniciado por Socket.IO): {e}", exc_info=True)
+#             # Emitir un error genérico al cliente
+#             socketio.emit('bot_error', {'message': 'Ocurrió un error inesperado durante la actualización.'})
+
+#     # Iniciar el hilo
+#     threading.Thread(target=target_func, args=(app_instance,), daemon=True).start()
+
+# --- FIN DE LA CORRECCIÓN ---

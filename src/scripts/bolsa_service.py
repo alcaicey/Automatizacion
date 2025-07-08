@@ -80,6 +80,7 @@ async def perform_session_health_check(page: Page, username: str, password: str)
     return page
 
 async def _attempt_data_capture(page: Page) -> tuple[datetime | None, dict | None]:
+    """Realiza un único intento de capturar datos de la página."""
     logger.info("Preparando captura concurrente y recarga de página...")
     time_task = asyncio.create_task(capture_market_time(page, logger))
     data_task = asyncio.create_task(capture_premium_data_via_network(page, logger))
@@ -89,97 +90,123 @@ async def _attempt_data_capture(page: Page) -> tuple[datetime | None, dict | Non
     market_time, raw_data = await asyncio.gather(time_task, data_task)
     return market_time, raw_data
 
-async def run_bolsa_bot(app=None, username=None, password=None, filtered_symbols: Optional[List[str]] = None, **kwargs) -> str | None:
+
+async def _capture_data_with_retries(page: Page) -> tuple[Page, datetime, dict]:
+    """Intenta capturar datos con una política de reintentos."""
+    max_attempts = 3
+    for attempt in range(1, max_attempts + 1):
+        logger.info(f"--- Intento de captura de acciones {attempt}/{max_attempts} ---")
+        try:
+            if not page or page.is_closed():
+                logger.warning("[Capture] La página fue cerrada. Recreando...")
+                page = await recreate_page()
+                await page.goto(TARGET_DATA_PAGE_URL, wait_until="domcontentloaded", timeout=20000)
+
+            market_time, raw_data = await _attempt_data_capture(page)
+            
+            if market_time and raw_data:
+                logger.info(f"✓ Captura de acciones exitosa en el intento {attempt}.")
+                return page, market_time, raw_data
+            
+            missing = " y ".join(filter(None, [
+                "hora del mercado" if not market_time else None,
+                "datos de precios" if not raw_data else None
+            ]))
+            logger.warning(f"Intento {attempt} fallido. Faltan datos: {missing}.")
+
+        except Exception as e:
+            logger.error(f"Error grave en el intento de captura {attempt}: {e}", exc_info=True)
+            # Forzar recreación en el siguiente intento será manejado por la comprobación `page.is_closed()`
+
+        if attempt < max_attempts:
+            await asyncio.sleep(attempt * 2)
+
+    raise DataCaptureError("No se pudieron capturar los datos de precios después de varios intentos.")
+
+
+def _process_and_store_data(
+    app, 
+    raw_data: dict, 
+    market_time: Optional[datetime], 
+    filtered_symbols: Optional[List[str]]
+):
+    """Valida los datos y los almacena en la base de datos."""
+    final_market_time = market_time or get_fallback_market_time()
+    logger.info(f"✓ Usando timestamp: {final_market_time.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+
+    if not validate_premium_data(raw_data):
+        raise DataCaptureError("El formato de los datos de acciones no es válido.")
+
+    logger.info("✓ Datos de acciones validados.")
+    
+    with (app or current_app).app_context():
+        store_prices_in_db(raw_data, final_market_time, app=app, filtered_symbols=filtered_symbols)
+        save_filtered_comparison_history(market_timestamp=final_market_time, app=app)
+
+
+def _validate_inputs(username: Optional[str], password: Optional[str]):
+    """Valida que las credenciales necesarias existan."""
+    if not username or not password:
+        raise ValueError("El nombre de usuario y la contraseña no pueden ser nulos.")
+
+
+async def run_bolsa_bot(
+    app=None, 
+    username: Optional[str] = None, 
+    password: Optional[str] = None, 
+    filtered_symbols: Optional[List[str]] = None
+) -> str | None:
+    # Emitimos un evento inmediato para notificar al frontend (y a los tests)
+    # que la ejecución ha comenzado, antes de adquirir el lock.
+    socketio.emit("status_update", {"message": "Iniciando actualización del bot..."})
+
     global _is_first_run_since_startup
     
-    try:
-        await asyncio.wait_for(_bot_running_lock.acquire(), timeout=0.1)
-    except asyncio.TimeoutError:
+    if _bot_running_lock.locked():
         logger.warning("Se ignoró una nueva solicitud de ejecución del bot porque ya estaba en curso.")
         return "ignored_already_running"
     
-    page = None
-    try:
-        logger.info(f"=== INICIO DE EJECUCIÓN DEL BOT (Primera vez: {_is_first_run_since_startup}) ===")
-        page = await get_page()
-        
-        logger.info("🚀 Fase 1: Chequeo y establecimiento de Sesión.")
-        page = await perform_session_health_check(page, username, password)
-        
-        if _is_first_run_since_startup:
-            _is_first_run_since_startup = False
-            socketio.emit("initial_session_ready")
-            logger.info("✓ Navegador y sesión inicial listos. Notificación enviada al frontend.")
-
-        logger.info("🎬 Fase 2: Captura de Datos de Precios de Acciones.")
-        
-        # La verificación de _ensure_target_page ahora es una doble seguridad,
-        # pero la navegación principal ocurre en perform_session_health_check.
-        if not await _ensure_target_page(page, logger):
-             raise DataCaptureError("No se pudo asegurar la página de destino para la captura de acciones.")
-
-        max_attempts = 3
-        market_time, raw_data = None, None
-        
-        for attempt in range(1, max_attempts + 1):
-            logger.info(f"--- Intento de captura de acciones {attempt}/{max_attempts} ---")
-            try:
-                if not page or page.is_closed():
-                    logger.warning("[Capture] La página fue cerrada. Recreando y navegando a la página de datos...")
-                    page = await recreate_page()
-                    await page.goto(TARGET_DATA_PAGE_URL, wait_until="domcontentloaded", timeout=20000)
-
-                market_time, raw_data = await _attempt_data_capture(page)
-                
-                if market_time and raw_data:
-                    logger.info(f"✓ Captura de acciones exitosa en el intento {attempt}.")
-                    break
-                
-                missing = []
-                if not market_time: missing.append("hora del mercado")
-                if not raw_data: missing.append("datos de precios")
-                logger.warning(f"Intento de captura de acciones {attempt} fallido. Faltan datos: {', '.join(missing)}.")
-                
-            except Exception as e:
-                logger.error(f"Error grave en el intento de captura de acciones {attempt}: {e}", exc_info=True)
-                page = None # Forzar recreación en el siguiente intento
-
-            if attempt < max_attempts:
-                await asyncio.sleep(attempt * 2)
-            else:
-                 logger.error("Se agotaron los reintentos de captura de acciones.")
-        
-        if not market_time:
-            logger.warning("No se pudo interceptar la hora del mercado. Usando hora de fallback.")
-            market_time = get_fallback_market_time()
-            logger.info(f"✓ Usando hora de fallback: {market_time.strftime('%Y-%m-%d %H:%M:%S %Z')}")
-
-        if not raw_data:
-            raise DataCaptureError("No se pudieron capturar los datos de precios después de varios intentos.")
-        
-        if not validate_premium_data(raw_data):
-            raise DataCaptureError("El formato de los datos de acciones no es válido.")
-        
-        logger.info(f"✓ Datos de acciones capturados. Timestamp: {market_time.strftime('%Y-%m-%d %H:%M:%S')}")
-        
-        with (app or current_app).app_context():
-            store_prices_in_db(raw_data, market_time, app=app, filtered_symbols=filtered_symbols)
-            save_filtered_comparison_history(market_timestamp=market_time, app=app)
+    async with _bot_running_lock:
+        page = None
+        try:
+            logger.info(f"=== INICIO DE EJECUCIÓN DEL BOT (Primera vez: {_is_first_run_since_startup}) ===")
             
-        return "update_complete"
+            _validate_inputs(username, password)
+            assert username is not None
+            assert password is not None
+            
+            page = await get_page()
+            
+            logger.info("🚀 Fase 1: Chequeo y establecimiento de Sesión.")
+            page = await perform_session_health_check(page, username, password)
+            
+            if _is_first_run_since_startup:
+                _is_first_run_since_startup = False
+                socketio.emit("initial_session_ready")
+                logger.info("✓ Navegador y sesión inicial listos.")
 
-    except Exception as e:
-        if isinstance(e, (LoginError, DataCaptureError)):
+            logger.info("🎬 Fase 2: Captura de Datos de Precios.")
+            page, market_time, raw_data = await _capture_data_with_retries(page)
+
+            logger.info("💾 Fase 3: Procesamiento y Almacenamiento.")
+            _process_and_store_data(app, raw_data, market_time, filtered_symbols)
+            
+            return "update_complete"
+
+        except (LoginError, DataCaptureError) as e:
             _is_first_run_since_startup = True 
-        
-        error_message = f"Error crítico en la ejecución del bot: {str(e)}"
-        logger.error(error_message, exc_info=True)
-        socketio.emit("bot_error", {"message": str(e)})
-        with (app or current_app).app_context():
-            log_error("bot_automation", str(e), traceback.format_exc())
-        return f"error: {e}"
-        
-    finally:
-        if _bot_running_lock.locked():
-             _bot_running_lock.release()
-        logger.info("=== FIN DE EJECUCIÓN DEL BOT ===")
+            error_message = f"Error de negocio en la ejecución del bot: {e}"
+            logger.error(error_message, exc_info=True)
+            socketio.emit("bot_error", {"message": str(e)})
+            with (app or current_app).app_context():
+                log_error("bot_automation", str(e), traceback.format_exc())
+            return f"error: {e}"
+        except Exception as e:
+            error_message = f"Error crítico inesperado en la ejecución del bot: {e}"
+            logger.error(error_message, exc_info=True)
+            socketio.emit("bot_error", {"message": "Error inesperado en el bot."})
+            with (app or current_app).app_context():
+                log_error("bot_automation", str(e), traceback.format_exc())
+            return f"error: {e}"
+        finally:
+            logger.info("=== FIN DE EJECUCIÓN DEL BOT ===")

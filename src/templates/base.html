@@ -19,7 +19,7 @@
 
     {% block head %}{% endblock %}
 </head>
-<body>
+<body data-page="{{ page_name | default('unknown') }}">
     <div id="loading-overlay" class="loading-overlay">
         <div class="spinner-border text-primary" role="status">
             <span class="visually-hidden">Cargando...</span>
@@ -54,7 +54,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/datatables.net/1.13.6/jquery.dataTables.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/datatables.net-bs5/1.13.6/dataTables.bootstrap5.min.js"></script>
     
-    <script src="{{ url_for('static', filename='theme.js') }}"></script>
+    <!-- Socket.IO Client -->
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    
     {% block scripts %}{% endblock %}
 </body>
 </html>

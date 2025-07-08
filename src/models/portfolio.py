@@ -9,6 +9,11 @@ class Portfolio(db.Model):
     quantity = db.Column(db.Float, nullable=False)
     purchase_price = db.Column(db.Float, nullable=False)
 
+    def __init__(self, symbol, quantity, purchase_price):
+        self.symbol = symbol
+        self.quantity = quantity
+        self.purchase_price = purchase_price
+
     def to_dict(self):
         return {
             'id': self.id,
