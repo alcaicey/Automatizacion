@@ -33,8 +33,8 @@ API_PRIMARY_DATA_PATTERNS = [
 ]
 
 # Configuración de base de datos
-# DATABASE_URL por defecto para docker-compose
-DEFAULT_DB_URL = 'postgresql://postgres:postgres@localhost:5432/bolsa'
+# En Docker, los servicios se comunican por su nombre, no por localhost
+DEFAULT_DB_URL = 'postgresql://postgres:postgres@db:5432/bolsa'
 DATABASE_URL = os.environ.get('DATABASE_URL', DEFAULT_DB_URL)
 SQLALCHEMY_DATABASE_URI = DATABASE_URL
 SQLALCHEMY_TRACK_MODIFICATIONS = False
@@ -46,3 +46,12 @@ CERRAR_TODAS_SESIONES_SELECTOR = "#cerrar-sesiones"
 # URLs y selectores para manejo de sesiones activas
 ACTIVE_SESSIONS_URL_FRAGMENT = 'plus_dispositivos_conectados'
 CLOSE_ALL_SESSIONS_BUTTON_SELECTOR = 'button[ng-click="deshabilitarSesionesUsuario()"]'
+
+# Configuración de Socket.IO
+# (No se necesita configuración explícita aquí si se usa el modo de desarrollo)
+
+# Configuración de Celery
+# En Docker, los servicios se comunican por su nombre, no por localhost
+REDIS_URL = os.environ.get('REDIS_URL', 'redis://redis:6379/0')
+CELERY_BROKER_URL = REDIS_URL
+CELERY_RESULT_BACKEND = REDIS_URL

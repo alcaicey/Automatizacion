@@ -1,8 +1,12 @@
 $(document).ready(function() {
-    const table = $('#logsTable').DataTable({
-        ajax: {
-            url: '/api/logs',
-            dataSrc: '' // La respuesta es un array de objetos JSON
+    const table = new Tabulator("#logs-table", {
+        height: "80vh",
+        layout: "fitColumns",
+        placeholder: "No hay logs disponibles",
+        ajaxURL: '/api/system/logs',
+        ajaxConfig: "GET",
+        ajaxResponse: function(url, params, response) {
+            // Asume que la respuesta ya es el array de logs
         },
         columns: [
             { data: 'id', title: 'ID' },
@@ -34,8 +38,21 @@ $(document).ready(function() {
     $('#logsTable tbody').on('click', '.delete-btn', async function() {
         const id = $(this).data('id');
         if (confirm(`¿Estás seguro de que quieres borrar el log con ID ${id}?`)) {
-            await fetch('/api/logs/' + id, { method: 'DELETE' });
+            await fetch('/api/system/logs/' + id, { method: 'DELETE' });
             table.ajax.reload(null, false); // Recargar datos sin resetear la paginación
         }
     });
+
+    async function deleteLog(id) {
+        if (!confirm('¿Estás seguro de que quieres eliminar este log?')) return;
+        await fetch('/api/system/logs/' + id, { method: 'DELETE' });
+        table.replaceData(); // Recargar la tabla
+    }
+
+    document.getElementById('delete-all-logs').addEventListener('click', async () => {
+        if (!confirm('¿Estás seguro de que quieres eliminar TODOS los logs?')) return;
+        await fetch('/api/system/logs', { method: 'DELETE' });
+        table.replaceData();
+    });
+
 });

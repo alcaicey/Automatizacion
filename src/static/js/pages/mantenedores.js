@@ -41,7 +41,7 @@ $(document).ready(function() {
 
     async function loadModels() {
         try {
-            const res = await fetch('/api/mantenedores/models');
+            const res = await fetch('/api/crud/models');
             if (!res.ok) throw new Error('No se pudieron cargar los modelos.');
             const models = await res.json();
             tableSelect.innerHTML = '<option value="">Seleccione una tabla...</option>' +
@@ -51,13 +51,16 @@ $(document).ready(function() {
         }
     }
 
-    async function loadTable(name) {
+    async function loadTableData(name) {
         currentTable = name;
         try {
             // Se asume que la API puede devolver todos los registros para tablas de mantenedores.
             // Si las tablas son muy grandes, se necesitaría server-side processing.
-            const res = await fetch(`/api/mantenedores/${name}?per_page=10000`);
-            if (!res.ok) throw new Error(`Error al cargar datos de '${name}'.`);
+            const res = await fetch(`/api/crud/${name}?per_page=10000`);
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(error.message || 'No se pudieron cargar los datos.');
+            }
             
             const responseData = await res.json();
             pkColumns = responseData.pk_columns || [];
@@ -141,7 +144,7 @@ $(document).ready(function() {
             addBtn.style.display = 'inline-block';
             searchContainer.style.display = 'block';
             deleteAllBtn.style.display = allowedForMassDelete.includes(currentTable) ? 'inline-block' : 'none';
-            loadTable(currentTable);
+            loadTableData(currentTable);
         } else {
             addBtn.style.display = 'none';
             searchContainer.style.display = 'none';
@@ -160,11 +163,11 @@ $(document).ready(function() {
         if (!currentTable || !allowedForMassDelete.includes(currentTable)) return;
         if (confirm(`¿Estás SEGURO de que quieres borrar TODOS los registros de la tabla '${currentTable}'? Esta acción no se puede deshacer.`)) {
             try {
-                const res = await fetch(`/api/mantenedores/${currentTable}/all`, { method: 'DELETE' });
+                const res = await fetch(`/api/crud/${currentTable}/all`, { method: 'DELETE' });
                 const result = await res.json();
                 if (res.ok) {
                     alert(result.message);
-                    loadTable(currentTable);
+                    loadTableData(currentTable);
                 } else {
                     throw new Error(result.description || 'Error desconocido.');
                 }
@@ -192,9 +195,9 @@ $(document).ready(function() {
             openForm(rowData);
         } else if ($(this).hasClass('delete-btn')) {
             if (confirm(`¿Borrar registro con ID ${recordId}?`)) {
-                const url = `/api/mantenedores/${currentTable}/${encodeURIComponent(recordId)}`;
+                const url = `/api/crud/${currentTable}/${encodeURIComponent(recordId)}`;
                 await fetch(url, { method: 'DELETE' });
-                loadTable(currentTable);
+                loadTableData(currentTable);
             }
         }
     });
@@ -212,12 +215,12 @@ $(document).ready(function() {
         }
         const id = form.dataset.id;
         const method = id ? 'PUT' : 'POST';
-        const url = id ? `/api/mantenedores/${currentTable}/${encodeURIComponent(id)}` : `/api/mantenedores/${currentTable}`;
+        const url = id ? `/api/crud/${currentTable}/${encodeURIComponent(id)}` : `/api/crud/${currentTable}`;
         
         const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
         if (res.ok) {
             modal.hide();
-            loadTable(currentTable);
+            loadTableData(currentTable);
         } else {
             const error = await res.json();
             alert(`Error: ${error.description || 'Ocurrió un error.'}`);

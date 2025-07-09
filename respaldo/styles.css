@@ -1,0 +1,153 @@
+/* Estilos personalizados para la aplicación */
+
+/* Estilos generales */
+body {
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    font-family: 'Inter', Arial, sans-serif;
+}
+
+/* Estilos para la tabla */
+.table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+/* Estilos para variaciones positivas y negativas */
+.variation-positive {
+    color: #198754;
+}
+
+.variation-negative {
+    color: #dc3545;
+}
+
+/* Iconos de flechas para variaciones */
+.arrow-up {
+    color: #198754;
+}
+
+.arrow-down {
+    color: #dc3545;
+}
+
+/* Overlay de carga mejorado */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    z-index: 9999;
+}
+
+.loading-content {
+    text-align: center;
+    padding: 20px;
+    color: white;
+    background-color: rgba(0, 0, 0, 0.5);
+    border-radius: 10px;
+    max-width: 90%;
+}
+
+/* Animación para actualización de datos */
+@keyframes highlight {
+    0% {
+        background-color: rgba(255, 255, 0, 0.3);
+    }
+    100% {
+        background-color: transparent;
+    }
+}
+
+.highlight-update {
+    animation: highlight 2s ease-out;
+}
+
+/* Animación para resaltar filas actualizadas en tablas */
+@keyframes highlight-row {
+    0% { background-color: rgba(255, 255, 0, 0.4); }
+    100% { background-color: transparent; }
+}
+
+.highlight-update {
+    animation: highlight-row 2s ease-out;
+}
+/* Mejoras para dispositivos móviles */
+@media (max-width: 767.98px) {
+    .table-responsive {
+        max-height: 70vh;
+    }
+    
+    .card-header h1 {
+        font-size: 1.5rem;
+    }
+    
+.loading-content {
+        width: 90%;
+    }
+}
+
+.mermaid {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+/* =================================== */
+/* === TEMAS DE COLOR PERSONALIZADOS === */
+/* =================================== */
+
+/* Tema Terminal - Alto Contraste */
+[data-bs-theme="terminal"] {
+    --bs-body-color: #00ff41; /* Verde brillante */
+    --bs-body-color-rgb: 0, 255, 65;
+    --bs-body-bg: #0a0a0a; /* Negro ligeramente desaturado */
+    --bs-body-bg-rgb: 10, 10, 10;
+    --bs-emphasis-color: #00ff41;
+    --bs-emphasis-color-rgb: 0, 255, 65;
+    --bs-secondary-color: rgba(0, 255, 65, 0.75);
+    --bs-secondary-color-rgb: 0, 255, 65, 0.75;
+    --bs-secondary-bg: #1a1a1a;
+    --bs-secondary-bg-rgb: 26, 26, 26;
+    --bs-tertiary-color: rgba(0, 255, 65, 0.5);
+    --bs-tertiary-color-rgb: 0, 255, 65, 0.5;
+    --bs-tertiary-bg: #212121;
+    --bs-tertiary-bg-rgb: 33, 33, 33;
+
+    --bs-primary: #ffb400; /* Ámbar para acentos */
+    --bs-primary-rgb: 255, 180, 0;
+    --bs-primary-text-emphasis: #000;
+    --bs-primary-bg-subtle: #332300;
+    --bs-primary-border-subtle: #664600;
+
+    --bs-link-color: #00e1ff; /* Cian para enlaces */
+    --bs-link-color-rgb: 0, 225, 255;
+    --bs-link-hover-color: #66f0ff;
+    
+    --bs-border-color: #2b2b2b;
+    --bs-border-color-translucent: rgba(255, 255, 255, 0.1);
+
+    /* Colores de variación para el tema terminal */
+    .variation-positive, .arrow-up {
+        color: #00ff41 !important; /* Verde brillante */
+    }
+    
+    .variation-negative, .arrow-down {
+        color: #ff4136 !important; /* Rojo brillante */
+    }
+
+    /* Tablas en modo terminal */
+    .table {
+        --bs-table-bg: #0a0a0a;
+        --bs-table-color: #00ff41;
+        --bs-table-border-color: #2b2b2b;
+        --bs-table-striped-bg: #141414;
+        --bs-table-hover-bg: #2a2a2a;
+    }
+}

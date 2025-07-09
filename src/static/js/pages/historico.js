@@ -56,7 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function loadHistory() {
-        fetch('/api/history')
+        fetch('/api/data/history')
             .then(r => r.ok ? r.json() : Promise.reject('No se pudo cargar el historial'))
             .then(data => {
                 if (!data || data.length === 0) return;
@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
             codes.forEach(code => queryParams.append('code', code));
         }
         
-        fetch(`/api/history/compare?${queryParams.toString()}`)
+        fetch(`/api/data/history/compare?${queryParams.toString()}`)
             .then(r => r.ok ? r.json() : Promise.reject('No se pudo cargar la comparación'))
             .then(renderComparison)
             .catch(error => console.error("Error en loadComparison:", error));
@@ -138,7 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     async function loadAndApplyFilters() {
         try {
-            const response = await fetch('/api/filters');
+            const response = await fetch('/api/data/filters');
             const filters = await response.json();
             allStocksCheck.checked = filters.all;
             stockCodeInputs.forEach((input, index) => {
@@ -155,7 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
         event.preventDefault();
         const codes = Array.from(stockCodeInputs).map(input => input.value.trim().toUpperCase()).filter(Boolean);
         const showAll = allStocksCheck.checked;
-        await fetch('/api/filters', {
+        await fetch('/api/data/filters', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ codes: showAll ? [] : codes, all: showAll })

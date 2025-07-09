@@ -38,7 +38,7 @@ export default class AlertManager {
     async loadAlerts() {
         this.showFeedback('Cargando alertas...', 'info', true);
         try {
-            this.activeAlerts = await this.app.fetchData('/api/alerts') || [];
+            this.activeAlerts = await this.app.fetchData('/api/data/alerts') || [];
             this.renderAlerts();
             // No mostramos feedback de éxito para mantener la UI limpia
         } catch (error) {
@@ -63,7 +63,7 @@ export default class AlertManager {
 
         this.showFeedback('Creando alerta...', 'info', true);
         try {
-            await this.app.fetchData('/api/alerts', {
+            await this.app.fetchData('/api/data/alerts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(newAlert)
@@ -84,7 +84,7 @@ export default class AlertManager {
         
         this.showFeedback('Cancelando alerta...', 'info', true);
         try {
-            await this.app.fetchData(`/api/alerts/${alertId}`, { method: 'DELETE' });
+            await this.app.fetchData(`/api/data/alerts/${alertId}`, { method: 'DELETE' });
             this.app.uiManager.showToast('Alerta cancelada correctamente.', 'success');
             await this.loadAlerts();
         } catch (error) {
@@ -137,7 +137,7 @@ export default class AlertManager {
         // 2. Actualizar el estado de la alerta en el backend para no volver a dispararla.
         // Lo haremos "cancelándola", que la mueve a estado 'cancelled'
         try {
-            await this.app.fetchData(`/api/alerts/${alert.id}`, { method: 'DELETE' });
+            await this.app.fetchData(`/api/data/alerts/${alert.id}`, { method: 'DELETE' });
         } catch (error) {
             console.error(`Error al actualizar estado de alerta ${alert.id}:`, error);
             // No notificamos al usuario para no ser muy ruidosos, pero lo logueamos.

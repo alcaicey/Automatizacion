@@ -1,0 +1,66 @@
+{# templates/_navbar.html #}
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="{{ url_for('index') }}">
+      <i class="fas fa-chart-line me-2"></i>Bolsa App
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+            data-bs-target="#navbarNav" aria-controls="navbarNav"
+            aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        <li class="nav-item">
+          <a class="nav-link {{ 'active' if request.path == '/' else '' }}" href="/">
+            <i class="fas fa-home me-1"></i>Inicio
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {{ 'active' if request.path == url_for('dashboard') else '' }}" href="{{ url_for('dashboard') }}">
+            <i class="fas fa-chart-bar me-1"></i>Dashboard
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {{ 'active' if request.path == url_for('indicadores') else '' }}" href="{{ url_for('indicadores') }}">
+            <i class="fas fa-tachometer-alt me-1"></i>Indicadores
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {{ 'active' if request.path == url_for('historico') else '' }}" href="{{ url_for('historico') }}">
+            <i class="fas fa-history me-1"></i>Histórico
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {{ 'active' if request.path == url_for('logs') else '' }}" href="{{ url_for('logs') }}">
+            <i class="fas fa-clipboard-list me-1"></i>Logs
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {{ 'active' if request.path == url_for('mantenedores') else '' }}" href="{{ url_for('mantenedores') }}">
+            <i class="fas fa-database me-1"></i>Mantenedores
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {{ 'active' if request.path == url_for('architecture.architecture_page') else '' }}" href="{{ url_for('architecture.architecture_page') }}">
+            <i class="fas fa-sitemap me-1"></i>Arquitectura
+          </a>
+        </li>
+      </ul>
+
+      <div class="d-flex align-items-center">
+        <div class="dropdown">
+          <button id="themeDropdown" class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="fas fa-palette me-2"></i>Tema
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="themeDropdown">
+            <li><button class="dropdown-item" type="button" data-theme-value="light"><i class="fas fa-sun me-2"></i>Claro</button></li>
+            <li><button class="dropdown-item" type="button" data-theme-value="dark"><i class="fas fa-moon me-2"></i>Oscuro</button></li>
+            <li><button class="dropdown-item" type="button" data-theme-value="terminal"><i class="fas fa-terminal me-2"></i>Terminal</button></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav>

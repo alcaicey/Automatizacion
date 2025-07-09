@@ -101,7 +101,7 @@ export default class CommandPalette {
 
     async fetchSymbols() {
         try {
-            const response = await fetch('/api/all_stock_symbols');
+            const response = await fetch('/api/data/all_stock_symbols');
             if (!response.ok) throw new Error('Error al cargar símbolos');
             this.allSymbols = await response.json();
             this.renderResults(); // Mostrar todos los símbolos al principio

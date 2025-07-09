@@ -105,7 +105,10 @@ async def _capture_data_with_retries(page: Page) -> tuple[Page, datetime, dict]:
         logger.info(f"--- Intento de captura de acciones {attempt}/{max_attempts} ---")
         try:
             if not page or page.is_closed():
-                logger.warning("[Capture] La página fue cerrada. Recreando...")
+                logger.warning(
+                    "La página del bot fue cerrada, recreándola.",
+                    extra={"attempt": attempt, "page_status": "closed"}
+                )
                 page = await page_manager.get_page() # Lógica de recreación inteligente
                 await page.goto(TARGET_DATA_PAGE_URL, wait_until="domcontentloaded", timeout=20000)
 
@@ -119,10 +122,27 @@ async def _capture_data_with_retries(page: Page) -> tuple[Page, datetime, dict]:
                 "hora del mercado" if not market_time else None,
                 "datos de precios" if not raw_data else None
             ]))
-            logger.warning(f"Intento {attempt} fallido. Faltan datos: {missing}.")
+            logger.warning(
+                "Intento de captura fallido por datos incompletos.",
+                extra={
+                    "attempt": attempt,
+                    "missing_data": missing,
+                    "page_url": page.url
+                }
+            )
 
         except Exception as e:
-            logger.error(f"Error grave en el intento de captura {attempt}: {e}", exc_info=True)
+            logger.error(
+                "Error grave en el intento de captura de datos",
+                extra={
+                    "attempt": attempt,
+                    "max_attempts": max_attempts,
+                    "page_url": page.url,
+                    "error_type": type(e).__name__,
+                    "error_message": str(e)
+                },
+                exc_info=True
+            )
             # Forzar recreación en el siguiente intento será manejado por la comprobación `page.is_closed()`
 
         if attempt < max_attempts:
@@ -233,14 +253,30 @@ async def run_bolsa_bot(
         except (LoginError, DataCaptureError) as e:
             _is_first_run_since_startup = True 
             error_message = f"Error de negocio en la ejecución del bot: {e}"
-            logger.error(error_message, exc_info=True)
+            logger.error(
+                "Error de negocio durante la ejecución del bot",
+                extra={
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                    "service": "bolsa_service"
+                },
+                exc_info=True
+            )
             socketio.emit("bot_error", {"message": str(e)})
             with (app or current_app).app_context():
                 log_error_to_db("bot_automation", str(e), traceback.format_exc())
             return f"error: {e}"
         except Exception as e:
             error_message = f"Error crítico inesperado en la ejecución del bot: {e}"
-            logger.error(error_message, exc_info=True)
+            logger.critical(
+                "Error crítico inesperado en la ejecución del bot",
+                extra={
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                    "service": "bolsa_service"
+                },
+                exc_info=True
+            )
             socketio.emit("bot_error", {"message": "Error inesperado en el bot."})
             with (app or current_app).app_context():
                 log_error_to_db("bot_automation", str(e), traceback.format_exc())

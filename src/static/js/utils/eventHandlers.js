@@ -30,11 +30,11 @@ export default class EventHandlers {
 
         // --- MANEJADOR CENTRAL DE EVENTOS DE WIDGETS ---
         document.addEventListener('widgetAdded', (e) => {
-            const { widgetId } = e.detail;
+            const { widgetId, element } = e.detail;
             const manager = this.app.getWidgetManager(widgetId);
             if (manager && typeof manager.initializeWidget === 'function') {
                 console.log(`[Event] Inicializando widget: '${widgetId}'...`);
-                manager.initializeWidget();
+                manager.initializeWidget(element);
             } else {
                 console.log(`[Event] El widget '${widgetId}' fue añadido, pero no tiene un manager o método initializeWidget.`);
             }
@@ -75,8 +75,12 @@ export default class EventHandlers {
         this.uiManager.showFeedback('info', 'Iniciando actualización manual...');
         this.app.botStatusManager.setUpdating(true, 'Iniciando actualización...');
         
-        // Llamar al endpoint de la API REST para iniciar la actualización
-        this.app.fetchData('/api/stocks/update', { method: 'POST' })
+        this.app.showToast('Forzando actualización de la bolsa...', 'info');
+        this.app.uiManager.showLoading('bolsa-update-status');
+        this.app.fetchData('/api/data/stocks/update', { method: 'POST' })
+            .then(data => {
+                this.app.showToast(data.message || 'Actualización iniciada.', 'success');
+            })
             .catch(error => {
                 console.error('[EventHandlers] Error al llamar a la API de actualización:', error);
                 this.uiManager.showFeedback('danger', 'No se pudo iniciar la actualización.');

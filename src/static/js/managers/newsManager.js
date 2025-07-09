@@ -36,7 +36,7 @@ export default class NewsManager {
         this.showFeedback('Cargando noticias...', 'info', true);
         
         try {
-            const newsData = await this.app.fetchData('/api/news'); 
+            const newsData = await this.app.fetchData('/api/data/news'); 
             this.state.news = newsData || [];
             this.render();
             // No mostramos mensaje de éxito para mantener la UI limpia

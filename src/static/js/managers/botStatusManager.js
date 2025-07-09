@@ -72,7 +72,7 @@ export default class BotStatusManager {
     async getOutsideHoursSetting() {
         try {
             console.log('[BotStatusManager] Obteniendo configuración de actualización fuera de horario...');
-            const setting = await this.app.fetchData('/api/bot_settings/ALLOW_UPDATE_OUTSIDE_HOURS');
+            const setting = await this.app.fetchData('/api/config/bot_settings/ALLOW_UPDATE_OUTSIDE_HOURS');
             if (setting) {
                 this.dom.outsideHoursSwitch.checked = setting.value === 'true';
             }
@@ -102,7 +102,7 @@ export default class BotStatusManager {
         const isChecked = event.target.checked;
         console.log(`[BotStatusManager] Cambiando configuración de actualización fuera de horario a: ${isChecked}`);
         try {
-            await this.app.fetchData('/api/bot_settings', {
+            await this.app.fetchData('/api/config/bot_settings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -158,4 +158,30 @@ export default class BotStatusManager {
             return '--';
         }
     }
-} 
+
+    async fetchInitialStatus() {
+        this.showLoading();
+        try {
+            const setting = await this.app.fetchData('/api/config/bot_settings/ALLOW_UPDATE_OUTSIDE_HOURS');
+            this.isUpdateAllowed = setting ? setting.value === 'true' : false;
+
+            this.app.socket.emit('get_bot_status');
+        } catch (error) {
+            console.error('Error al obtener el estado inicial del bot:', error);
+        }
+    }
+
+    async saveSettings(settings) {
+        this.app.showToast('Guardando configuración...');
+        try {
+            await this.app.fetchData('/api/config/bot_settings', {
+                method: 'POST',
+                body: settings
+            });
+            this.app.showToast('Configuración guardada con éxito.', 'success');
+        } catch (error) {
+            console.error('Error al guardar la configuración del bot:', error);
+            this.app.showToast('Error al guardar la configuración.', 'error');
+        }
+    }
+}

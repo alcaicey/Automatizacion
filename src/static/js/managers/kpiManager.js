@@ -32,9 +32,9 @@ export default class KpiManager {
             console.error('[KPI Manager] Elementos esenciales como la tabla o el botón de actualizar no se encontraron. Abortando inicialización.');
             return;
         }
-
-        this.socket = this.app.socket;
         
+        this.socket = this.app.socket;
+
         this.attachEventListeners();
         this.loadKpis(); // Cargar los datos al inicializar
         console.log('[KPI Manager] Widget inicializado correctamente.');
@@ -72,7 +72,7 @@ export default class KpiManager {
 
         try {
             // Llama al endpoint de la API para iniciar la actualización de KPIs
-            const response = await this.app.fetchData('/api/kpis/update', { method: 'POST' });
+            const response = await this.app.fetchData('/api/data/kpis/update', { method: 'POST' });
             // El servidor responderá inmediatamente, y el progreso se recibirá por Socket.IO
         } catch (error) {
             this.showFeedback(`Error al iniciar la actualización: ${error.message}`, 'danger');
@@ -86,7 +86,7 @@ export default class KpiManager {
         this.showFeedback('Cargando indicadores...', 'info', true); // `true` para mostrar spinner
 
         try {
-            const kpiDataFromApi = await this.app.fetchData('/api/kpis');
+            const kpiDataFromApi = await this.app.fetchData('/api/data/kpis');
             this.kpiData = Array.isArray(kpiDataFromApi) ? kpiDataFromApi : [];
             this.renderTable();
             

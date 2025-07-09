@@ -27,7 +27,7 @@ export default class ClosingManager {
     async loadData() {
         this.showFeedback('Cargando datos de cierre...', 'info', true);
         try {
-            const data = await this.app.fetchData('/api/closing');
+            const data = await this.app.fetchData('/api/data/closing');
             this.state.closings = data || [];
             this.render();
             this.showFeedback(`Se cargaron ${this.state.closings.length} registros de cierre.`, 'success');

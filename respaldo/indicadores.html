@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+
+{% block title %}Indicadores del Mercado{% endblock %}
+
+{% block head %}
+{{ super() }}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap5.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h1 class="mb-4">Indicadores del Mercado</h1>
+    
+    <!-- Este es el contenedor principal para todos los módulos de indicadores -->
+    <div id="indicators-container">
+
+        <!-- Módulo de Indicadores Financieros Clave -->
+        <div class="card shadow-sm mb-4 indicator-module" id="module-financial-kpis">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">📊 Indicadores Financieros Clave</h5>
+                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#collapseKPIs" aria-expanded="true" aria-controls="collapseKPIs">
+                    Ocultar/Mostrar
+                </button>
+            </div>
+            <div class="collapse show" id="collapseKPIs">
+                <div class="card-body">
+                    <!-- INICIO DE LA MODIFICACIÓN: Barra de herramientas unificada -->
+                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2" id="kpi-toolbar">
+                        <div class="d-flex gap-2">
+                            <button id="selectKPIStocksBtn" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#kpiSelectionModal"><i class="fas fa-check-square me-2"></i>Seleccionar Acciones</button>
+                            <button id="kpiColumnBtn" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#kpiColumnConfigModal"><i class="fas fa-sliders-h"></i> Columnas</button>
+                            <button id="kpiPromptBtn" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#kpiPromptModal"><i class="fas fa-robot me-2"></i>Prompt IA</button>
+                            <button id="updateKPIsBtn" class="btn btn-success"><i class="fas fa-sync-alt me-2"></i>Cargar/Actualizar KPIs</button>
+                        </div>
+                        <!-- Los botones de DataTables (Excel, CSV) y el campo de búsqueda se insertarán aquí con JS -->
+                    </div>
+                    <!-- FIN DE LA MODIFICACIÓN -->
+                    <div id="kpiUpdateAlert" class="alert d-none" role="alert"></div>
+                    <div class="table-responsive">
+                        <table id="kpiTable" class="table table-striped table-hover w-100">
+                            <thead></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Módulo de Dividendos -->
+        <div class="card shadow-sm mb-4 indicator-module" id="module-dividends">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-money-bill-wave me-2"></i>Próximos Dividendos</h5>
+                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDividends" aria-expanded="true" aria-controls="collapseDividends">
+                    Ocultar/Mostrar
+                </button>
+            </div>
+            <div class="collapse show" id="collapseDividends">
+                <div class="card-body">
+                    <!-- Fila de Controles -->
+                    <div id="dividends-toolbar" class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3 p-3 border rounded bg-body-tertiary">
+                        <!-- Filtros Personalizados -->
+                        <div class="d-flex flex-wrap gap-2 align-items-end">
+                            <div>
+                                <label for="dividendStartDate" class="form-label form-label-sm">Desde</label>
+                                <input type="date" id="dividendStartDate" class="form-control form-control-sm">
+                            </div>
+                            <div>
+                                <label for="dividendEndDate" class="form-label form-label-sm">Hasta</label>
+                                <input type="date" id="dividendEndDate" class="form-control form-control-sm">
+                            </div>
+                            <div>
+                                <label for="dividendColumnFilter" class="form-label form-label-sm">Filtrar Columna</label>
+                                <select id="dividendColumnFilter" class="form-select form-select-sm"></select>
+                            </div>
+                             <div>
+                                <label for="dividendTextFilter" class="form-label form-label-sm">Valor a Buscar</label>
+                                <input type="text" id="dividendTextFilter" class="form-control form-control-sm" placeholder="Ej: COPEC, true, 1.12">
+                            </div>
+                             <div class="d-flex gap-1">
+                                <button id="applyDividendFilters" class="btn btn-primary btn-sm">Aplicar</button>
+                                <button id="clearDividendFilters" class="btn btn-secondary btn-sm">Limpiar</button>
+                             </div>
+                        </div>
+                        <!-- Botones de Acción -->
+                        <div class="d-flex gap-2">
+                            <button id="updateDividendsBtn" class="btn btn-info"><i class="fas fa-sync-alt me-2"></i>Revisar</button>
+                            <button id="dividendColumnBtn" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#dividendColumnConfigModal"><i class="fas fa-sliders-h"></i> Columnas</button>
+                        </div>
+                    </div>
+                    <output id="dividendChangesAlert" class="alert d-none" role="status"></output>
+                    <div id="dividendsTableContainer" class="position-relative">
+                        <!-- Overlay de carga -->
+                        <div id="dividendsLoadingOverlay" class="position-absolute top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-light bg-opacity-75" style="display: none; z-index: 10;">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Cargando...</span>
+                            </div>
+                        </div>
+                        <!-- Contenedor de Errores -->
+                        <div id="dividendsError" class="alert alert-danger" style="display: none;"></div>
+                        <!-- Tabla -->
+                        <div class="table-responsive">
+                            <table id="dividendsTable" class="table table-sm table-hover w-100">
+                                <thead></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modales -->
+<div class="modal fade" id="dividendColumnConfigModal" tabindex="-1" aria-labelledby="dividendColumnConfigModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="dividendColumnConfigModalLabel">Columnas de Dividendos</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body"><form id="dividendColumnConfigForm" class="row g-2"></form></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" id="saveDividendColumnPrefs" class="btn btn-primary">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="kpiSelectionModal" tabindex="-1" aria-labelledby="kpiSelectionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="kpiSelectionModalLabel">Seleccionar Acciones para Análisis de KPIs</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="kpiStockSearch" class="form-control mb-3" placeholder="Buscar acción...">
+                <form id="kpiSelectionForm" class="row g-2"></form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" id="saveKPISelectionBtn" class="btn btn-primary">Guardar Selección</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="kpiColumnConfigModal" tabindex="-1" aria-labelledby="kpiColumnConfigModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="kpiColumnConfigModalLabel">Seleccionar Columnas de KPIs</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="kpiColumnConfigForm" class="row g-2"></form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" id="saveKPIColumnPrefs" class="btn btn-primary">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para el Prompt de IA -->
+<div class="modal fade" id="kpiPromptModal" tabindex="-1" aria-labelledby="kpiPromptModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="kpiPromptModalLabel">Prompt para Generación de KPIs con IA</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <p class="form-text">Este es el prompt que se utiliza para solicitar a la IA que genere los indicadores. Puedes modificarlo para ajustar los resultados. Usa <code>{nemo}</code> donde quieras insertar el símbolo de la acción y <code>{closing_data}</code> para los datos de cierre.</p>
+                    <textarea id="kpiPromptTextarea" class="form-control" rows="15"></textarea>
+                </div>
+                <div id="promptUpdateAlert" class="alert d-none" role="alert"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" id="saveKpiPromptBtn" class="btn btn-primary">Guardar Prompt</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Detalles de Fila de KPI -->
+<div class="modal fade" id="kpiRowDetailModal" tabindex="-1" aria-labelledby="kpiRowDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="kpiRowDetailModalLabel">Detalles de Generación para <span id="detailModalNemo"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="kpiRowDetailBody">
+                <!-- El contenido se cargará aquí dinámicamente -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.bootstrap5.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
+
+{# Cargar solo el script principal de la página como módulo #}
+<script src="{{ url_for('static', filename='js/pages/indicadores.js', v='1.0.2') }}" type="module"></script>
+{% endblock %}
