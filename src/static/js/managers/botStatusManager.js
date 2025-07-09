@@ -93,9 +93,12 @@ export default class BotStatusManager {
     }
 
     handleUpdateNow() {
-        console.log('[BotStatusManager] Solicitando actualización manual...');
+        console.log('[BotStatusManager] Clic en "Actualizar Ahora" detectado.');
         this.updateStatus({ status: 'running', message: 'Actualización manual solicitada...' });
+        
+        console.log('[BotStatusManager] Emitiendo evento "run_bot_manually" al servidor...');
         this.socket.emit('run_bot_manually');
+        console.log('[BotStatusManager] Evento "run_bot_manually" emitido.');
     }
 
     async handleOutsideHoursChange(event) {

@@ -1,7 +1,7 @@
 # src/app.py
 import logging
 import asyncio
-from flask import Flask, render_template
+from flask import Flask, render_template, jsonify
 import time
 
 from src import config
@@ -16,6 +16,7 @@ from src.routes.architecture import architecture_bp
 # Importar el paquete de modelos para que SQLAlchemy los descubra
 import src.models
 
+# Configuración inicial del logger para este módulo
 logger = logging.getLogger(__name__)
 
 # Variable global para el 'cache buster'
@@ -39,6 +40,12 @@ def create_app(config_module=config):
     db.init_app(app)
     # Cambiar el async_mode a eventlet
     socketio.init_app(app, async_mode='eventlet', message_queue=app.config.get('REDIS_URL'))
+    
+    # --- AÑADIR ESTA LÍNEA ---
+    # Importar los manejadores de eventos para registrarlos con la instancia de socketio
+    from . import socket_events
+    # ---------------------------
+
     logger.info("[app.py] Extensiones inicializadas.")
 
     # Inicializar Celery con la app
@@ -85,5 +92,27 @@ def create_app(config_module=config):
     app.register_blueprint(architecture_bp)
     logger.info("[app.py] Blueprints registrados.")
     
+    # --- AÑADIR ESTAS LÍNEAS PARA DEBUGGING ---
+    if app.config.get('DEBUG'):
+        werkzeug_logger = logging.getLogger('werkzeug')
+        werkzeug_logger.setLevel(logging.INFO)
+    # -------------------------------------------
+
+    # --- AÑADIR ESTE BLOQUE JUSTO ANTES DEL RETURN ---
+    @app.errorhandler(404)
+    def page_not_found(e):
+        output = "Rutas disponibles en la aplicación:\n"
+        rules = sorted(app.url_map.iter_rules(), key=lambda r: r.rule)
+        for rule in rules:
+            methods = ','.join(sorted(rule.methods))
+            output += f"- Endpoint: {rule.endpoint}, Métodos: {methods}, Ruta: {rule.rule}\n"
+        
+        # Imprime la lista de rutas en la consola del servidor
+        print(output) 
+        
+        # Devuelve la respuesta JSON estándar al navegador
+        return jsonify(error=str(e)), 404
+    # -------------------------------------------------
+
     logger.info("[app.py] Creación de la aplicación completada.")
     return app 

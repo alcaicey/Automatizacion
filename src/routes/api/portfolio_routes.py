@@ -1,17 +1,19 @@
 # src/routes/api/portfolio_routes.py
 import logging
+import json
 from flask import Blueprint, jsonify, request, current_app
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
-import json
 
 from src.models import Portfolio, KpiSelection, StockClosing, PortfolioColumnPreference
 from src.extensions import db
 
+# 1. Crea un Blueprint específico para este módulo
+portfolio_bp = Blueprint('portfolio_bp', __name__)
+
 logger = logging.getLogger(__name__)
 
-portfolio_bp = Blueprint('portfolio', __name__)
-
+# 2. Usa ESE blueprint para decorar las rutas
 @portfolio_bp.route("/", methods=["GET", "POST"])
 def portfolio_handler():
     with current_app.app_context():
@@ -61,9 +63,6 @@ def get_portfolio_data_view():
                 "total_paid": 0, "total_current_value": 0, "total_gain_loss": 0
             }})
 
-        # --- Consulta Robusta (Método Simple) ---
-        # Se itera sobre cada símbolo para obtener su último precio.
-        # Es menos eficiente para miles de símbolos, pero mucho más robusto.
         latest_prices = {}
         for symbol in symbols:
             price_entry = StockClosing.query.filter_by(nemo=symbol).order_by(StockClosing.date.desc()).first()

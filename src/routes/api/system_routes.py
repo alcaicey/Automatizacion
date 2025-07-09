@@ -1,10 +1,13 @@
 # src/routes/api/system_routes.py
 import logging
-from flask import Blueprint, jsonify, request, current_app
+from flask import Blueprint, jsonify
+
+# 1. Crea un Blueprint específico para este módulo
+system_bp = Blueprint('system_bp', __name__)
 
 logger = logging.getLogger(__name__)
-system_bp = Blueprint('system', __name__)
 
+# 2. Usa ESE blueprint para decorar las rutas
 @system_bp.route('/status', methods=['GET'])
 def get_status():
     return jsonify({"status": "ok"})

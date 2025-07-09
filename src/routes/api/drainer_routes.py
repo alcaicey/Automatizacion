@@ -1,15 +1,16 @@
 # src/routes/api/drainer_routes.py
 import logging
-import threading
-from flask import jsonify, current_app, Blueprint
-
+from flask import Blueprint, jsonify, current_app
 from src.tasks import run_drainer_analysis_task
 from src.models import AnomalousEvent
 
-logger = logging.getLogger(__name__)
-drainer_bp = Blueprint('drainer', __name__)
+# 1. Crea un Blueprint específico para este módulo
+drainer_bp = Blueprint('drainer_bp', __name__)
 
-@drainer_bp.route("/drainers/events", methods=["GET"])
+logger = logging.getLogger(__name__)
+
+# 2. Usa ESE blueprint para decorar las rutas
+@drainer_bp.route("/events", methods=["GET"])
 def get_drainer_events():
     with current_app.app_context():
         events = AnomalousEvent.query.order_by(AnomalousEvent.event_date.desc()).all()
