@@ -1,11 +1,28 @@
 // src/static/js/app.js
 
-// Captura global de errores para depuración
-window.addEventListener("error", function (e) {
-    console.error("Error capturado:", e.message, e.filename, e.lineno, e.error);
+window.addEventListener('error', (event) => {
+    console.error('ERROR GLOBAL NO CAPTURADO:', {
+        message: event.message,
+        filename: event.filename,
+        lineno: event.lineno,
+        colno: event.colno,
+        error: event.error
+    });
+    
+    // Opcional: Mostrar un mensaje genérico al usuario para recargar
+    const errorId = 'global-error-banner';
+    if (document.getElementById(errorId)) return; // No mostrar múltiples banners
+
+    const errorDiv = document.createElement('div');
+    errorDiv.id = errorId;
+    errorDiv.className = 'alert alert-danger position-fixed top-0 start-0 w-100 rounded-0 text-center';
+    errorDiv.style.zIndex = '2000';
+    errorDiv.innerHTML = 'Ocurrió un error inesperado. Se recomienda <a href="#" onclick="location.reload()">recargar la página</a>.';
+    document.body.prepend(errorDiv);
 });
-window.addEventListener("unhandledrejection", function (e) {
-    console.error("Promesa no manejada:", e.reason);
+
+window.addEventListener('unhandledrejection', (event) => {
+    console.error('PROMESA RECHAZADA NO CAPTURADA:', event.reason);
 });
 
 import UIManager from './managers/uiManager.js';
@@ -59,7 +76,6 @@ class App {
 
     async initialize() {
         console.log('[App] Inicialización comenzando...');
-        // this.uiManager.toggleLoading(false); // Llamada de depuración para forzar ocultar el overlay
         try {
             this.uiManager.initialize();
             this.theme.initialize();
@@ -188,34 +204,48 @@ class App {
 
     // --- Lógica de Datos ---
 
-    async fetchData(url, options = {}) {
+    async fetchData(url, options = {}, timeout = 15000) { // Timeout de 15 segundos por defecto
         const controller = new AbortController();
         const timeoutId = setTimeout(() => {
-            console.warn(`[API] La petición a ${url} ha superado el tiempo de espera de 15s. Abortando...`);
+            console.warn(`Petición a ${url} superó el timeout de ${timeout}ms. Abortando.`);
             controller.abort();
-        }, 15000); // 15 segundos de timeout
-
+        }, timeout);
+    
         try {
             const response = await fetch(url, {
                 ...options,
-                signal: controller.signal
+                signal: controller.signal // Asociar el AbortController
             });
+    
+            clearTimeout(timeoutId); // Limpiar el timeout si la respuesta llega a tiempo
+    
             if (!response.ok) {
-                throw new Error(`Error en la respuesta del servidor: ${response.status} ${response.statusText}`);
+                // Intentar leer el error del cuerpo de la respuesta JSON del manejador global
+                try {
+                    const errorData = await response.json();
+                    // Usar el mensaje del error del backend si está disponible, sino, uno genérico
+                    throw new Error(errorData.message || `Error del servidor: ${response.status}`);
+                } catch (jsonError) {
+                    // Si el cuerpo no es JSON o hay otro error, usar el status text
+                    throw new Error(`Error en la respuesta HTTP: ${response.status} ${response.statusText}`);
+                }
+            }
+            // Si la respuesta es 204 No Content, no intentar parsear JSON
+            if (response.status === 204) {
+                return null;
             }
             return await response.json();
+    
         } catch (error) {
-            if (error.name === 'AbortError') {
-                const errorMessage = `La petición a ${url} fue cancelada por timeout.`;
-                console.error(errorMessage);
-                this.uiManager.showFeedback('warning', 'El servidor tarda demasiado en responder.');
-                throw new Error(errorMessage);
-            }
-            console.error(`Error al realizar la petición a ${url}:`, error);
-            this.uiManager.updateStatus(`No se pudo conectar al servidor.`, 'danger');
-            throw error;
-        } finally {
             clearTimeout(timeoutId);
+            if (error.name === 'AbortError') {
+                console.error(`Petición abortada por timeout: ${url}`);
+                // Lanzar un error más amigable para ser capturado por los managers
+                throw new Error('El servidor tardó demasiado en responder.');
+            }
+            // Re-lanzar otros errores para que sean manejados por quien llamó a la función
+            console.error(`Error en fetchData para ${url}:`, error.message);
+            throw error; 
         }
     }
 
@@ -248,31 +278,23 @@ class App {
 
             if (['total_paid', 'current_value', 'gain_loss_total', 'purchase_price', 'current_price'].includes(col.id)) {
                 config.render = this.uiManager.createNumberRenderer(false, 'es-CL', currencyOptions);
-            } else if (['daily_variation_percent', 'gain_loss_percent'].includes(col.id)) {
-                config.render = this.uiManager.createNumberRenderer(true);
+            } else if (['gain_loss_percent', 'daily_variation_percent'].includes(col.id)) {
+                config.render = this.uiManager.createNumberRenderer(true); // isPercentage = true
             } else if (col.id === 'quantity') {
                 config.render = this.uiManager.createNumberRenderer();
+            } else {
+                config.render = (data, type, row) => data !== null && data !== undefined ? data : 'N/A';
             }
             portfolioColumnConfig[col.id] = config;
         });
         
-        // 2. Construir el array de columnas para DataTables usando las columnas visibles
-        const visibleColumns = this.portfolioManager.state.columnPrefs.visible;
-        const portfolioColumns = visibleColumns.map(key => ({
-            data: key,
-            title: portfolioColumnConfig[key]?.title || key
-        }));
+        // 2. Determinar el orden de las columnas visibles
+        const visibleColumns = this.portfolioManager.state.columnPrefs.visible
+            .map(id => portfolioColumnConfig[id])
+            .filter(Boolean); // Filtrar por si alguna pref no tiene config
 
-        // 3. Renderizar la tabla
-        this.uiManager.renderTable(
-            portfolioData,
-            'portfolioTable',
-            portfolioColumnConfig,
-            portfolioColumns
-        );
-
-        // 4. Renderizar el resumen/totales
-        this.portfolioManager.renderSummary(portfolioData);
+        // 3. Renderizar o actualizar la tabla
+        this.uiManager.renderDataTable('#portfolio-table', portfolioData, visibleColumns, changedNemos);
     }
 
     clearObsoleteLayout() {
@@ -296,9 +318,6 @@ class App {
 // Punto de entrada principal
 document.addEventListener('DOMContentLoaded', () => {
     console.log('[App] DOM completamente cargado y parseado.');
-    // Limpieza de layout obsoleto para evitar errores de widgets fantasma.
-    localStorage.removeItem('dashboardLayout');
-
     const app = new App();
     window.app = app;
     app.initialize();

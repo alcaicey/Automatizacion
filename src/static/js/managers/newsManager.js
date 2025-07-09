@@ -3,57 +3,57 @@
 export default class NewsManager {
     constructor(app) {
         this.app = app;
-        this.newsList = null;
-        this.newsLoading = null;
-        this.newsRefreshBtn = null;
+        this.container = null;
+        this.dom = {}; // Centralizar elementos del DOM
         this.state = {
             news: [],
         };
     }
 
-    init() {
-        console.log('[NewsManager] init() llamado. Redirigiendo a initializeWidget().');
-        this.initializeWidget();
-    }
-
     initializeWidget(container) {
         if (!container) {
-            console.warn('[NewsManager] Contenedor del widget no definido. Cancelando inicialización.');
+            console.warn('[NewsManager] Contenedor del widget no definido.');
             return;
         }
-        this.newsList = container.querySelector('#news-list');
-        this.newsLoading = container.querySelector('#news-loading');
-        this.newsRefreshBtn = container.querySelector('#newsRefreshBtn');
+        this.container = container;
+        this.dom = {
+            list: this.container.querySelector('#news-list'),
+            loading: this.container.querySelector('#news-loading'),
+            refreshBtn: this.container.querySelector('#newsRefreshBtn'),
+            // Usaremos el loading como contenedor de feedback
+            feedbackContainer: this.container.querySelector('#news-widget-body'), 
+        };
         
-        if (this.newsRefreshBtn) {
-            this.newsRefreshBtn.addEventListener('click', () => this.loadNews());
+        if (this.dom.refreshBtn) {
+            this.dom.refreshBtn.addEventListener('click', () => this.loadNews());
         }
         this.loadNews();
     }
 
     async loadNews() {
-        if (!this.newsList || !this.newsLoading) return;
+        if (!this.dom.list || !this.dom.loading) return;
 
-        this.newsLoading.classList.remove('d-none');
-        this.newsList.classList.add('d-none');
+        this.showFeedback('Cargando noticias...', 'info', true);
         
         try {
             const newsData = await this.app.fetchData('/api/news'); 
-            this.state.news = newsData;
+            this.state.news = newsData || [];
             this.render();
+            // No mostramos mensaje de éxito para mantener la UI limpia
         } catch (error) {
-            console.error('Error al cargar noticias:', error);
-        } finally {
-            this.newsLoading.classList.add('d-none');
+            console.error('[NewsManager] Error al cargar noticias:', error);
+            this.state.news = []; // Asegurar estado limpio
+            this.render(); // Renderizar para mostrar el mensaje de "no hay noticias"
+            this.showFeedback(`Error al cargar noticias: ${error.message}`, 'danger');
         }
     }
 
     render() {
-        if (!this.newsList) return;
+        if (!this.dom.list) return;
 
-        this.newsList.innerHTML = ''; // Limpiar lista
+        this.dom.list.innerHTML = '';
         if (this.state.news.length === 0) {
-            this.newsList.innerHTML = '<li class="list-group-item">No hay noticias disponibles.</li>';
+            this.dom.list.innerHTML = '<li class="list-group-item text-muted">No hay noticias disponibles en este momento.</li>';
         } else {
             this.state.news.forEach(item => {
                 const li = document.createElement('li');
@@ -61,13 +61,42 @@ export default class NewsManager {
                 li.innerHTML = `
                     <div class="d-flex w-100 justify-content-between">
                         <h6 class="mb-1">${item.headline}</h6>
-                        <small>${new Date(item.timestamp).toLocaleTimeString()}</small>
+                        <small>${new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small>
                     </div>
-                    <p class="mb-1 small">${item.source} - Sentimiento: ${item.sentiment}</p>
+                    <p class="mb-1 small text-muted">${item.source} - Sentimiento: ${item.sentiment}</p>
                 `;
-                this.newsList.appendChild(li);
+                this.dom.list.appendChild(li);
             });
         }
-        this.newsList.classList.remove('d-none');
+        this.dom.list.classList.remove('d-none');
+        this.dom.loading.classList.add('d-none'); // Ocultar el loader al final
+    }
+
+    showFeedback(message, type = 'info', isLoading = false) {
+        if (!this.dom.loading && !this.dom.feedbackContainer) return;
+
+        // Ocultar la lista mientras se carga o hay error
+        if (this.dom.list) this.dom.list.classList.add('d-none');
+        
+        if (isLoading) {
+            if (this.dom.loading) {
+                this.dom.loading.innerHTML = `
+                    <div class="spinner-border spinner-border-sm" role="status"></div>
+                    <span class="ms-2">${message}</span>`;
+                this.dom.loading.className = 'text-center p-4'; // Reset class
+                this.dom.loading.classList.remove('d-none');
+            }
+        } else {
+            // Si no estamos cargando, ocultamos el spinner
+            if (this.dom.loading) this.dom.loading.classList.add('d-none');
+
+            // Si hay un mensaje de error/éxito, podríamos mostrarlo en otro lugar
+            // Por ahora, como no hay un alert dedicado, lo logueamos
+            if (type === 'danger' || type === 'success') {
+                console.log(`[NewsManager Feedback] ${type}: ${message}`);
+                // Si la lista está vacía, el render() mostrará el mensaje adecuado
+                if (this.dom.list) this.dom.list.classList.remove('d-none');
+            }
+        }
     }
 } 

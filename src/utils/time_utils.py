@@ -14,7 +14,7 @@ def get_fallback_market_time() -> datetime.datetime:
     - Si es un fin de semana, festivo, o antes de las 16:00, devuelve las 16:00 del último día hábil.
     """
     chile_tz = pytz.timezone('America/Santiago')
-    chile_holidays = holidays.CL()
+    chile_holidays = holidays.CL() # type: ignore
     now_chile = datetime.datetime.now(chile_tz)
 
     logger.info(f"Calculando hora de fallback. Hora actual en Chile: {now_chile.strftime('%Y-%m-%d %H:%M')}")
@@ -40,5 +40,18 @@ def get_fallback_market_time() -> datetime.datetime:
         datetime.datetime.combine(last_business_day, datetime.time(16, 0))
     )
     
-    logger.info(f"Fin de semana/festivo/pre-cierre. Usando cierre del último día hábil: {last_business_day.strftime('%Y-%m-%d')} a las 16:00.")
+    logger.info("Fin de semana/festivo/pre-cierre. Usando cierre del último día hábil: {last_business_day.strftime('%Y-%m-%d')} a las 16:00.")
     return fallback_time
+
+def is_market_open(current_time: datetime.time, open_time: datetime.time, close_time: datetime.time) -> bool:
+    """
+    Verifica si la hora actual está dentro del horario de mercado.
+    Toma en cuenta que todas las horas deben tener la misma información de zona horaria.
+    """
+    # Verificación de días de semana (Lunes=0, Domingo=6)
+    today = datetime.datetime.now(current_time.tzinfo).weekday()
+    if today > 4: # Sábado o Domingo
+        return False
+        
+    # Verificación de horario
+    return open_time <= current_time < close_time

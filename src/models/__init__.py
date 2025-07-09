@@ -24,3 +24,13 @@ from .stock_closing import StockClosing
 from .stock_filter import StockFilter
 from .stock_price import StockPrice
 from .user import User
+from .bot_setting import BotSetting
+
+__all__ = [
+    'User', 'Credentials', 'StockPrice', 'Dividend', 'StockClosing',
+    'AdvancedKPI', 'KpiSelection', 'PromptConfig', 'ColumnPreference',
+    'PortfolioColumnPreference', 'ClosingColumnPreference',
+    'DividendColumnPreference', 'KpiColumnPreference', 'StockFilter',
+    'FilteredStockHistory', 'AnomalousEvent', 'Portfolio', 'Alert',
+    'LastUpdate', 'LogEntry', 'BotSetting'
+]

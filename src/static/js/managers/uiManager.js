@@ -218,4 +218,36 @@ export default class UIManager {
             feedbackEl.remove();
         }, 3000);
     }
+
+    // AÑADIR ESTE ALIAS PARA CORREGIR EL TypeError
+    showToast(message, type = 'info') {
+        console.warn('[UI] showToast está obsoleto, use showFeedback(type, message).');
+        // Mapear tipos si es necesario
+        const feedbackType = type === 'error' ? 'danger' : type;
+        this.showFeedback(feedbackType, message);
+    }
+
+    /**
+     * Formatea un valor numérico para mostrarlo en la UI, añadiendo color según sea positivo, negativo o cero.
+     * @param {number|string|null|undefined} value - El valor a formatear.
+     * @returns {string} El HTML formateado.
+     */
+    formatValue(value) {
+        if (value === null || value === undefined || value === 'N/A') {
+            return '<span class="text-muted">N/A</span>';
+        }
+        const num = parseFloat(value);
+        if (isNaN(num)) {
+            return value;
+        }
+        
+        let className = 'text-warning'; // Default to zero
+        if (num > 0) {
+            className = 'text-success';
+        } else if (num < 0) {
+            className = 'text-danger';
+        }
+
+        return `<span class="${className}">${this.formatNumber(num)}</span>`;
+    }
 }

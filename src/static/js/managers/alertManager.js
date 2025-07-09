@@ -3,113 +3,94 @@
 export default class AlertManager {
     constructor(app) {
         this.app = app;
-        this.alertList = null;
-        this.alertLoading = null;
-        this.alertForm = null;
+        this.dom = {}; // Centralizar elementos del DOM
         this.activeAlerts = [];
     }
 
     initializeWidget(container) {
-        if (!container) {
-            console.warn('[AlertManager] Contenedor del widget no definido. Cancelando inicialización.');
-            return;
-        }
-        this.alertForm = container.querySelector('#alertForm');
-        this.alertList = container.querySelector('#alert-list');
-        this.alertLoading = container.querySelector('#alert-loading');
-
-        if (!this.alertForm) {
-            console.warn("Módulo de Alertas no presente en esta vista o elementos no encontrados.");
-            return;
-        }
+        if (!container) return;
         
-        console.log("Módulo de Alertas inicializado correctamente.");
+        this.dom = {
+            form: container.querySelector('#alertForm'),
+            list: container.querySelector('#alert-list'),
+            loading: container.querySelector('#alert-loading'),
+            // Usaremos el contenedor del widget para el feedback
+            feedbackContainer: container.querySelector('.widget-body'),
+        };
+
+        if (!this.dom.form) return;
+        
         this.setupEventListeners();
         this.loadAlerts();
     }
 
     setupEventListeners() {
-        if (!this.alertForm) return;
-        this.alertForm.addEventListener('submit', this.handleCreateAlert.bind(this));
+        this.dom.form.addEventListener('submit', (e) => this.handleCreateAlert(e));
         
-        // Usamos delegación de eventos para los botones de eliminar
-        this.alertList.addEventListener('click', (e) => {
-            if (e.target.classList.contains('cancel-alert-btn') || e.target.closest('.cancel-alert-btn')) {
-                const button = e.target.closest('.cancel-alert-btn');
-                const alertId = button.dataset.alertId;
-                if (alertId) {
-                    this.handleCancelAlert(alertId);
-                }
+        this.dom.list.addEventListener('click', (e) => {
+            const cancelButton = e.target.closest('.cancel-alert-btn');
+            if (cancelButton) {
+                this.handleCancelAlert(cancelButton.dataset.alertId);
             }
         });
     }
 
     async loadAlerts() {
-        this.showLoading();
+        this.showFeedback('Cargando alertas...', 'info', true);
         try {
-            const response = await fetch('/api/alerts');
-            if (!response.ok) throw new Error(`Error del servidor: ${response.status}`);
-            
-            this.activeAlerts = await response.json();
+            this.activeAlerts = await this.app.fetchData('/api/alerts') || [];
             this.renderAlerts();
+            // No mostramos feedback de éxito para mantener la UI limpia
         } catch (error) {
-            console.error('Error al cargar alertas:', error);
-            this.app.showToast('Error al cargar las alertas.', 'error');
-            this.renderError();
-        } finally {
-            this.hideLoading();
+            console.error('[AlertManager] Error al cargar alertas:', error);
+            this.showFeedback(`Error al cargar alertas.`, 'danger');
+            this.renderAlerts(); // Renderizará la lista vacía con el mensaje adecuado
         }
     }
 
     async handleCreateAlert(event) {
         event.preventDefault();
-        const symbol = this.alertForm.querySelector('#alertSymbol').value.toUpperCase();
-        const targetPrice = this.alertForm.querySelector('#alertPrice').value;
-        const condition = this.alertForm.querySelector('#alertCondition').value;
+        const symbol = this.dom.form.querySelector('#alertSymbol').value.toUpperCase();
+        const targetPrice = this.dom.form.querySelector('#alertPrice').value;
+        const condition = this.dom.form.querySelector('#alertCondition').value;
 
         if (!symbol || !targetPrice) {
-            this.app.showToast('Debe ingresar un símbolo y un precio.', 'warning');
+            this.app.uiManager.showToast('Debe ingresar un símbolo y un precio.', 'warning');
             return;
         }
 
         const newAlert = { symbol, target_price: parseFloat(targetPrice), condition };
 
+        this.showFeedback('Creando alerta...', 'info', true);
         try {
-            const response = await fetch('/api/alerts', {
+            await this.app.fetchData('/api/alerts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(newAlert)
             });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Error al crear la alerta');
-            }
             
-            this.app.showToast(`Alerta creada para ${symbol}.`, 'success');
-            this.alertForm.reset();
-            this.loadAlerts(); // Recargar la lista
-
+            this.app.uiManager.showToast(`Alerta para ${symbol} creada con éxito.`, 'success');
+            this.dom.form.reset();
+            await this.loadAlerts();
         } catch (error) {
-            console.error('Error al crear alerta:', error);
-            this.app.showToast(error.message, 'error');
+            console.error('[AlertManager] Error al crear alerta:', error);
+            this.app.uiManager.showToast(`Error al crear alerta: ${error.message}`, 'danger');
+            this.loadAlerts(); // Recargar para limpiar el estado
         }
     }
     
     async handleCancelAlert(alertId) {
         if (!confirm('¿Está seguro de que desea cancelar esta alerta?')) return;
-
+        
+        this.showFeedback('Cancelando alerta...', 'info', true);
         try {
-            const response = await fetch(`/api/alerts/${alertId}`, { method: 'DELETE' });
-            if (!response.ok) {
-                 const errorData = await response.json();
-                throw new Error(errorData.error || 'Error al cancelar la alerta');
-            }
-            this.app.showToast('Alerta cancelada correctamente.', 'success');
-            this.loadAlerts(); // Recargar la lista
+            await this.app.fetchData(`/api/alerts/${alertId}`, { method: 'DELETE' });
+            this.app.uiManager.showToast('Alerta cancelada correctamente.', 'success');
+            await this.loadAlerts();
         } catch (error) {
-            console.error(`Error al cancelar alerta ${alertId}:`, error);
-            this.app.showToast(error.message, 'error');
+            console.error(`[AlertManager] Error al cancelar alerta ${alertId}:`, error);
+            this.app.uiManager.showToast(`Error al cancelar alerta: ${error.message}`, 'danger');
+            this.loadAlerts(); // Recargar para limpiar el estado
         }
     }
 
@@ -151,16 +132,12 @@ export default class AlertManager {
         // 1. Mostrar notificación visual al usuario
         const conditionText = alert.condition === 'above' ? 'alcanzó o superó' : 'alcanzó o cayó por debajo de';
         const message = `<strong>${alert.symbol}</strong> ${conditionText} los $${alert.target_price.toLocaleString('es-CL')}.`;
-        this.app.showToast(message, 'warning'); // Usamos 'warning' para que sea más visible
+        this.app.uiManager.showToast(message, 'warning'); // Usamos 'warning' para que sea más visible
 
         // 2. Actualizar el estado de la alerta en el backend para no volver a dispararla.
         // Lo haremos "cancelándola", que la mueve a estado 'cancelled'
         try {
-            const response = await fetch(`/api/alerts/${alert.id}`, { method: 'DELETE' });
-             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Error al actualizar la alerta disparada');
-            }
+            await this.app.fetchData(`/api/alerts/${alert.id}`, { method: 'DELETE' });
         } catch (error) {
             console.error(`Error al actualizar estado de alerta ${alert.id}:`, error);
             // No notificamos al usuario para no ser muy ruidosos, pero lo logueamos.
@@ -168,9 +145,9 @@ export default class AlertManager {
     }
 
     renderAlerts() {
-        this.alertList.innerHTML = '';
+        this.dom.list.innerHTML = '';
         if (this.activeAlerts.length === 0) {
-            this.alertList.innerHTML = '<li class="list-group-item text-muted small">No hay alertas activas.</li>';
+            this.dom.list.innerHTML = '<li class="list-group-item text-muted small">No hay alertas activas.</li>';
         } else {
             this.activeAlerts.forEach(alert => {
                 const conditionText = alert.condition === 'above' ? '&ge;' : '&le;';
@@ -186,27 +163,20 @@ export default class AlertManager {
                         <i class="fas fa-times"></i>
                     </button>
                 `;
-                this.alertList.appendChild(item);
+                this.dom.list.appendChild(item);
             });
         }
+        this.showFeedback('', 'info', false); // Ocultar el loader
     }
 
-    renderError() {
-        this.alertList.innerHTML = `
-            <li class="list-group-item text-danger small">
-                No se pudieron cargar las alertas. Intente recargar.
-            </li>`;
-    }
-
-    showLoading() {
-        if (!this.alertLoading) return;
-        this.alertLoading.classList.remove('d-none');
-        this.alertList.classList.add('d-none');
-    }
-
-    hideLoading() {
-        if (!this.alertLoading) return;
-        this.alertLoading.classList.add('d-none');
-        this.alertList.classList.remove('d-none');
+    showFeedback(message, type = 'info', isLoading = false) {
+        if (this.dom.loading) {
+            this.dom.loading.style.display = isLoading ? 'block' : 'none';
+            this.dom.list.style.display = isLoading ? 'none' : 'block';
+        }
+        // Para errores, podríamos usar un toast global ya que este widget no tiene un alert dedicado
+        if (type === 'danger') {
+            this.app.uiManager.showToast(message, 'danger');
+        }
     }
 } 

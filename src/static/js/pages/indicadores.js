@@ -4,13 +4,25 @@ import KpiManager from '../managers/kpiManager.js';
 import DividendManager from '../managers/dividendManager.js';
 import UIManager from '../managers/uiManager.js';
 
-/**
- * Crea una instancia mínima de la App para proporcionar dependencias
- * a los managers que se usan en esta página aislada.
- */
 class MockApp {
     constructor() {
         this.uiManager = new UIManager(this);
+        
+        // --- INICIO DE LA CORRECCIÓN ---
+        // Asegurarnos de que el socket SIEMPRE se inicialice aquí,
+        // ya que tanto KpiManager como DividendManager lo necesitan.
+        try {
+            this.socket = io();
+            console.log("[Indicadores MockApp] Socket.IO inicializado.");
+        } catch (e) {
+            console.error("[Indicadores MockApp] Error al inicializar Socket.IO. Asegúrate de que el script de socket.io esté cargado en el HTML.", e);
+            // Proporcionar un objeto de socket falso para evitar que la app crashee
+            this.socket = {
+                on: () => {},
+                emit: () => {}
+            };
+        }
+        // --- FIN DE LA CORRECCIÓN ---
     }
 
     async fetchData(url) {
@@ -23,32 +35,31 @@ class MockApp {
         } catch (error) {
             console.error(`Error al realizar la petición a ${url}:`, error);
             if (this.uiManager) {
-                this.uiManager.showFeedback('No se pudo conectar al servidor.', 'danger');
+                // this.uiManager.showFeedback('No se pudo conectar al servidor.', 'danger');
             }
             throw error;
         }
     }
 }
 
-// Punto de entrada para la página de Indicadores
 document.addEventListener('DOMContentLoaded', () => {
     console.log('[Indicadores] Página cargada. Inicializando módulos...');
 
     const app = new MockApp();
     
-    // Instanciar los managers necesarios para esta página
     const kpiManager = new KpiManager(app);
     const dividendManager = new DividendManager(app);
 
-    // Inicializar los widgets/módulos
     try {
-        if (document.getElementById('kpi-table-widget')) {
-            kpiManager.initializeWidget();
+        const kpiContainer = document.getElementById('module-financial-kpis');
+        if (kpiContainer) {
+            kpiManager.initializeWidget(kpiContainer);
             console.log("[Indicadores] Módulo 'KpiManager' inicializado.");
         }
         
-        if (document.getElementById('dividend-table-widget')) {
-            dividendManager.initializeWidget();
+        const dividendContainer = document.getElementById('module-dividends');
+        if (dividendContainer) {
+            dividendManager.initializeWidget(dividendContainer);
             console.log("[Indicadores] Módulo 'DividendManager' inicializado.");
         }
     } catch (error) {

@@ -11,14 +11,19 @@ from typing import List, Optional
 from flask import current_app
 from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError, Error as PlaywrightError
 
-from .bot_page_manager import get_page, recreate_page
-from .bot_login import auto_login, LoginError, TARGET_DATA_PAGE_URL, BASE_URL
+from src.models import StockClosing, StockPrice, Dividend, AdvancedKPI, FilteredStockHistory, BotSetting
+from src.utils.db_io import (
+    store_prices_in_db, save_filtered_comparison_history
+)
+
+from .bot_page_manager import get_page_manager_instance
+from .bot_login import auto_login, LoginError
+from .bot_config import TARGET_DATA_PAGE_URL, BASE_URL, MARKET_OPEN_TIME, MARKET_CLOSE_TIME
 from .bot_data_capture import capture_market_time, capture_premium_data_via_network, validate_premium_data, DataCaptureError
-from src.utils.db_io import store_prices_in_db, save_filtered_comparison_history
-from src.extensions import socketio
-from src.routes.errors import log_error
+from src.extensions import socketio, db
 from src.utils.page_utils import _ensure_target_page
-from src.utils.time_utils import get_fallback_market_time
+from src.utils.time_utils import get_fallback_market_time, is_market_open
+from src.utils.db_logging import log_error_to_db
 
 logger = logging.getLogger(__name__)
 _bot_running_lock = asyncio.Lock()
@@ -44,12 +49,13 @@ async def check_if_logged_in(page: Page) -> bool:
 
 async def perform_session_health_check(page: Page, username: str, password: str) -> Page:
     logger.info("[Health Check] Verificando estado de la sesión...")
+    page_manager = await get_page_manager_instance()
     try:
-        await page.goto(BASE_URL, wait_until="load", timeout=60000)
+        await page.goto(BASE_URL, wait_until="domcontentloaded", timeout=60000)
     except PlaywrightError as e:
         if "Target page, context or browser has been closed" in str(e):
             logger.warning("[Health Check] La página fue cerrada antes del chequeo. Recreando...")
-            page = await recreate_page()
+            page = await page_manager.get_page() # Lógica de recreación inteligente
             await page.goto(BASE_URL, wait_until="domcontentloaded", timeout=30000)
         else:
             logger.error(f"[Health Check] Timeout al intentar navegar a la página principal: {e}")
@@ -94,12 +100,13 @@ async def _attempt_data_capture(page: Page) -> tuple[datetime | None, dict | Non
 async def _capture_data_with_retries(page: Page) -> tuple[Page, datetime, dict]:
     """Intenta capturar datos con una política de reintentos."""
     max_attempts = 3
+    page_manager = await get_page_manager_instance()
     for attempt in range(1, max_attempts + 1):
         logger.info(f"--- Intento de captura de acciones {attempt}/{max_attempts} ---")
         try:
             if not page or page.is_closed():
                 logger.warning("[Capture] La página fue cerrada. Recreando...")
-                page = await recreate_page()
+                page = await page_manager.get_page() # Lógica de recreación inteligente
                 await page.goto(TARGET_DATA_PAGE_URL, wait_until="domcontentloaded", timeout=20000)
 
             market_time, raw_data = await _attempt_data_capture(page)
@@ -129,8 +136,8 @@ def _process_and_store_data(
     raw_data: dict, 
     market_time: Optional[datetime], 
     filtered_symbols: Optional[List[str]]
-):
-    """Valida los datos y los almacena en la base de datos."""
+) -> datetime:
+    """Valida los datos, los almacena en la BD y devuelve el timestamp utilizado."""
     final_market_time = market_time or get_fallback_market_time()
     logger.info(f"✓ Usando timestamp: {final_market_time.strftime('%Y-%m-%d %H:%M:%S %Z')}")
 
@@ -140,8 +147,15 @@ def _process_and_store_data(
     logger.info("✓ Datos de acciones validados.")
     
     with (app or current_app).app_context():
+        if not raw_data:
+            raise DataCaptureError("No se recibieron datos brutos de la red.")
+        
+        logger.info(f"Datos recibidos, procediendo a guardar en la base de datos con fecha de mercado: {final_market_time.strftime('%Y-%m-%d %H:%M:%S')}")
         store_prices_in_db(raw_data, final_market_time, app=app, filtered_symbols=filtered_symbols)
+        logger.info("El guardado de datos en la base de datos se ha completado.")
         save_filtered_comparison_history(market_timestamp=final_market_time, app=app)
+    
+    return final_market_time
 
 
 def _validate_inputs(username: Optional[str], password: Optional[str]):
@@ -156,8 +170,6 @@ async def run_bolsa_bot(
     password: Optional[str] = None, 
     filtered_symbols: Optional[List[str]] = None
 ) -> str | None:
-    # Emitimos un evento inmediato para notificar al frontend (y a los tests)
-    # que la ejecución ha comenzado, antes de adquirir el lock.
     socketio.emit("status_update", {"message": "Iniciando actualización del bot..."})
 
     global _is_first_run_since_startup
@@ -169,13 +181,30 @@ async def run_bolsa_bot(
     async with _bot_running_lock:
         page = None
         try:
+            # --- VERIFICACIÓN DE HORARIO DE MERCADO ---
+            with (app or current_app).app_context():
+                allow_outside_hours_setting = BotSetting.query.filter_by(key='ALLOW_UPDATE_OUTSIDE_HOURS').first()
+                allow_outside_hours = allow_outside_hours_setting and allow_outside_hours_setting.value == 'true'
+
+            # Usamos la hora actual de Chile
+            current_chile_time = datetime.now(MARKET_OPEN_TIME.tzinfo).time()
+            market_is_open = is_market_open(current_chile_time, MARKET_OPEN_TIME, MARKET_CLOSE_TIME)
+
+            if not market_is_open and not allow_outside_hours:
+                message = "El bot no se ejecutará fuera del horario de mercado (9:30-16:00). Puede activar esta opción en el dashboard."
+                logger.warning(message)
+                socketio.emit("bot_status_update", {"status": "idle", "message": message})
+                return "ignored_outside_market_hours"
+            # --- FIN DE VERIFICACIÓN ---
+            
             logger.info(f"=== INICIO DE EJECUCIÓN DEL BOT (Primera vez: {_is_first_run_since_startup}) ===")
             
             _validate_inputs(username, password)
             assert username is not None
             assert password is not None
             
-            page = await get_page()
+            page_manager = await get_page_manager_instance()
+            page = await page_manager.get_page()
             
             logger.info("🚀 Fase 1: Chequeo y establecimiento de Sesión.")
             page = await perform_session_health_check(page, username, password)
@@ -189,8 +218,16 @@ async def run_bolsa_bot(
             page, market_time, raw_data = await _capture_data_with_retries(page)
 
             logger.info("💾 Fase 3: Procesamiento y Almacenamiento.")
-            _process_and_store_data(app, raw_data, market_time, filtered_symbols)
+            final_market_time = _process_and_store_data(app, raw_data, market_time, filtered_symbols)
             
+            # --- INICIO DE LA MODIFICACIÓN ---
+            logger.info("[Service] Emitiendo evento 'update_complete' al frontend con timestamp.")
+            socketio.emit('update_complete', {
+                'message': 'Los datos de acciones han sido actualizados.',
+                'last_update_timestamp': final_market_time.isoformat()
+            })
+            # --- FIN DE LA MODIFICACIÓN ---
+
             return "update_complete"
 
         except (LoginError, DataCaptureError) as e:
@@ -199,14 +236,39 @@ async def run_bolsa_bot(
             logger.error(error_message, exc_info=True)
             socketio.emit("bot_error", {"message": str(e)})
             with (app or current_app).app_context():
-                log_error("bot_automation", str(e), traceback.format_exc())
+                log_error_to_db("bot_automation", str(e), traceback.format_exc())
             return f"error: {e}"
         except Exception as e:
             error_message = f"Error crítico inesperado en la ejecución del bot: {e}"
             logger.error(error_message, exc_info=True)
             socketio.emit("bot_error", {"message": "Error inesperado en el bot."})
             with (app or current_app).app_context():
-                log_error("bot_automation", str(e), traceback.format_exc())
+                log_error_to_db("bot_automation", str(e), traceback.format_exc())
             return f"error: {e}"
         finally:
             logger.info("=== FIN DE EJECUCIÓN DEL BOT ===")
+            if page_manager:
+                await page_manager.close()
+            _is_first_run_since_startup = False # Marcar que la primera ejecución ya pasó
+            socketio.emit("bot_status_updated", {"is_running": False})
+            if _bot_running_lock.locked():
+                _bot_running_lock.release()
+
+async def get_kpis() -> list[AdvancedKPI]:
+    """Obtiene los datos de KPIs desde la página."""
+    page_manager = await get_page_manager_instance()
+    page = await page_manager.get_page()
+    try:
+        if TARGET_DATA_PAGE_URL not in page.url:
+            logger.info("Redirigiendo a la página de datos para KPIs...")
+            await page.goto(TARGET_DATA_PAGE_URL, wait_until="networkidle")
+
+        kpi_data = await capture_premium_data_via_network(page, 'kpi')
+        validated_kpis = validate_premium_data(kpi_data, AdvancedKPI)
+        # La responsabilidad de guardar se ha movido, este servicio solo captura y valida.
+        # save_kpi_data(validated_kpis) 
+        return validated_kpis
+    except (PlaywrightError, DataCaptureError) as e:
+        logger.error(f"Error al obtener o procesar los datos de KPIs: {e}")
+        await page_manager.close()
+        return []

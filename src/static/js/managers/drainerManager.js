@@ -89,36 +89,55 @@ export default class DrainerManager {
     async runAnalysis() {
         if (this.isAnalyzing) return;
         this.isAnalyzing = true;
+        
         this.dom.runBtn.disabled = true;
         this.dom.runBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Analizando...';
-        this.showFeedback('Iniciando análisis en el servidor...', 'info');
+        this.showFeedback('Iniciando análisis en el servidor...', 'info', true);
 
         try {
-            const response = await fetch('/api/drainers/analyze', { method: 'POST' });
-            if (!response.ok) throw new Error((await response.json()).message);
-            this.showFeedback((await response.json()).message, 'info');
+            const response = await this.app.fetchData('/api/drainers/analyze', { method: 'POST' });
+            // El servidor responderá, pero el progreso y resultado final vendrán por socket.
+            // La respuesta inicial podría ser simplemente un ack.
+            this.showFeedback(response.message || 'Análisis iniciado. Esperando progreso...', 'info', true);
         } catch (error) {
-            this.showFeedback(`Error: ${error.message}`, 'danger');
+            this.showFeedback(`Error al iniciar análisis: ${error.message}`, 'danger');
             this.isAnalyzing = false;
             this.dom.runBtn.disabled = false;
+            this.dom.runBtn.innerHTML = '<i class="fas fa-play-circle me-2"></i>Ejecutar Análisis';
         }
     }
 
     async fetchEvents() {
         if(!this.isInitialized) return;
+        this.showFeedback('Cargando eventos...', 'info', true);
         try {
-            const response = await fetch('/api/drainers/events');
-            if (!response.ok) throw new Error('No se pudieron cargar los eventos.');
-            const events = await response.json();
-            this.dataTable.clear().rows.add(events).draw();
+            const events = await this.app.fetchData('/api/drainers/events');
+            this.dataTable.clear().rows.add(events || []).draw();
+            this.showFeedback(`Se cargaron ${events.length} eventos.`, 'success');
         } catch (error) {
             this.showFeedback(`Error al cargar eventos: ${error.message}`, 'danger');
+            this.dataTable.clear().draw(); // Limpiar tabla en caso de error
         }
     }
 
-    showFeedback(message, type = 'info') {
+    showFeedback(message, type = 'info', isLoading = false) {
         if (!this.dom.alert) return;
-        this.dom.alert.className = `alert alert-${type} alert-dismissible fade show`;
-        this.dom.alert.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`;
+
+        const alert = this.dom.alert;
+        alert.className = `alert alert-${type} d-flex align-items-center`;
+        
+        let content = '';
+        if (isLoading) {
+            content += '<div class="spinner-border spinner-border-sm me-2" role="status"></div>';
+        }
+        content += `<span>${message}</span>`;
+        
+        alert.innerHTML = content;
+        alert.classList.remove('d-none');
+
+        // Ocultar automáticamente si no es un estado de carga o de información persistente
+        if (!isLoading && type !== 'info') {
+            setTimeout(() => alert.classList.add('d-none'), 5000);
+        }
     }
 }

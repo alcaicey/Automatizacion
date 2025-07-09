@@ -94,12 +94,15 @@ def stock_history(symbol):
 @api_bp.route("/dividends", methods=["GET"])
 def get_dividends():
     with current_app.app_context():
+        logger.info("[API /dividends] Petición recibida.")
         latest_closing_date = db.session.query(func.max(StockClosing.date)).scalar()
+        logger.info(f"[API /dividends] Última fecha de cierre encontrada: {latest_closing_date}")
         
         if not latest_closing_date:
             logger.warning("[API /dividends] No se encontraron datos de cierre bursátil. Devolviendo lista de dividendos vacía.")
             return jsonify([])
 
+        logger.info("[API /dividends] Construyendo consulta base de dividendos...")
         query = db.session.query(
             Dividend,
             # Se usa una subconsulta para la columna 'belongs_to_ipsa' para evitar que el outerjoin filtre todo
@@ -108,14 +111,17 @@ def get_dividends():
             .where(StockClosing.date == latest_closing_date)
             .label('is_ipsa')
         )
+        logger.info("[API /dividends] Consulta base construida.")
 
         if start_date_str := request.args.get('start_date'):
             start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
             query = query.filter(Dividend.payment_date >= start_date)
+            logger.info(f"[API /dividends] Filtro por fecha de inicio aplicado: {start_date}")
 
         if end_date_str := request.args.get('end_date'):
             end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
             query = query.filter(Dividend.payment_date <= end_date)
+            logger.info(f"[API /dividends] Filtro por fecha de fin aplicado: {end_date}")
             
         # El filtro de IPSA ahora se aplica sobre la subconsulta, que puede ser nula
         if request.args.get('is_ipsa') == 'true':
@@ -125,6 +131,7 @@ def get_dividends():
                 .where(StockClosing.date == latest_closing_date)
                 .as_scalar() == True
             )
+            logger.info("[API /dividends] Filtro IPSA aplicado.")
 
         if search_text := request.args.get('search_text', '').strip():
             column_map = {
@@ -143,8 +150,11 @@ def get_dividends():
                         Dividend.description.ilike(f"%{search_text}%")
                     )
                 )
+            logger.info(f"[API /dividends] Filtro de búsqueda de texto aplicado: '{search_text}'")
 
+        logger.info("[API /dividends] Ejecutando consulta final a la base de datos...")
         results = query.order_by(Dividend.payment_date.asc()).all()
+        logger.info(f"[API /dividends] Consulta completada. {len(results)} registros encontrados.")
         
         enriched_dividends = []
         for dividend, belongs_to_ipsa in results:
@@ -152,6 +162,7 @@ def get_dividends():
             dividend_dict['is_ipsa'] = bool(belongs_to_ipsa)
             enriched_dividends.append(dividend_dict)
             
+        logger.info(f"[API /dividends] Devolviendo {len(enriched_dividends)} dividendos enriquecidos.")
         return jsonify(enriched_dividends)
 
 @api_bp.route("/closing", methods=["GET"])
@@ -170,13 +181,31 @@ def get_closing_data():
 @api_bp.route("/kpis", methods=["GET"])
 def get_all_kpis():
     with current_app.app_context():
+        logger.info("[API /kpis] Petición recibida.")
+        
         selected_nemos_query = select(KpiSelection.nemo)
         selected_nemos = [row.nemo for row in db.session.execute(selected_nemos_query).all()]
-        if not selected_nemos: return jsonify([])
+        logger.info(f"[API /kpis] {len(selected_nemos)} nemotécnicos seleccionados para KPIs.")
+        
+        if not selected_nemos:
+            logger.info("[API /kpis] No hay nemotécnicos seleccionados, devolviendo array vacío.")
+            return jsonify([])
+
         latest_date = db.session.query(func.max(StockClosing.date)).scalar()
-        if not latest_date: return jsonify([])
+        logger.info(f"[API /kpis] Última fecha de cierre encontrada: {latest_date}")
+        if not latest_date:
+            logger.info("[API /kpis] No hay fecha de cierre, devolviendo array vacío.")
+            return jsonify([])
+
+        logger.info("[API /kpis] Realizando consulta de datos de cierre...")
         closings = StockClosing.query.filter(StockClosing.nemo.in_(selected_nemos), StockClosing.date == latest_date).all()
-        advanced_kpis = {k.nemo: k.to_dict() for k in AdvancedKPI.query.filter(AdvancedKPI.nemo.in_(selected_nemos)).all()}
+        logger.info(f"[API /kpis] Consulta de cierre completada. {len(closings)} registros encontrados.")
+
+        logger.info("[API /kpis] Realizando consulta de KPIs avanzados...")
+        advanced_kpis_query = AdvancedKPI.query.filter(AdvancedKPI.nemo.in_(selected_nemos)).all()
+        advanced_kpis = {k.nemo: k.to_dict() for k in advanced_kpis_query}
+        logger.info(f"[API /kpis] Consulta de KPIs avanzados completada. {len(advanced_kpis)} registros encontrados.")
+        
         combined_data = []
         for closing in closings:
             data = closing.to_dict()
@@ -189,6 +218,8 @@ def get_all_kpis():
             data['kpi_last_updated'] = adv_data.get('last_updated')
             data['kpi_source'] = adv_data.get('source')
             combined_data.append(data)
+            
+        logger.info(f"[API /kpis] Devolviendo {len(combined_data)} registros combinados.")
         return jsonify(combined_data)
 
 @api_bp.route("/dashboard/chart-data", methods=["GET"])

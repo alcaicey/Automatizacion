@@ -1,7 +1,9 @@
 // src/static/js/pages/dashboard.js
 
-import UIManager from '../managers/uiManager.js';
-import PortfolioManager from '../managers/portfolioManager.js';
+import App from '../app.js';
+import BotStatusManager from '../managers/botStatusManager.js';
+import NewsManager from '../managers/newsManager.js';
+import AlertManager from '../managers/alertManager.js';
 
 export default class Dashboard {
     constructor(app) {
@@ -26,9 +28,13 @@ export default class Dashboard {
             this.uiManager.updateStatus('Conectado al servidor.', 'success');
         });
 
-        this.socket.on('disconnect', () => {
-            console.warn('[Socket.IO] Desconectado del servidor.');
+        this.socket.on('disconnect', (reason) => {
+            console.warn('[Socket.IO] Desconectado del servidor:', reason);
             this.uiManager.updateStatus('Desconectado. Intentando reconectar...', 'warning');
+            if (reason === 'io server disconnect') {
+                // el servidor cerró la conexión, puedes intentar reconectar
+                this.socket.connect();
+            }
         });
 
         this.socket.on('connect_error', (err) => {
@@ -50,6 +56,33 @@ export default class Dashboard {
             
             // Aquí se podría añadir lógica para resaltar cambios en las tablas
             this.app.portfolioManager.render(data.stocks); // Re-render simple por ahora
+        });
+
+        this.socket.on('update_complete', (data) => {
+            console.log('[Socket.IO] Evento "update_complete" recibido:', data);
+            
+            // 1. Notificar al usuario (opcional pero recomendado)
+            this.app.uiManager.showFeedback('success', '¡Actualización completada!');
+    
+            // 2. Ordenar a los managers relevantes que se refresquen
+            if (this.app.portfolioManager) {
+                console.log('[Dashboard] Ordenando a PortfolioManager que se refresque.');
+                this.app.portfolioManager.refresh(); 
+            }
+    
+            if (this.app.botStatusManager && data.last_update_timestamp) {
+                console.log('[Dashboard] Actualizando estado del bot.');
+                // Le pasamos el timestamp directamente para que no tenga que hacer otra llamada a la API
+                this.app.botStatusManager.updateStatus(
+                    'Actualización completada.',
+                    'success',
+                    false, // No está cargando
+                    data.last_update_timestamp
+                );
+            }
+            
+            // 3. Puedes añadir aquí llamadas a otros managers que necesiten refrescarse
+            // if (this.app.newsManager) { this.app.newsManager.refresh(); }
         });
     }
 }

@@ -1,9 +1,10 @@
 // src/static/js/managers/portfolioManager.js
-
 export default class PortfolioManager {
     constructor(app) {
         this.app = app;
         this.uiManager = app.uiManager;
+        this.container = null;
+        this.dom = {}; // Para almacenar elementos del DOM
         this.state = {
             portfolio: [],
             columnPrefs: {
@@ -12,217 +13,137 @@ export default class PortfolioManager {
             },
             lastPriceMap: new Map()
         };
-        this.grid = null; // Se establecerá en initialize
-    }
-
-    init() {
-        console.log('[PortfolioManager] init() llamado. Redirigiendo a initializeWidget().');
-        this.initializeWidget();
     }
 
     async initializeWidget(container) {
         if (!container) {
-            console.warn('[PortfolioManager] Contenedor del widget de portafolio no definido. Cancelando inicialización.');
+            console.warn('[PortfolioManager] Contenedor no definido.');
             return;
         }
+        this.container = container;
+        // Asignar elementos del DOM aquí para tenerlos disponibles
+        this.dom.alertContainer = this.container.querySelector('.widget-feedback-alert'); // Asume que hay un <div class="widget-feedback-alert"> en la plantilla
+        await this.fetchAndRender();
+        this.attachEventListeners();
+    }
 
-        console.log('[PortfolioManager] Ejecutando initializeWidget()');
-        this.uiManager.toggleLoading(true, 'Cargando datos del portafolio...');
+    attachEventListeners() {
+        // Ejemplo: si tuvieras un formulario para añadir activos en el widget
+        const addAssetForm = this.container.querySelector('#portfolioForm'); // Asume un form con este id
+        if (addAssetForm) {
+            addAssetForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const symbol = this.container.querySelector('#portfolioSymbol').value;
+                const quantity = this.container.querySelector('#portfolioQuantity').value;
+                const price = this.container.querySelector('#portfolioPrice').value;
+                await this.addAsset(symbol, quantity, price);
+            });
+        }
+    }
 
+    async fetchAndRender() {
+        if (!this.container) return;
+        this.showFeedback('Cargando portafolio...', 'info', true);
         try {
-            const [columnsData, holdingsData] = await Promise.all([
-                this.app.fetchData('/api/portfolio/columns'),
-                this.app.fetchData('/api/portfolio/holdings')
-            ]);
-            
-            console.log('[PortfolioManager] Datos de columnas recibidos:', columnsData);
-            console.log('[PortfolioManager] Datos de holdings recibidos:', holdingsData);
+            const holdingsData = await this.app.fetchData('/api/portfolio/view'); 
+            const columnsData = await this.app.fetchData('/api/portfolio/columns');
 
-            if (!columnsData || !holdingsData) {
-                throw new Error("La respuesta de la API no es válida.");
-            }
-
-            this.state.columnPrefs.all = columnsData.all_columns.map(c => ({ 
-                id: c, 
-                title: c.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) 
-            }));
+            this.state.columnPrefs.all = columnsData.all_columns.map(c => ({ id: c, title: c.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) }));
             this.state.columnPrefs.visible = columnsData.visible_columns;
-            
             this.state.portfolio = holdingsData.portfolio || [];
 
-            console.log('[PortfolioManager] Holdings para la tabla:');
-            console.table(this.state.portfolio);
-
             this.render();
-            this.uiManager.updatePortfolioSummary(holdingsData.summary);
-            
+            this.app.uiManager.updatePortfolioSummary(holdingsData.summary);
+            this.showFeedback('Portafolio cargado.', 'success');
         } catch (error) {
-            console.error('[PortfolioManager] Error al inicializar widget:', error);
-            this.uiManager.showFeedback('danger', 'Error al inicializar el widget de portafolio.');
-        } finally {
-            this.uiManager.toggleLoading(false);
+            console.error('[PortfolioManager] Error al refrescar datos:', error);
+            this.showFeedback(`Error al cargar portafolio: ${error.message}`, 'danger');
+            this.render(); // Renderizar tabla vacía
         }
     }
-    
-    render() {
-        if (!this.app || !this.state.portfolio) {
-            console.warn('[PortfolioManager] No se puede renderizar: Faltan datos o la app no está lista.');
-            return;
-        }
 
-        const columnMap = new Map(this.state.columnPrefs.all.map(c => [c.id, c.title]));
-        
-        const dtColumns = this.state.columnPrefs.visible.map(key => ({
-            data: key,
-            title: columnMap.get(key) || key
-        }));
-        
-        const finalColumns = this.app.applyColumnRenderers(dtColumns);
-
-        console.log('[PortfolioManager] Renderizando tabla con columnas:', finalColumns);
-        
-        this.uiManager.renderTable(
-            'portfolioTable',
-            this.state.portfolio,
-            finalColumns,
-            {
-                order: [[0, 'asc']]
-            }
-        );
-    }
-
-    getDisplayData(allStocks) {
-        const stockPriceMap = new Map(allStocks.map(s => [s.NEMO, s]));
-
-        return this.state.holdings.map(h => {
-            const stockData = stockPriceMap.get(h.symbol) || {};
-            const currentPrice = stockData.PRECIO_CIERRE || 0;
-            const quantity = h.quantity;
-            const purchasePrice = h.purchase_price;
-            const totalPaid = quantity * purchasePrice;
-            const currentValue = quantity * currentPrice;
-            const gainLossTotal = currentValue - totalPaid;
-            const gainLossPercent = totalPaid > 0 ? (gainLossTotal / totalPaid) * 100 : 0;
-
-            return {
-                id: h.id, // Importante para la eliminación
-                symbol: h.symbol,
-                quantity: quantity,
-                purchase_price: purchasePrice,
-                total_paid: totalPaid,
-                current_price: currentPrice,
-                daily_variation_percent: stockData.VARIACION || 0,
-                current_value: currentValue,
-                gain_loss_total: gainLossTotal,
-                gain_loss_percent: gainLossPercent,
-                actions: `<button class="btn btn-sm btn-danger delete-holding-btn" data-id="${h.id}"><i class="fas fa-trash"></i></button>`
-            };
-        });
-    }
-
-    renderSummary(displayData) {
-        let totalPaid = 0;
-        let totalCurrentValue = 0;
-
-        displayData.forEach(d => {
-            totalPaid += d.total_paid;
-            totalCurrentValue += d.current_value;
-        });
-
-        const totalGainLoss = totalCurrentValue - totalPaid;
-
-        const formatCurrency = (val) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(val);
-
-        document.getElementById('totalPaid').textContent = formatCurrency(totalPaid);
-        document.getElementById('totalCurrentValue').textContent = formatCurrency(totalCurrentValue);
-        
-        const totalGainLossEl = document.getElementById('totalGainLoss');
-        totalGainLossEl.innerHTML = formatCurrency(totalGainLoss);
-        totalGainLossEl.className = totalGainLoss >= 0 ? 'h5 mb-0 text-success' : 'h5 mb-0 text-danger';
-    }
-    
-    renderColumnModal() {
-        const form = document.getElementById('portfolioColumnConfigForm');
-        if (!form) return;
-        form.innerHTML = this.state.columnPrefs.all.map(col => `
-            <div class="col-6">
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" value="${col.id}" id="pcol_${col.id}" ${this.state.columnPrefs.visible.includes(col.id) ? 'checked' : ''}>
-                    <label class="form-check-label" for="pcol_${col.id}">${col.title}</label>
-                </div>
-            </div>
-        `).join('');
-    }
-
-    updateTotals(totalPaid, totalCurrentValue) {
-        const totalGainLoss = totalCurrentValue - totalPaid;
-        const totalGainLossPercent = totalPaid > 0 ? (totalGainLoss / totalPaid) * 100 : 0;
-
-        const formatCurrency = (val) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(val);
-        const formatPercent = (val) => `<span class="${val >= 0 ? 'text-success' : 'text-danger'} fw-bold">${val.toFixed(2)}%</span>`;
-        
-        document.getElementById('totalPaid').textContent = formatCurrency(totalPaid);
-        document.getElementById('totalCurrentValue').textContent = formatCurrency(totalCurrentValue);
-        // Aplicar color al resumen superior
-        const totalGainLossEl = document.getElementById('totalGainLoss');
-        totalGainLossEl.innerHTML = formatCurrency(totalGainLoss);
-        totalGainLossEl.className = totalGainLoss >= 0 ? 'h5 mb-0 text-success' : 'h5 mb-0 text-danger';
-
-        // Actualizar pie de tabla
-        const footerPaid = document.getElementById('footerTotalPaid');
-        if (footerPaid) footerPaid.textContent = formatCurrency(totalPaid);
-        const footerCurrentValue = document.getElementById('footerTotalCurrentValue');
-        if (footerCurrentValue) footerCurrentValue.textContent = formatCurrency(totalCurrentValue);
-        const footerGainLoss = document.getElementById('footerTotalGainLoss');
-        if (footerGainLoss) footerGainLoss.textContent = formatCurrency(totalGainLoss);
-        const footerGainLossPercent = document.getElementById('footerTotalGainLossPercent');
-        if (footerGainLossPercent) footerGainLossPercent.innerHTML = formatPercent(totalGainLossPercent);
-    }
-    
-    async saveColumnPreferences() {
-        const form = document.getElementById('portfolioColumnConfigForm');
-        if (!form) return;
-        this.state.columnPrefs.visible = Array.from(form.querySelectorAll('input:checked')).map(i => i.value);
-        await fetch('/api/portfolio/columns', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ columns: this.state.columnPrefs.visible })
-        });
-        bootstrap.Modal.getInstance(document.getElementById('portfolioColumnConfigModal')).hide();
-        this.render(this.state.priceMap); // Re-renderizar con las nuevas columnas
-    }
-
-    async handleAdd(event) {
-        event.preventDefault();
-        const form = event.target;
-        const symbol = form.querySelector('#portfolioSymbol').value.toUpperCase();
-        const quantity = form.querySelector('#portfolioQuantity').value;
-        const price = form.querySelector('#portfolioPrice').value;
-
+    async addAsset(symbol, quantity, price) {
+        this.showFeedback('Añadiendo activo...', 'info', true);
         try {
-            const response = await fetch('/api/portfolio', {
+            const newAsset = await this.app.fetchData('/api/portfolio/add', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ symbol, quantity, purchase_price: price })
             });
-            if (!response.ok) throw new Error('Error al añadir al portafolio');
-            form.reset();
-            await this.loadHoldings();
-            this.render(this.app.state.stockPriceMap); // Re-renderizar
+            this.showFeedback(`Activo ${newAsset.symbol} añadido con éxito.`, 'success');
+            await this.fetchAndRender(); // Refrescar todo el portafolio
         } catch (error) {
-            console.error('Error en handleAdd de portafolio:', error);
+            console.error('[PortfolioManager] Error al añadir activo:', error);
+            this.showFeedback(`Error al añadir activo: ${error.message}`, 'danger');
         }
     }
 
-    async handleDelete(id) {
-        if (!confirm('¿Estás seguro de que quieres eliminar este activo del portafolio?')) return;
+    async deleteAsset(assetId) {
+        this.showFeedback('Eliminando activo...', 'info', true);
         try {
-            const response = await fetch(`/api/portfolio/${id}`, { method: 'DELETE' });
-            if (!response.ok) throw new Error('Error al eliminar del portafolio');
-            await this.loadHoldings();
-            this.render(this.app.state.stockPriceMap); // Re-renderizar
+            await this.app.fetchData(`/api/portfolio/delete/${assetId}`, { method: 'DELETE' });
+            this.showFeedback('Activo eliminado con éxito.', 'success');
+            await this.fetchAndRender();
         } catch (error) {
-            console.error('Error en handleDelete de portafolio:', error);
+            console.error('[PortfolioManager] Error al eliminar activo:', error);
+            this.showFeedback(`Error al eliminar activo: ${error.message}`, 'danger');
+        }
+    }
+
+    async saveColumnPreferences(visibleColumns) {
+        this.showFeedback('Guardando preferencias...', 'info', true);
+        try {
+            await this.app.fetchData('/api/portfolio/columns', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ visible_columns: visibleColumns })
+            });
+            this.showFeedback('Preferencias de columnas guardadas.', 'success');
+            await this.fetchAndRender();
+        } catch (error) {
+            console.error('[PortfolioManager] Error al guardar preferencias:', error);
+            this.showFeedback(`Error al guardar preferencias: ${error.message}`, 'danger');
+        }
+    }
+    
+    render() {
+        if (!this.container) return; // No renderizar si no hay contenedor
+        
+        // Buscar la tabla DENTRO del contenedor del widget
+        const tableElement = this.container.querySelector('#portfolioTable'); 
+        if (!tableElement) {
+             console.error('[PortfolioManager] No se encontró #portfolioTable dentro del widget.');
+             return;
+        }
+
+        const columnMap = new Map(this.state.columnPrefs.all.map(c => [c.id, c.title]));
+        const dtColumns = this.state.columnPrefs.visible.map(key => ({
+            data: key,
+            title: columnMap.get(key) || key
+        }));
+        const finalColumns = this.app.applyColumnRenderers(dtColumns);
+        
+        // Pasamos el ID real de la tabla al uiManager
+        this.uiManager.renderTable(tableElement.id, this.state.portfolio, finalColumns, { order: [[0, 'asc']] });
+    }
+
+    showFeedback(message, type = 'info', isLoading = false) {
+        // Asumimos que hay un elemento para mostrar feedback en la plantilla del widget
+        if (!this.dom.alertContainer) return;
+        const alert = this.dom.alertContainer;
+        alert.className = `widget-feedback-alert alert alert-${type} d-flex align-items-center`;
+        
+        let content = '';
+        if (isLoading) {
+            content += '<div class="spinner-border spinner-border-sm me-2" role="status"></div>';
+        }
+        content += `<span>${message}</span>`;
+        
+        alert.innerHTML = content;
+        alert.classList.remove('d-none');
+
+        if (!isLoading) {
+            setTimeout(() => alert.classList.add('d-none'), 5000);
         }
     }
 }

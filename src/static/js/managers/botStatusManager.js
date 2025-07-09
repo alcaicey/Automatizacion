@@ -1,115 +1,161 @@
 // src/static/js/managers/botStatusManager.js
-// Este archivo controlará la lógica del widget de estado del bot. 
-
-import { format, parseISO } from 'https://cdn.skypack.dev/date-fns';
 
 export default class BotStatusManager {
     constructor(app) {
         this.app = app;
-        this.socket = app.socket; // Usar el socket de la app
-        this.autoUpdater = app.autoUpdater;
+        this.socket = app.socket;
+        this.dom = {};
+        this.updateInterval = null;
+        this.nextUpdateTimer = null;
+    }
 
-        // --- INICIO DE LA CORRECCIÓN ---
-        // Estado interno para el manager
-        this.state = {
-            isUpdating: false,
-            lastUpdate: null,
-            message: 'No inicializado.',
-            errorMessage: null // Añadido para un estado inicial completo
+    initializeWidget(container) {
+        if (!container) {
+            console.error('[BotStatusManager] Contenedor no proporcionado. Abortando inicialización.');
+            return;
+        }
+
+        this.dom = {
+            alert: container.querySelector('#bot-status-alert'),
+            autoUpdateSelect: container.querySelector('#auto-update-select'),
+            updateNowBtn: container.querySelector('#update-now-btn'),
+            lastUpdateEl: container.querySelector('#last-update-time'),
+            nextUpdateEl: container.querySelector('#next-update-time'),
+            outsideHoursSwitch: container.querySelector('#update-outside-hours-switch')
         };
-        // --- FIN DE LA CORRECCIÓN ---
 
-        // Referencias al DOM se asignan en initializeWidget
-        this.alertElement = null;
-        this.lastUpdateElement = null;
-        this.updateNowBtn = null;
-    }
-
-    // --- INICIO DE LA CORRECCIÓN ---
-    // Métodos para gestionar el estado
-    getState() {
-        return this.state;
-    }
-
-    setUpdating(isUpdating, message = '') {
-        this.state.isUpdating = isUpdating;
-        if (message) {
-            this.state.message = message;
-        }
-        // Reflejar el estado en la UI
-        this.updateNowBtn.disabled = isUpdating;
-        if (isUpdating) {
-            this.updateStatus(message || 'Actualización en curso...', 'info', true);
-        }
-    }
-    // --- FIN DE LA CORRECCIÓN ---
-
-    initializeWidget(widgetElement) {
-        if (!widgetElement) {
-            console.warn('[BotStatusManager] Contenedor del widget no definido. Cancelando inicialización.');
+        if (!this.dom.alert || !this.dom.autoUpdateSelect || !this.dom.updateNowBtn || !this.dom.outsideHoursSwitch) {
+            console.error('[BotStatusManager] No se encontraron todos los elementos DOM necesarios. Abortando inicialización.');
             return;
         }
 
-        this.alertElement = widgetElement.querySelector('#bot-status-alert');
-        this.lastUpdateElement = widgetElement.querySelector('#last-update-time');
-        this.updateNowBtn = widgetElement.querySelector('#update-now-btn');
+        this.attachEventListeners();
+        this.loadInitialState();
+    }
+
+    attachEventListeners() {
+        this.dom.autoUpdateSelect.addEventListener('change', (e) => this.handleIntervalChange(e));
+        this.dom.updateNowBtn.addEventListener('click', () => this.handleUpdateNow());
+        this.dom.outsideHoursSwitch.addEventListener('change', (e) => this.handleOutsideHoursChange(e));
+
+        this.socket.on('bot_status_update', (data) => this.updateStatus(data));
+        this.socket.on('auto_update_interval_set', (data) => {
+            this.app.uiManager.showToast(`Intervalo de auto-actualización fijado en ${data.interval} minutos.`);
+            this.dom.autoUpdateSelect.value = data.interval;
+        });
         
-        if (!this.alertElement || !this.updateNowBtn) {
-            console.error("Elementos de la interfaz de estado del bot no encontrados dentro del widget.");
-            return;
+        // Respuesta del servidor tras cambiar la config de "fuera de horario"
+        this.socket.on('setting_updated', (data) => {
+            if (data.key === 'ALLOW_UPDATE_OUTSIDE_HOURS') {
+                this.app.uiManager.showToast('Configuración de actualización fuera de horario guardada.');
+                this.dom.outsideHoursSwitch.checked = data.value === 'true';
+            }
+        });
+    }
+
+    loadInitialState() {
+        this.getStatus();
+        this.getAutoUpdateInterval();
+        this.getOutsideHoursSetting();
+    }
+
+    getStatus() {
+        console.log('[BotStatusManager] Obteniendo estado del bot...');
+        this.socket.emit('get_bot_status');
+    }
+
+    getAutoUpdateInterval() {
+        console.log('[BotStatusManager] Obteniendo intervalo de auto-actualización...');
+        this.socket.emit('get_auto_update_interval');
+    }
+    
+    async getOutsideHoursSetting() {
+        try {
+            console.log('[BotStatusManager] Obteniendo configuración de actualización fuera de horario...');
+            const setting = await this.app.fetchData('/api/bot_settings/ALLOW_UPDATE_OUTSIDE_HOURS');
+            if (setting) {
+                this.dom.outsideHoursSwitch.checked = setting.value === 'true';
+            }
+        } catch (error) {
+            if (error.message.includes('404')) {
+                console.log('[BotStatusManager] No se encontró configuración inicial para "fuera de horario". Se usará el valor por defecto (desactivado).');
+                this.dom.outsideHoursSwitch.checked = false;
+            } else {
+                console.error('Error al obtener la configuración de actualización fuera de horario:', error);
+            }
+        }
+    }
+
+    handleIntervalChange(event) {
+        const interval = parseInt(event.target.value, 10);
+        console.log(`[BotStatusManager] Solicitando cambio de intervalo a ${interval} minutos.`);
+        this.socket.emit('set_auto_update_interval', { interval });
+    }
+
+    handleUpdateNow() {
+        console.log('[BotStatusManager] Solicitando actualización manual...');
+        this.updateStatus({ status: 'running', message: 'Actualización manual solicitada...' });
+        this.socket.emit('run_bot_manually');
+    }
+
+    async handleOutsideHoursChange(event) {
+        const isChecked = event.target.checked;
+        console.log(`[BotStatusManager] Cambiando configuración de actualización fuera de horario a: ${isChecked}`);
+        try {
+            await this.app.fetchData('/api/bot_settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    key: 'ALLOW_UPDATE_OUTSIDE_HOURS',
+                    value: isChecked.toString() 
+                })
+            });
+            this.app.uiManager.showToast('Configuración guardada. Se reflejará por socket.');
+        } catch (error) {
+            console.error('Error al guardar la configuración de actualización fuera de horario:', error);
+            this.app.uiManager.showToast('No se pudo guardar la configuración.', 'danger');
+            event.target.checked = !isChecked; // Revertir cambio en UI
+        }
+    }
+
+    updateStatus(data) {
+        const { status, message, last_update, next_update } = data;
+        let alertClass = 'alert-secondary';
+        let statusIcon = '<div class="spinner-border spinner-border-sm me-2" role="status"><span class="visually-hidden">Cargando...</span></div>';
+        let statusMessage = message || 'Obteniendo estado...';
+
+        switch (status) {
+            case 'idle':
+                alertClass = 'alert-primary';
+                statusIcon = '<i class="fas fa-check-circle me-2"></i>';
+                break;
+            case 'running':
+                alertClass = 'alert-info';
+                statusIcon = '<div class="spinner-border spinner-border-sm me-2" role="status"></div>';
+                break;
+            case 'success':
+                alertClass = 'alert-success';
+                statusIcon = '<i class="fas fa-check-double me-2"></i>';
+                break;
+            case 'error':
+                alertClass = 'alert-danger';
+                statusIcon = '<i class="fas fa-exclamation-triangle me-2"></i>';
+                break;
         }
 
-        this.setupSocketListeners();
-        // El event listener se asigna aquí directamente para garantizar que el botón existe.
-        this.updateNowBtn.addEventListener('click', () => this.handleManualRefresh());
-        this.requestInitialStatus();
+        this.dom.alert.className = `alert ${alertClass} mb-0`;
+        this.dom.alert.innerHTML = `<div class="d-flex align-items-center">${statusIcon}<span>${statusMessage}</span></div>`;
+
+        this.dom.lastUpdateEl.textContent = last_update ? this.formatTime(last_update) : '--';
+        this.dom.nextUpdateEl.textContent = next_update ? this.formatTime(next_update) : '--';
     }
 
-    setupSocketListeners() {
-        this.socket.on('connect', () => this.updateStatus('Conectado al servidor.', 'success'));
-        this.socket.on('disconnect', () => this.updateStatus('Desconectado del servidor.', 'danger'));
-        this.socket.on('bot_status', (data) => this.handleBotStatus(data));
-        this.socket.on('bot_error', (data) => this.updateStatus(data.message, 'danger'));
-    }
-
-    requestInitialStatus() {
-        this.updateStatus('Obteniendo estado...', 'secondary', true);
-        this.socket.emit('request_bot_status');
-    }
-
-    handleBotStatus(data) {
-        const { is_running, last_update, message, error } = data;
-        // --- INICIO DE LA CORRECCIÓN ---
-        this.state.isUpdating = is_running;
-        this.state.lastUpdate = last_update;
-        this.state.message = message;
-        this.state.errorMessage = error || null;
-        // --- FIN DE LA CORRECCIÓN ---
-
-        const color = is_running ? 'info' : (error ? 'danger' : 'success');
-        this.updateStatus(message, color, is_running);
-        
-        if(this.updateNowBtn) {
-            this.updateNowBtn.disabled = is_running;
+    formatTime(isoString) {
+        if (!isoString) return '--';
+        try {
+            return new Date(isoString).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+        } catch (e) {
+            return '--';
         }
-        if(this.lastUpdateElement) {
-            this.lastUpdateElement.textContent = last_update ? new Date(last_update).toLocaleString() : 'Nunca';
-        }
-    }
-
-    updateStatus(message, type = 'secondary', loading = false) {
-        if (!this.alertElement) return;
-        const spinner = this.alertElement.querySelector('.spinner-border');
-        const span = this.alertElement.querySelector('span');
-
-        this.alertElement.className = `alert alert-${type}`;
-        if(span) span.textContent = message;
-        if(spinner) spinner.style.display = loading ? 'inline-block' : 'none';
-    }
-
-    handleManualRefresh() {
-        console.log('[BotStatusManager] Botón "Actualizar Ahora" presionado. Emitiendo evento "manual_update".');
-        this.socket.emit('manual_update');
-        this.setUpdating(true, 'Iniciando actualización manual...');
     }
 } 

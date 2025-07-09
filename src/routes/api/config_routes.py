@@ -3,6 +3,7 @@ import json
 import logging
 import os
 from flask import jsonify, request, current_app
+from sqlalchemy import select, delete
 
 from src.routes.api import api_bp 
 from src.extensions import db
@@ -10,7 +11,7 @@ from src.utils.db_io import get_latest_data
 from src.models import (
     ColumnPreference, StockFilter, Credential, Dividend, DividendColumnPreference,
     StockClosing, ClosingColumnPreference, KpiColumnPreference, PortfolioColumnPreference,
-    PromptConfig
+    PromptConfig, KpiSelection, BotSetting
 )
 
 logger = logging.getLogger(__name__)
@@ -215,3 +216,41 @@ def update_credentials():
     db.session.commit()
 
     return jsonify({"success": True, "message": "Credenciales guardadas con éxito."})
+
+# --- Bot Settings ---
+@api_bp.route('/bot_settings/<key>', methods=['GET'])
+def get_bot_setting(key):
+    """Obtiene una configuración específica del bot por su clave."""
+    setting = BotSetting.query.filter_by(key=key).first()
+    if setting:
+        return jsonify({'key': setting.key, 'value': setting.value})
+    # Devolver un 404 con un error claro si no se encuentra
+    return jsonify({'error': 'Setting not found'}), 404
+
+@api_bp.route('/bot_settings', methods=['POST'])
+def update_bot_setting():
+    """Crea o actualiza una configuración del bot."""
+    data = request.get_json()
+    if not data or 'key' not in data or 'value' not in data:
+        return jsonify({'error': 'Invalid data. "key" and "value" are required.'}), 400
+
+    key = data['key']
+    # Nos aseguramos de que el valor siempre sea una cadena
+    value = str(data['value'])
+
+    setting = BotSetting.query.filter_by(key=key).first()
+    if setting:
+        # Si existe, actualizamos su valor
+        setting.value = value
+    else:
+        # Si no existe, creamos una nueva entrada
+        setting = BotSetting(key=key, value=value)
+        db.session.add(setting)
+    
+    try:
+        db.session.commit()
+        return jsonify({'key': setting.key, 'value': setting.value}), 200
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error al guardar la configuración del bot: {e}")
+        return jsonify({'error': 'Error al guardar en la base de datos'}), 500

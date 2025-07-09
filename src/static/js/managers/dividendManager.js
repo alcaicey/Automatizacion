@@ -79,15 +79,14 @@ export default class DividendManager {
 
     async loadPreferences() {
         try {
-            const res = await fetch('/api/dividends/columns');
-            if (!res.ok) throw new Error('No se pudieron cargar las preferencias de columnas.');
-            const data = await res.json();
+            const data = await this.app.fetchData('/api/dividends/columns');
             this.columnPrefs.all = data.all_columns;
             this.columnPrefs.visible = data.visible_columns;
             this.renderColumnModal();
             this.populateColumnFilterDropdown();
         } catch (error) {
-            console.error(error);
+            console.error('[DividendManager] Error al cargar preferencias de columnas:', error);
+            this.showFeedback(`Error al cargar configuración: ${error.message}`, 'danger');
         }
     }
 
@@ -116,26 +115,16 @@ export default class DividendManager {
             }
         }
 
-        if (this.dom.loadingOverlay) this.dom.loadingOverlay.style.display = 'flex';
-        if (this.dom.errorContainer) this.dom.errorContainer.style.display = 'none';
+        this.showFeedback('Cargando dividendos...', 'info', true);
 
         try {
-            const response = await fetch(`/api/dividends?${params.toString()}`);
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ error: 'Respuesta no válida del servidor' }));
-                throw new Error(errorData.error || 'No se pudieron cargar los dividendos.');
-            }
-            const dividends = await response.json();
+            const dividends = await this.app.fetchData(`/api/dividends?${params.toString()}`);
             this.renderTable(dividends);
+            this.showFeedback(`Mostrando ${dividends.length} dividendos.`, 'success');
         } catch (error) {
             console.error('Error al cargar dividendos:', error);
-            if (this.dom.errorContainer) {
-                this.dom.errorContainer.textContent = `Error: ${error.message}`;
-                this.dom.errorContainer.style.display = 'block';
-            }
-            this.renderTable([]);
-        } finally {
-            if (this.dom.loadingOverlay) this.dom.loadingOverlay.style.display = 'none';
+            this.renderTable([]); // Renderizar tabla vacía en caso de error
+            this.showFeedback(`Error al cargar dividendos: ${error.message}`, 'danger');
         }
     }
     
@@ -150,6 +139,22 @@ export default class DividendManager {
             this.dom.columnFilter.innerHTML += `<option value="${colKey}">${title}</option>`;
         });
         this.dom.columnFilter.value = currentVal;
+    }
+
+    showFeedback(message, type = 'info', isLoading = false) {
+        if (!this.dom.alertContainer) return;
+        
+        const alert = this.dom.alertContainer;
+        alert.className = `alert alert-${type} d-flex align-items-center`;
+        
+        let content = '';
+        if (isLoading) {
+            content += '<div class="spinner-border spinner-border-sm me-2" role="status"></div>';
+        }
+        content += `<span>${message}</span>`;
+        
+        alert.innerHTML = content;
+        alert.classList.remove('d-none');
     }
 
     setDefaultFilters() {

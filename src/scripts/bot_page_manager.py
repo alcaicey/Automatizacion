@@ -1,127 +1,99 @@
 # src/scripts/bot_page_manager.py
 
-from __future__ import annotations
 import asyncio
 import logging
 import os
 from typing import Optional
 
 from playwright.async_api import async_playwright, Browser, Page, Playwright, BrowserContext
-from playwright_stealth import Stealth
+# from playwright_stealth import stealth_async # MANTENIDO COMENTADO
 
 from src.config import STORAGE_STATE_PATH
-# --- INICIO DE LA MODIFICACIÓN: Importar nueva función de config ---
-from .bot_config import get_playwright_context_options, get_extra_headers, get_browser_launch_options
-# --- FIN DE LA MODIFICACIÓN ---
+from .bot_config import get_playwright_context_options, get_browser_launch_options
 
 _LOG = logging.getLogger(__name__)
 
-_PLAYWRIGHT: Optional[Playwright] = None
-_BROWSER: Optional[Browser] = None
-_PAGE: Optional[Page] = None
-_CONTEXT: Optional[BrowserContext] = None
-_page_creation_lock = asyncio.Lock()
+class PageManager:
+    _instance: Optional['PageManager'] = None
+    _lock = asyncio.Lock()
 
-async def _get_playwright_instance() -> Playwright:
-    global _PLAYWRIGHT
-    if _PLAYWRIGHT is None:
-        _LOG.info("[PageManager] Inicializando instancia principal de Playwright...")
-        _PLAYWRIGHT = await async_playwright().start()
-    return _PLAYWRIGHT
+    def __init__(self):
+        if hasattr(self, '_initialized') and self._initialized: return
+        self.playwright: Optional[Playwright] = None
+        self.browser: Optional[Browser] = None
+        self.context: Optional[BrowserContext] = None
+        self.page: Optional[Page] = None
+        self._initialized = True
+        _LOG.info("[PageManager] Instancia Singleton de PageManager creada.")
 
-async def recreate_page() -> Page:
-    global _PAGE, _CONTEXT
-    
-    async with _page_creation_lock:
-        _LOG.warning("[PageManager] Solicitud para recrear la página. Cerrando instancias actuales si existen...")
-        
-        if _PAGE and not _PAGE.is_closed():
-            try: await _PAGE.close()
-            except Exception as e: _LOG.error(f"[PageManager] Error al cerrar página existente: {e}")
-        
-        if _CONTEXT:
-             try:
-                await _CONTEXT.close()
-             except Exception as e:
-                _LOG.error(f"[PageManager] Error al cerrar contexto existente: {e}")
+    @classmethod
+    async def get_instance(cls) -> 'PageManager':
+        if cls._instance is None:
+            async with cls._lock:
+                if cls._instance is None:
+                    cls._instance = cls()
+        return cls._instance
 
-        _PAGE = None
-        _CONTEXT = None
-        _LOG.info("[PageManager] Instancias de página y contexto limpiadas.")
-    
-    return await get_page()
+    async def get_page(self) -> Page:
+        """
+        Obtiene una página de Playwright válida, validando activamente la conexión
+        y recreando componentes si es necesario. Lógica corregida.
+        """
+        # Si la página ya existe y no está explícitamente cerrada, debemos validarla.
+        if self.page and not self.page.is_closed():
+            try:
+                # La prueba de fuego: si esto funciona, la página está viva.
+                await self.page.title()
+                _LOG.info("[PageManager] ✓ Página existente validada activamente. Reutilizando.")
+                return self.page
+            except Exception as e:
+                # Capturamos CUALQUIER error (incluido AttributeError) como señal de que la página es un zombie.
+                _LOG.warning(f"[PageManager] La página parecía viva pero no respondió (Error: {type(e).__name__}). Se recreará.")
+                # No hacemos nada más aquí, dejaremos que el código de abajo la recree.
 
-async def get_page() -> Page:
-    global _BROWSER, _PAGE, _CONTEXT
-    
-    async with _page_creation_lock:
-        if _PAGE and not _PAGE.is_closed():
-            _LOG.info("[PageManager] ✓ Reutilizando conexión de página existente.")
-            return _PAGE
-            
-        pw = await _get_playwright_instance()
+        # Si llegamos aquí, es porque:
+        # 1. No había página (self.page es None).
+        # 2. La página estaba cerrada (self.page.is_closed() es True).
+        # 3. La validación activa falló.
+        # En todos estos casos, necesitamos una nueva página.
+        await self._ensure_browser_and_context()
+        await self._create_page()
         
-        if not (_BROWSER and _BROWSER.is_connected()):
-            _LOG.info("[PageManager] 🚀 Lanzando nueva instancia de navegador Chromium con opciones de evasión...")
-            # --- INICIO DE LA MODIFICACIÓN: Usar nuevas opciones de lanzamiento ---
-            launch_options = get_browser_launch_options()
-            launch_options['headless'] = False  # MODIFICACIÓN CLAVE: Poner en False para ver la UI del bot
-            _BROWSER = await pw.chromium.launch(**launch_options)
-            # --- FIN DE LA MODIFICACIÓN ---
+        assert self.page, "La página no pudo ser creada."
+        return self.page
 
-        storage_state = STORAGE_STATE_PATH if os.path.exists(STORAGE_STATE_PATH) else None
-        if storage_state: _LOG.info(f"[PageManager] Estado de sesión encontrado. Se cargará.")
-        
-        context_options = get_playwright_context_options(storage_state_path=storage_state)
-        _LOG.info("[PageManager] Creando nuevo contexto de navegador...")
-        _CONTEXT = await _BROWSER.new_context(**context_options)
-        
+    async def _ensure_browser_and_context(self):
+        """Asegura que el navegador y el contexto estén listos antes de crear una página."""
+        if not self.browser or not self.browser.is_connected():
+            await self.close() # Cierra todo para empezar de cero.
+            self.playwright = await async_playwright().start()
+            self.browser = await self.playwright.chromium.launch(**get_browser_launch_options())
+            storage_state = STORAGE_STATE_PATH if os.path.exists(STORAGE_STATE_PATH) else None
+            self.context = await self.browser.new_context(**get_playwright_context_options(storage_state_path=storage_state))
+
+    async def _create_page(self):
+        """Crea una nueva página y le aplica stealth."""
+        assert self.context, "Contexto no inicializado."
+        self.page = await self.context.new_page()
         _LOG.info("[PageManager] Aplicando capa de evasión (stealth)...")
-        stealth_instance = Stealth()
-        await stealth_instance.apply_stealth_async(_CONTEXT)
+        # await stealth_async(self.page) # MANTENIDO COMENTADO
+        _LOG.info("[PageManager] ✓ Nueva página creada y configurada.")
 
-        _CONTEXT.on("close", _save_session_state_sync_wrapper)
+    async def close(self):
+        _LOG.info("[PageManager] Iniciando cierre de recursos de Playwright...")
+        closables = [self.page, self.context, self.browser, self.playwright]
+        if self.context and self.context.pages:
+            try: await self.context.storage_state(path=STORAGE_STATE_PATH)
+            except Exception: pass
+        for resource in closables:
+            if resource:
+                try:
+                    close_method = getattr(resource, 'stop', getattr(resource, 'close'))
+                    if not getattr(resource, 'is_closed', lambda: False)():
+                         await close_method()
+                except Exception: continue
+        self.playwright, self.browser, self.context, self.page = None, None, None, None
+        _LOG.info("[PageManager] ✓ Recursos de Playwright cerrados.")
 
-        _LOG.info("[PageManager] Creando una nueva página desde el contexto modificado...")
-        _PAGE = await _CONTEXT.new_page()
-        
-        await _PAGE.set_extra_http_headers(get_extra_headers())
-        
-        _LOG.info("[PageManager] ✓ Página creada y configurada con éxito. Lista para navegar.")
-        
-        return _PAGE
-
-def _save_session_state_sync_wrapper():
-    try:
-        loop = asyncio.get_running_loop()
-        if loop.is_running():
-            loop.create_task(_save_session_state())
-        else:
-            asyncio.run(_save_session_state())
-    except RuntimeError:
-        asyncio.run(_save_session_state())
-
-async def _save_session_state():
-    try:
-        if _CONTEXT and _CONTEXT.pages:
-            await _CONTEXT.storage_state(path=STORAGE_STATE_PATH)
-            _LOG.info(f"[PageManager] ✓ Estado de la sesión guardado exitosamente en {STORAGE_STATE_PATH}")
-    except Exception as e:
-        _LOG.error(f"[PageManager] No se pudo guardar el estado de la sesión (probablemente ya estaba cerrado): {e}")
-
-async def close_browser() -> None:
-    global _BROWSER, _PLAYWRIGHT, _PAGE, _CONTEXT
-    _LOG.info("[PageManager] Iniciando cierre de recursos de Playwright...")
-    
-    await _save_session_state()
-
-    try:
-        if _PAGE and not _PAGE.is_closed(): await _PAGE.close()
-        if _CONTEXT: await _CONTEXT.close()
-        if _BROWSER and _BROWSER.is_connected(): await _BROWSER.close()
-        if _PLAYWRIGHT: await _PLAYWRIGHT.stop()
-    except Exception as e:
-        _LOG.error(f"Error durante el cierre limpio de Playwright: {e}")
-        
-    _BROWSER, _PLAYWRIGHT, _PAGE, _CONTEXT = None, None, None, None
-    _LOG.info("[PageManager] ✓ Recursos de Playwright cerrados.")
+async def get_page_manager_instance() -> PageManager:
+    return await PageManager.get_instance()

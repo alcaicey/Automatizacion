@@ -14,8 +14,10 @@ from src.models import StockFilter, AdvancedKPI, KpiSelection, StockClosing
 
 from src.scripts.bolsa_service import run_bolsa_bot, is_bot_running as is_async_bot_running
 from src.scripts import dividend_service, closing_service, ai_financial_service
-from src.scripts.bot_page_manager import get_page
+from src.scripts.bot_page_manager import get_page_manager_instance
 from src.extensions import socketio, db
+from src.models.credentials import Credential
+from src.utils.bot_control import is_bot_running, run_bolsa_bot
 
 logger = logging.getLogger(__name__)
 _sync_bot_running_lock = threading.Lock() 
@@ -110,23 +112,37 @@ def update_stocks():
     username = os.getenv("BOLSA_USERNAME")
     password = os.getenv("BOLSA_PASSWORD")
 
+    if not username or not password:
+        return jsonify({"status": "error", "message": "Las credenciales no están configuradas."}), 400
+
+    if is_bot_running():
+        return jsonify({"status": "already_running", "message": "El bot ya se está ejecutando."}), 409
+
     def target_func(app, uname, pwd, symbols):
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         try:
             with app.app_context():
-                asyncio.run(
-                    run_bolsa_bot(app=app, username=uname, password=pwd, filtered_symbols=symbols)
-                )
+                task = run_bolsa_bot(app=app, username=uname, password=pwd, filtered_symbols=symbols)
+                # Envolver la corrutina con un timeout de 5 minutos (300 segundos)
+                loop.run_until_complete(asyncio.wait_for(task, timeout=300.0))
+        except asyncio.TimeoutError:
+            logger.error("¡TIMEOUT GLOBAL! El bot de scraping tardó más de 5 minutos y fue terminado.")
+            socketio.emit('bot_status_update', {
+                "status": "error",
+                "message": "La actualización tardó demasiado y fue cancelada."
+            })
         except Exception as e:
-            # FIX: Asegurarse de que el mensaje de la excepción se loguea explícitamente.
-            logger.error(f"Error CRÍTICO dentro del hilo de actualización de acciones: {e}", exc_info=True)
-        finally:
-            if _sync_bot_running_lock.locked():
-                _sync_bot_running_lock.release()
-            logger.info("[API] Lock de actualización de acciones liberado.")
-    
-    thread_args = (app_instance, username, password, filtered_symbols)
-    threading.Thread(target=target_func, args=thread_args, daemon=True).start()
-    return jsonify({"success": True, "message": "Proceso de actualización de acciones iniciado."}), 202
+            logger.critical(f"Error CRÍTICO no capturado dentro del hilo de actualización del bot: {e}", exc_info=True)
+            socketio.emit('bot_status_update', {
+                "status": "error",
+                "message": f"Error crítico en el bot: {e}"
+            })
+
+    thread = threading.Thread(target=target_func, args=(current_app._get_current_object(), username, password, filtered_symbols))
+    thread.start()
+
+    return jsonify({"status": "started", "message": "El bot ha iniciado el proceso de actualización."})
 
 
 @api_bp.route("/dividends/update", methods=["POST"])
@@ -138,7 +154,8 @@ def update_dividends():
             loop = app.bot_event_loop
             if not loop.is_running(): raise RuntimeError(BOT_EVENT_LOOP_NOT_RUNNING_ERROR)
             async def update_task():
-                page = await get_page()
+                page_manager = await get_page_manager_instance()
+                page = await page_manager.get_page()
                 with app.app_context():
                     return await dividend_service.compare_and_update_dividends(page)
             future = asyncio.run_coroutine_threadsafe(update_task(), loop)
@@ -161,7 +178,8 @@ def update_closing_data():
             loop = app.bot_event_loop
             if not loop.is_running(): raise RuntimeError(BOT_EVENT_LOOP_NOT_RUNNING_ERROR)
             async def update_task():
-                page = await get_page()
+                page_manager = await get_page_manager_instance()
+                page = await page_manager.get_page()
                 with app.app_context():
                     return await closing_service.update_stock_closings(page)
             future = asyncio.run_coroutine_threadsafe(update_task(), loop)
@@ -177,7 +195,7 @@ def update_closing_data():
 
 @api_bp.route("/kpis/update", methods=["POST"])
 def update_advanced_kpis():
-    app_instance = current_app._get_current_object()  # type: ignore
+    app_instance = current_app._get_current_object() # type: ignore
     def task_in_thread(app):
         with app.app_context():
             try:
@@ -185,8 +203,15 @@ def update_advanced_kpis():
                 if not loop.is_running(): 
                     raise RuntimeError(BOT_EVENT_LOOP_NOT_RUNNING_ERROR)
                 
-                page_future = asyncio.run_coroutine_threadsafe(get_page(), loop)
+                # --- INICIO DE LA CORRECCIÓN ---
+                # Primero, obtenemos la instancia del manager de forma asíncrona
+                manager_future = asyncio.run_coroutine_threadsafe(get_page_manager_instance(), loop)
+                page_manager = manager_future.result(timeout=30) # Esperamos a tener el objeto manager
+
+                # Ahora, usamos el manager para obtener la página, también de forma asíncrona
+                page_future = asyncio.run_coroutine_threadsafe(page_manager.get_page(), loop)
                 page = page_future.result(timeout=60)
+                # --- FIN DE LA CORRECCIÓN ---
                 
                 socketio.emit('kpi_update_progress', {'status': 'info', 'message': 'Actualizando datos base de Cierre Bursátil...'})
                 closing_future = asyncio.run_coroutine_threadsafe(closing_service.update_stock_closings(page), loop)
