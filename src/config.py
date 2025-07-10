@@ -31,8 +31,7 @@ PORT = int(os.environ.get('FLASK_PORT', 5000))
 TARGET_DATA_PAGE_URL = 'https://www.bolsadesantiago.com/plus_acciones_precios'
 
 API_PRIMARY_DATA_PATTERNS = [
-    'api/RV_ResumenMercado/getAccionesPrecios',
-    'api/Cuenta_Premium/getPremiumAccionesPrecios',
+    'api/Cuenta_Premium/getPremiumAccionesPrecios'
 ]
 
 # Configuración de base de datos

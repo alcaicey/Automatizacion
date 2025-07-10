@@ -8,7 +8,7 @@ from typing import Optional
 
 from playwright.async_api import Page, Locator, TimeoutError as PlaywrightTimeoutError, Error as PlaywrightError
 from .bot_config import (
-    BASE_URL, LOGIN_LANDING_PAGE_URL, ACTIVE_SESSIONS_URL_FRAGMENT,
+    LOGIN_URL, ACTIVE_SESSIONS_URL_FRAGMENT,
     CLOSE_ALL_SESSIONS_BUTTON_SELECTOR, HEADER_LOGIN_LINK_SELECTOR,
     LOGIN_PAGE_BUTTON_SELECTOR, USER_INPUT_SELECTOR, PASSWORD_INPUT_SELECTOR,
     SUBMIT_BUTTON_SELECTOR, NAVBAR_TOGGLER_SELECTOR
@@ -35,26 +35,24 @@ async def click_like_human(locator: Locator): # Parámetro 'page' eliminado
 
 async def _navigate_to_login_page(page: Page) -> None:
     """Navega desde la página principal hasta el formulario de login."""
-    logger.info("[Login] Navegando a la página principal y haciendo clic en login...")
+    logger.info(f"[Login] Navegando a la página de login: {LOGIN_URL}")
     
-    # --- INICIO DE LA CORRECCIÓN ---
-    await page.goto(BASE_URL, wait_until="domcontentloaded", timeout=60000)
-    # Aumentamos un poco el timeout general por si acaso.
-    # --- FIN DE LA CORRECCIÓN ---
+    await page.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=60000)
 
     if "validate.perfdrive.com" in page.url:
         raise LoginError("Anti-bot detectado en la navegación inicial.")
         
-    header_login_link = page.locator('#menuppal-login a').first
-    # Damos un poco más de tiempo aquí también, ya que la página puede tardar en ser interactiva
-    await header_login_link.wait_for(state="visible", timeout=30000) 
+    # Esta sección ya no es necesaria porque navegamos directamente a la página de login
+    # y no desde la página principal. Se puede descomentar si se cambia la estrategia.
+    # header_login_link = page.locator('#menuppal-login a').first
+    # await header_login_link.wait_for(state="visible", timeout=30000) 
+    # navbar_toggler = page.locator(NAVBAR_TOGGLER_SELECTOR)
+    # if await navbar_toggler.is_visible():
+    #     await click_like_human(navbar_toggler)
+    # await click_like_human(header_login_link)
     
-    navbar_toggler = page.locator(NAVBAR_TOGGLER_SELECTOR)
-    if await navbar_toggler.is_visible():
-        await click_like_human(navbar_toggler)
-    
-    await click_like_human(header_login_link)
-    await page.wait_for_url(f"**{LOGIN_LANDING_PAGE_URL}", timeout=25000)
+    # Esperamos y hacemos clic en el botón "Ingresar" del formulario de la página de login
+    await page.wait_for_url(f"**{LOGIN_URL}", timeout=25000)
     await click_like_human(page.locator(LOGIN_PAGE_BUTTON_SELECTOR).first)
 
 async def _fill_login_form(page: Page, username: str, password: str) -> None:

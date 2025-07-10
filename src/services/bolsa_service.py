@@ -18,7 +18,7 @@ from src.utils.db_io import (
 
 from .bot_page_manager import get_page_manager_instance
 from .bot_login import auto_login, LoginError
-from .bot_config import TARGET_DATA_PAGE_URL, BASE_URL, MARKET_OPEN_TIME, MARKET_CLOSE_TIME
+from .bot_config import TARGET_DATA_PAGE_URL, MARKET_OPEN_TIME, MARKET_CLOSE_TIME
 from .bot_data_capture import capture_market_time, capture_premium_data_via_network, validate_premium_data, DataCaptureError
 from src.extensions import socketio, db
 from src.utils.page_utils import _ensure_target_page
@@ -51,15 +51,17 @@ async def perform_session_health_check(page: Page, username: str, password: str)
     logger.info("[Health Check] Verificando estado de la sesión...")
     page_manager = await get_page_manager_instance()
     try:
-        await page.goto(BASE_URL, wait_until="domcontentloaded", timeout=60000)
+        # Ir directamente a la página de datos premium para el chequeo.
+        # Si no está logueado, será redirigido o fallará, lo cual es un buen chequeo.
+        await page.goto(TARGET_DATA_PAGE_URL, wait_until="domcontentloaded", timeout=60000)
     except PlaywrightError as e:
         if "Target page, context or browser has been closed" in str(e):
             logger.warning("[Health Check] La página fue cerrada antes del chequeo. Recreando...")
             page = await page_manager.get_page() # Lógica de recreación inteligente
-            await page.goto(BASE_URL, wait_until="domcontentloaded", timeout=30000)
+            await page.goto(TARGET_DATA_PAGE_URL, wait_until="domcontentloaded", timeout=30000)
         else:
-            logger.error(f"[Health Check] Timeout al intentar navegar a la página principal: {e}")
-            raise LoginError("Timeout al navegar a la página principal durante health check.")
+            logger.error(f"[Health Check] Timeout al intentar navegar a la página de datos: {e}")
+            raise LoginError("Timeout al navegar a la página de datos durante health check.")
     
     is_logged_in = await check_if_logged_in(page)
     

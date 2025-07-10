@@ -1,15 +1,14 @@
-# src/scripts/bot_config.py
+# src/services/bot_config.py
 import datetime
 import os
 from datetime import time
 import pytz
 import random
 
-# URL base para la navegación y login
-BASE_URL = "https://www.bolsadesantiago.com"
-
-# URL específica de la página de datos de acciones que se usará para el scraping
-TARGET_DATA_PAGE_URL = os.getenv("TARGET_DATA_PAGE_URL", "https://www.bolsadesantiago.com/resumen_mercado/resumen/acciones")
+# URLs y Selectores para el Bot
+LOGIN_URL = os.getenv("LOGIN_URL", "https://www.bolsadesantiago.com/login")
+# Esta URL debe ser la página de datos premium a la que se llega después del login.
+TARGET_DATA_PAGE_URL = os.getenv("TARGET_DATA_PAGE_URL", "https://www.bolsadesantiago.com/plus_acciones_precios")
 
 # Define la zona horaria de Santiago
 SANTIAGO_TZ = pytz.timezone('America/Santiago')
@@ -19,7 +18,6 @@ MARKET_OPEN_TIME = time(9, 30, tzinfo=SANTIAGO_TZ)
 MARKET_CLOSE_TIME = time(16, 0, tzinfo=SANTIAGO_TZ)
 
 # --- URLs y Fragmentos ---
-LOGIN_LANDING_PAGE_URL = f"{BASE_URL}/login"
 ACTIVE_SESSIONS_URL_FRAGMENT = "Control/sesionesactivas"
 SSO_URL_FRAGMENT = "sso.bolsadesantiago.com"
 
